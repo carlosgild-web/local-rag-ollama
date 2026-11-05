@@ -40,6 +40,11 @@ class Settings(BaseSettings):
     tesseract_cmd: str | None = None
     tessdata_prefix: str | None = None
 
+    # Jobs (one in-process worker)
+    job_poll_interval_seconds: float = 1.0
+    job_max_retries: int = 2  # automatic retries before a job stays failed
+    max_upload_mb: int = 100
+
     # File watching
     watch_polling: bool = False
 
@@ -59,6 +64,10 @@ class Settings(BaseSettings):
         return self.data_dir / "app.db"
 
     @property
+    def uploads_dir(self) -> Path:
+        return self.data_dir / "uploads"
+
+    @property
     def backups_dir(self) -> Path:
         return self.data_dir / "backups"
 
@@ -68,7 +77,14 @@ class Settings(BaseSettings):
 
     def ensure_data_dirs(self) -> None:
         """Create DATA_DIR and its subdirectories if they don't exist."""
-        dirs = (self.data_dir, self.files_dir, self.chroma_dir, self.backups_dir, self.hf_home)
+        dirs = (
+            self.data_dir,
+            self.files_dir,
+            self.uploads_dir,
+            self.chroma_dir,
+            self.backups_dir,
+            self.hf_home,
+        )
         for path in dirs:
             path.mkdir(parents=True, exist_ok=True)
 

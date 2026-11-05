@@ -155,12 +155,12 @@ Total is about 30 working days; the MVP (through phase 4) is about 15.
 
 ### Phase 3 — Backend API (3–4 d) — plan first, then code
 
-- [ ] SQLAlchemy models and Alembic migrations for all tables
-- [ ] Versioning service (single service layer) and audit log
-- [ ] SQLite-backed job worker (1 worker) with retry and cancel
-- [ ] All routes from section 8 (except metrics and backup)
-- [ ] SSE chat endpoint; `/health` with Ollama, SQLite and vector store status
-- [ ] Structured JSON logging with request ids
+- [x] SQLAlchemy models and Alembic migrations for all tables
+- [x] Versioning service (single service layer) and audit log
+- [x] SQLite-backed job worker (1 worker) with retry and cancel
+- [x] All routes from section 8 (except metrics and backup)
+- [x] SSE chat endpoint; `/health` with Ollama, SQLite and vector store status
+- [x] Structured JSON logging with request ids
 
 **Done when:** Swagger lists all routes and versioning tests pass (duplicate skip, new version, rollback, soft delete, blue/green swap).
 

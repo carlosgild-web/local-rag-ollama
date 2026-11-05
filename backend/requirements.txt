@@ -1,0 +1,8 @@
+# Runtime dependencies, added incrementally one phase at a time (see PLAN.md).
+#
+# Phase 0 (setup):
+pydantic-settings>=2.6
+
+# Phase 1 (ingestion core) will add: httpx, chromadb, PyMuPDF, python-docx, watchdog
+# Phase 3 (backend API) will add: fastapi, uvicorn, sqlalchemy, alembic
+# Later phases add optional extras (docling, pytesseract) only when needed.

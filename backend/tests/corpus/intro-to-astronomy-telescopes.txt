@@ -1,0 +1,20 @@
+Choosing a first telescope can be confusing because specifications like
+aperture and focal length matter more than magnification claims printed
+on the box.
+
+Aperture, the diameter of the main lens or mirror, determines how much
+light a telescope can gather. A larger aperture reveals fainter objects
+and shows more detail, which usually matters more than high
+magnification for seeing planets and deep-sky objects clearly.
+
+Refracting telescopes use lenses and tend to produce sharp, high-contrast
+images, but large apertures become expensive and the tube gets long.
+Reflecting telescopes use mirrors instead, which makes large apertures
+more affordable, though they need occasional alignment.
+
+A sturdy mount matters as much as the optics. Even a good telescope is
+frustrating to use on a shaky or flimsy mount, since any vibration is
+magnified along with the image.
+
+Beginners are often advised to start with a modest, reliable telescope
+and learn the night sky with binoculars or the naked eye first.

@@ -1,0 +1,17 @@
+Weekly team meeting summary.
+
+The team reviewed progress on the current sprint and agreed that the
+ingestion pipeline work is on track, with parsing and chunking mostly
+complete and indexing left to finish this week.
+
+Several open questions were raised about how to handle scanned PDFs
+that contain little or no extractable text. The group agreed to detect
+pages with low text yield automatically and queue them for OCR rather
+than failing the whole document.
+
+Action items: write a short design note on the OCR fallback, add a few
+scanned test files to the corpus, and schedule a follow-up check once
+the retrieval step is working end to end.
+
+Next meeting is scheduled for the same time next week, same agenda
+format: progress, blockers, decisions, action items.

@@ -1,0 +1,21 @@
+Resumen de la reunión semanal del equipo.
+
+El equipo revisó el avance del sprint actual y acordó que el trabajo del
+pipeline de ingesta va por buen camino, con el análisis y la división en
+fragmentos casi terminados y la indexación pendiente de finalizar esta
+semana.
+
+Se plantearon varias preguntas abiertas sobre cómo manejar PDFs
+escaneados que contienen poco o nada de texto extraíble. El grupo acordó
+detectar automáticamente las páginas con bajo rendimiento de texto y
+enviarlas a reconocimiento óptico en lugar de hacer fallar todo el
+documento.
+
+Tareas pendientes: escribir una nota de diseño breve sobre el respaldo
+de OCR, agregar algunos archivos escaneados de prueba al corpus, y
+programar una revisión de seguimiento una vez que la recuperación
+funcione de extremo a extremo.
+
+La próxima reunión está programada para la misma hora la semana
+siguiente, con el mismo formato de agenda: avances, obstáculos,
+decisiones, tareas pendientes.

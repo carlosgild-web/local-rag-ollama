@@ -52,6 +52,10 @@ class FakeVectorStore(VectorStore):
     def count(self, collection: str) -> int:
         return len(self._collections.get(collection, {}))
 
+    def ping(self) -> None:
+        if getattr(self, "fail_ping", False):
+            raise RuntimeError("fake vector store is down")
+
 
 def _cosine(a: list[float], b: list[float]) -> float:
     dot = sum(x * y for x, y in zip(a, b, strict=True))

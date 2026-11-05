@@ -64,3 +64,6 @@ class ChromaVectorStore(VectorStore):
 
     def count(self, collection: str) -> int:
         return self._client.get_collection(collection).count()
+
+    def ping(self) -> None:
+        self._client.heartbeat()

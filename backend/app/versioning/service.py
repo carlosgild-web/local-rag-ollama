@@ -60,6 +60,14 @@ def record_audit(
     db.add(AuditLog(action=action, entity_type=entity_type, entity_id=entity_id, detail=detail))
 
 
+def audit_event(
+    db: Session, action: str, entity_type: str, entity_id: int | None, detail: str = ""
+) -> None:
+    """Records and commits a standalone audit event (e.g. a model pull)."""
+    record_audit(db, action, entity_type, entity_id, detail)
+    db.commit()
+
+
 def discover_files(path: Path) -> list[Path]:
     """A single file, or every supported file under a directory, sorted."""
     if path.is_file():
@@ -527,11 +535,15 @@ def purge_expired_trash(
 # --- Diff (PLAN.md section 5) ----------------------------------------------
 
 
-def diff_versions(db: Session, version_a_id: int, version_b_id: int) -> list[str]:
+def diff_versions(
+    db: Session, version_a_id: int, version_b_id: int, *, document_id: int | None = None
+) -> list[str]:
     version_a = db.get(DocumentVersion, version_a_id)
     version_b = db.get(DocumentVersion, version_b_id)
     if version_a is None or version_b is None:
         raise NotFoundError("one or both versions not found")
+    if document_id is not None and {version_a.document_id, version_b.document_id} != {document_id}:
+        raise NotFoundError(f"both versions must belong to document {document_id}")
 
     return list(
         difflib.unified_diff(

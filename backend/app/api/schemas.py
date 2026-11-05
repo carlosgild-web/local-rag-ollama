@@ -1,0 +1,255 @@
+"""Request and response models for the HTTP API."""
+
+import datetime as dt
+from typing import Any
+
+from pydantic import BaseModel, ConfigDict, Field
+
+
+class ORMModel(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+
+# --- Documents and versions -------------------------------------------------
+
+
+class QueuedUpload(BaseModel):
+    job_id: int
+    filename: str
+
+
+class UploadResponse(BaseModel):
+    jobs: list[QueuedUpload]
+
+
+class DocumentOut(BaseModel):
+    id: int
+    collection_id: int
+    filename: str
+    tags: list[str]
+    active_version_id: int | None
+    active_version_number: int | None
+    version_count: int
+    trashed_at: dt.datetime | None
+    created_at: dt.datetime
+
+
+class VersionOut(BaseModel):
+    id: int
+    version_number: int
+    sha256: str
+    ext: str
+    note: str | None
+    is_active: bool
+    chunk_count: int
+    created_at: dt.datetime
+
+
+class DiffOut(BaseModel):
+    a: int
+    b: int
+    diff: list[str]
+
+
+class RollbackIn(BaseModel):
+    version_id: int
+
+
+# --- Collections --------------------------------------------------------------
+
+
+class CollectionIn(BaseModel):
+    name: str = Field(min_length=1, max_length=64, pattern=r"^[A-Za-z0-9_-]+$")
+    embedding_model: str | None = None
+    chunk_size_tokens: int | None = Field(default=None, ge=50, le=4000)
+    chunk_overlap_pct: float | None = Field(default=None, ge=0.0, lt=0.5)
+
+
+class CollectionReindexIn(BaseModel):
+    """Leave everything empty for an in-place reindex. Any change of model or
+    chunking triggers a blue/green rebuild into a new generation."""
+
+    embedding_model: str | None = None
+    chunk_size_tokens: int | None = Field(default=None, ge=50, le=4000)
+    chunk_overlap_pct: float | None = Field(default=None, ge=0.0, lt=0.5)
+
+
+class CollectionOut(ORMModel):
+    id: int
+    name: str
+    chroma_collection: str
+    embedding_model: str
+    chunk_size_tokens: int
+    chunk_overlap_pct: float
+    is_active: bool
+    created_at: dt.datetime
+    document_count: int = 0
+
+
+class JobQueued(BaseModel):
+    job_id: int
+    mode: str | None = None  # collections: "in_place" | "blue_green"
+    target_collection_id: int | None = None
+
+
+# --- Jobs ---------------------------------------------------------------------
+
+
+class JobOut(BaseModel):
+    id: int
+    job_type: str
+    status: str
+    progress: float
+    error: str | None
+    result: dict[str, Any] | None
+    retries: int
+    cancel_requested: bool
+    document_id: int | None
+    payload: dict[str, Any]
+    created_at: dt.datetime
+    updated_at: dt.datetime
+
+
+# --- Retrieval and chat -------------------------------------------------------
+
+
+class RetrieveIn(BaseModel):
+    question: str = Field(min_length=1, max_length=4000)
+    collection_id: int | None = None
+    top_k: int | None = Field(default=None, ge=1, le=50)
+
+
+class ChunkOut(BaseModel):
+    rank: int
+    chunk_id: int
+    document_id: int
+    version_id: int | None
+    filename: str
+    page: int | None
+    heading: str | None
+    score: float
+    text: str
+
+
+class RetrieveOut(BaseModel):
+    collection_id: int
+    chunks: list[ChunkOut]
+
+
+class ChatIn(BaseModel):
+    question: str = Field(min_length=1, max_length=4000)
+    session_id: int | None = None
+    collection_id: int | None = None
+    profile: str | None = None  # profile name; defaults to "default"
+
+
+class SessionSummary(BaseModel):
+    id: int
+    title: str
+    created_at: dt.datetime
+    message_count: int
+
+
+class SourceOut(BaseModel):
+    rank: int
+    chunk_id: int
+    score: float
+    document_id: int | None
+    filename: str | None
+    page: int | None
+    heading: str | None
+
+
+class FeedbackIn(BaseModel):
+    thumbs_up: bool
+    comment: str | None = Field(default=None, max_length=2000)
+
+
+class FeedbackOut(ORMModel):
+    message_id: int
+    thumbs_up: bool
+    comment: str | None
+    created_at: dt.datetime
+
+
+class MessageOut(BaseModel):
+    id: int
+    role: str
+    content: str
+    rag_profile_id: int | None
+    created_at: dt.datetime
+    sources: list[SourceOut]
+    feedback: FeedbackOut | None
+
+
+class SessionOut(BaseModel):
+    id: int
+    title: str
+    created_at: dt.datetime
+    messages: list[MessageOut]
+
+
+# --- Models and profiles ------------------------------------------------------
+
+
+class ModelOut(BaseModel):
+    name: str
+    size: int | None = None
+    modified_at: str | None = None
+    family: str | None = None
+    parameter_size: str | None = None
+
+
+class ModelPullIn(BaseModel):
+    name: str = Field(min_length=1, max_length=200)
+
+
+class ProfileIn(BaseModel):
+    name: str = Field(default="default", min_length=1, max_length=64)
+    chat_model: str | None = None
+    embedding_model: str | None = None
+    chunk_size_tokens: int | None = None
+    chunk_overlap_pct: float | None = None
+    retrieval_top_k: int | None = None
+    temperature: float | None = None
+    system_prompt: str | None = None
+
+
+class ProfileOut(ORMModel):
+    id: int
+    name: str
+    version: int
+    chat_model: str
+    embedding_model: str
+    chunk_size_tokens: int
+    chunk_overlap_pct: float
+    retrieval_top_k: int
+    temperature: float
+    system_prompt: str
+    is_active: bool
+    created_at: dt.datetime
+
+
+# --- Ops ----------------------------------------------------------------------
+
+
+class AuditOut(ORMModel):
+    id: int
+    action: str
+    entity_type: str
+    entity_id: int | None
+    detail: str
+    created_at: dt.datetime
+
+
+class ComponentHealth(BaseModel):
+    ok: bool
+    detail: str | None = None
+
+
+class HealthOut(BaseModel):
+    status: str  # "ok" | "degraded" | "down"
+    ollama: ComponentHealth
+    sqlite: ComponentHealth
+    vector_store: ComponentHealth
+    job_worker: ComponentHealth

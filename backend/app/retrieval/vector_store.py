@@ -40,3 +40,7 @@ class VectorStore(ABC):
 
     @abstractmethod
     def count(self, collection: str) -> int: ...
+
+    @abstractmethod
+    def ping(self) -> None:
+        """Raises if the store is unusable (for /health)."""

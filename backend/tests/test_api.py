@@ -315,3 +315,12 @@ def test_unknown_ids_are_404(client):
     assert client.get("/api/sessions/42").status_code == 404
     assert client.post("/api/collections/42/reindex").status_code == 404
     assert client.get("/api/profiles/42/versions").status_code == 404
+
+
+def test_swagger_gets_a_file_picker_and_minimal_examples(runtime):
+    schema = create_app(runtime, start_worker=False).openapi()
+    components = schema["components"]["schemas"]
+    upload = next(v for k, v in components.items() if k.startswith("Body_upload_documents"))
+    assert upload["properties"]["files"]["items"]["format"] == "binary"
+    # Swagger prefills the example; ids of 0 would 404, so only the question is set.
+    assert components["ChatIn"]["examples"] == [{"question": "What does the document say about X?"}]

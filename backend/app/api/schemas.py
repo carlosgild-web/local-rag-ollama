@@ -59,6 +59,8 @@ class RollbackIn(BaseModel):
 
 
 class CollectionIn(BaseModel):
+    model_config = ConfigDict(json_schema_extra={"examples": [{"name": "papers"}]})
+
     name: str = Field(min_length=1, max_length=64, pattern=r"^[A-Za-z0-9_-]+$")
     embedding_model: str | None = None
     chunk_size_tokens: int | None = Field(default=None, ge=50, le=4000)
@@ -68,6 +70,8 @@ class CollectionIn(BaseModel):
 class CollectionReindexIn(BaseModel):
     """Leave everything empty for an in-place reindex. Any change of model or
     chunking triggers a blue/green rebuild into a new generation."""
+
+    model_config = ConfigDict(json_schema_extra={"examples": [{}]})
 
     embedding_model: str | None = None
     chunk_size_tokens: int | None = Field(default=None, ge=50, le=4000)
@@ -114,6 +118,10 @@ class JobOut(BaseModel):
 
 
 class RetrieveIn(BaseModel):
+    model_config = ConfigDict(
+        json_schema_extra={"examples": [{"question": "What does the document say about X?"}]}
+    )
+
     question: str = Field(min_length=1, max_length=4000)
     collection_id: int | None = None
     top_k: int | None = Field(default=None, ge=1, le=50)
@@ -137,6 +145,10 @@ class RetrieveOut(BaseModel):
 
 
 class ChatIn(BaseModel):
+    model_config = ConfigDict(
+        json_schema_extra={"examples": [{"question": "What does the document say about X?"}]}
+    )
+
     question: str = Field(min_length=1, max_length=4000)
     session_id: int | None = None
     collection_id: int | None = None
@@ -205,6 +217,10 @@ class ModelPullIn(BaseModel):
 
 
 class ProfileIn(BaseModel):
+    model_config = ConfigDict(
+        json_schema_extra={"examples": [{"name": "default", "retrieval_top_k": 8}]}
+    )
+
     name: str = Field(default="default", min_length=1, max_length=64)
     chat_model: str | None = None
     embedding_model: str | None = None

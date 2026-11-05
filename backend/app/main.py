@@ -71,7 +71,38 @@ def create_app(runtime: Runtime | None = None, *, start_worker: bool = True) -> 
         app.add_exception_handler(exc_type, _error_handler(status_code))
     app.add_exception_handler(httpx.HTTPError, _ollama_error)
     app.add_middleware(RequestIdMiddleware)
+    _patch_openapi_file_fields(app)
     return app
+
+
+def _patch_openapi_file_fields(app: FastAPI) -> None:
+    """FastAPI describes uploads the OpenAPI 3.1 way (`contentMediaType`),
+    which Swagger UI renders as a text box instead of a file picker. Adding
+    `format: binary` keeps the schema valid and brings the picker back."""
+    generate = app.openapi
+
+    def openapi():
+        if app.openapi_schema is None:
+            schema = generate()
+            _add_binary_format(schema)
+            app.openapi_schema = schema
+        return app.openapi_schema
+
+    app.openapi = openapi
+
+
+def _add_binary_format(node) -> None:
+    if isinstance(node, dict):
+        if (
+            node.get("type") == "string"
+            and node.get("contentMediaType") == "application/octet-stream"
+        ):
+            node.setdefault("format", "binary")
+        for value in node.values():
+            _add_binary_format(value)
+    elif isinstance(node, list):
+        for value in node:
+            _add_binary_format(value)
 
 
 def _error_handler(status_code: int):

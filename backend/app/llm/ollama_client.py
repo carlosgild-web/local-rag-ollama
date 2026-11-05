@@ -1,12 +1,15 @@
 """Ollama-backed LLMClient and EmbeddingClient implementations."""
 
+import json
+from collections.abc import Iterator
+
 import httpx
 
 from app.llm.base import EmbeddingClient, LLMClient
 
 
 class OllamaLLMClient(LLMClient):
-    def __init__(self, base_url: str, model: str, timeout: float = 120.0):
+    def __init__(self, base_url: str, model: str, timeout: float = 300.0):
         self._base_url = base_url.rstrip("/")
         self._model = model
         self._timeout = timeout
@@ -25,9 +28,33 @@ class OllamaLLMClient(LLMClient):
         response.raise_for_status()
         return response.json()["response"]
 
+    def stream_generate(
+        self, prompt: str, *, temperature: float = 0.2, num_ctx: int = 8192
+    ) -> Iterator[str]:
+        with httpx.stream(
+            "POST",
+            f"{self._base_url}/api/generate",
+            json={
+                "model": self._model,
+                "prompt": prompt,
+                "stream": True,
+                "options": {"temperature": temperature, "num_ctx": num_ctx},
+            },
+            timeout=self._timeout,
+        ) as response:
+            response.raise_for_status()
+            for line in response.iter_lines():
+                if not line:
+                    continue
+                data = json.loads(line)
+                if data.get("response"):
+                    yield data["response"]
+                if data.get("done"):
+                    break
+
 
 class OllamaEmbeddingClient(EmbeddingClient):
-    def __init__(self, base_url: str, model: str, timeout: float = 120.0):
+    def __init__(self, base_url: str, model: str, timeout: float = 300.0):
         self._base_url = base_url.rstrip("/")
         self._model = model
         self._timeout = timeout

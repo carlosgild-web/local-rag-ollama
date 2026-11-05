@@ -2,6 +2,7 @@
 
 import hashlib
 import math
+from collections.abc import Iterator
 
 from app.llm.base import EmbeddingClient, LLMClient
 
@@ -18,6 +19,14 @@ class FakeLLMClient(LLMClient):
         if self._responses:
             return self._responses.pop(0)
         return f"[fake response to: {prompt[:50]}]"
+
+    def stream_generate(
+        self, prompt: str, *, temperature: float = 0.2, num_ctx: int = 8192
+    ) -> Iterator[str]:
+        text = self.generate(prompt, temperature=temperature, num_ctx=num_ctx)
+        words = text.split(" ")
+        for i, word in enumerate(words):
+            yield word + (" " if i < len(words) - 1 else "")
 
 
 class FakeEmbeddingClient(EmbeddingClient):

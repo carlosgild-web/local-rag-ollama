@@ -23,6 +23,8 @@ from app.versioning import service
 
 router = APIRouter(tags=["documents"])
 
+_EMPTY = {"example": ""}
+
 
 def split_tags(tags: str) -> list[str]:
     return [t.strip() for t in tags.split(",") if t.strip()]
@@ -37,8 +39,13 @@ def upload_documents(
     db: DbDep,
     runtime: RuntimeDep,
     files: Annotated[list[UploadFile], File(description="One or more .txt, .md, .docx, .pdf")],
-    collection_id: Annotated[int | None, Form()] = None,
-    tags: Annotated[str | None, Form(description="Comma-separated")] = None,
+    # An empty example keeps Swagger from prefilling 0 and "string".
+    collection_id: Annotated[
+        int | None, Form(description="Empty = default collection", json_schema_extra=_EMPTY)
+    ] = None,
+    tags: Annotated[
+        str | None, Form(description="Comma-separated", json_schema_extra=_EMPTY)
+    ] = None,
 ):
     """Stages each file and queues one ingest job per file. Duplicates (same
     content hash) complete as `skipped_duplicate`; a known filename with new

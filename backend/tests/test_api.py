@@ -324,3 +324,13 @@ def test_swagger_gets_a_file_picker_and_minimal_examples(runtime):
     assert upload["properties"]["files"]["items"]["format"] == "binary"
     # Swagger prefills the example; ids of 0 would 404, so only the question is set.
     assert components["ChatIn"]["examples"] == [{"question": "What does the document say about X?"}]
+
+
+def test_upload_treats_empty_form_fields_as_unset(runtime):
+    with TestClient(create_app(runtime, start_worker=False)) as client:
+        response = client.post(
+            "/api/documents",
+            data={"collection_id": "", "tags": ""},
+            files=[("files", ("a.txt", b"alpha", "text/plain"))],
+        )
+    assert response.status_code == 202, response.text

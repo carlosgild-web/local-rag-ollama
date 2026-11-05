@@ -38,8 +38,10 @@ class FakeEmbeddingClient(EmbeddingClient):
 
     def __init__(self, dimensions: int = 16):
         self._dimensions = dimensions
+        self.call_count = 0
 
     def embed(self, texts: list[str]) -> list[list[float]]:
+        self.call_count += 1
         return [self._embed_one(text) for text in texts]
 
     def _embed_one(self, text: str) -> list[float]:

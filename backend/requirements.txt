@@ -11,6 +11,13 @@ python-docx>=1.1
 pytesseract>=0.3
 pillow>=10.0
 
-# Phase 2 (retrieval/answers) will add: nothing new, reuses the above
-# Phase 3 (backend API) will add: fastapi, uvicorn, sqlalchemy, alembic
+# Phase 2 (retrieval/answers): nothing new, reuses the above
+
+# Phase 3 (backend API):
+fastapi>=0.115
+uvicorn[standard]>=0.30
+sqlalchemy>=2.0
+alembic>=1.13
+python-multipart>=0.0.9
+
 # Phase 6 (watched folders) will add: watchdog

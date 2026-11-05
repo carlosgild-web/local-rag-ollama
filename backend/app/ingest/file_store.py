@@ -19,8 +19,13 @@ def store_file(path: Path, files_dir: Path) -> tuple[str, Path]:
     Returns (sha256, stored_path).
     """
     sha256 = hash_file(path)
-    stored_path = files_dir / f"{sha256}{path.suffix.lower()}"
+    stored_path = files_path_for(files_dir, sha256, path.suffix.lower())
     if not stored_path.exists():
         files_dir.mkdir(parents=True, exist_ok=True)
         shutil.copy2(path, stored_path)
     return sha256, stored_path
+
+
+def files_path_for(files_dir: Path, sha256: str, ext: str) -> Path:
+    """Reconstructs a content-addressed path without needing the original file."""
+    return files_dir / f"{sha256}{ext}"

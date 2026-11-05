@@ -77,10 +77,15 @@ class DocumentVersion(Base):
 
 
 class Chunk(Base):
+    """One chunk of one version, as indexed into one collection. A blue/green
+    rebuild re-chunks every version into the new collection, so the same
+    version can have chunks in two collections until the old one is purged."""
+
     __tablename__ = "chunks"
 
     id: Mapped[int] = mapped_column(primary_key=True)
     version_id: Mapped[int] = mapped_column(ForeignKey("document_versions.id"), index=True)
+    collection_id: Mapped[int] = mapped_column(ForeignKey("collections.id"), index=True)
     chunk_index: Mapped[int]
     text: Mapped[str] = mapped_column(Text)
     page: Mapped[int | None] = mapped_column(default=None)
@@ -103,6 +108,7 @@ class IngestJob(Base):
     payload: Mapped[str] = mapped_column(Text, default="{}")
     progress: Mapped[float] = mapped_column(default=0.0)
     error: Mapped[str | None] = mapped_column(default=None)
+    result: Mapped[str | None] = mapped_column(Text, default=None)
     retries: Mapped[int] = mapped_column(default=0)
     cancel_requested: Mapped[bool] = mapped_column(default=False)
     document_id: Mapped[int | None] = mapped_column(default=None)

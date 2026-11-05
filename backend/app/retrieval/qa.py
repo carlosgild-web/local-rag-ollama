@@ -1,13 +1,15 @@
 """Question answering: retrieve, build the grounded prompt, generate.
 
-The single service layer for `ask` — the CLI (and later the API) call
-into this module rather than wiring retrieval + prompting themselves.
+The single service layer for `ask` — the CLI and the chat API call into
+this module rather than wiring retrieval + prompting themselves.
 """
 
 from dataclasses import dataclass
 
+from sqlalchemy.orm import Session
+
 from app.core.config import Settings
-from app.ingest.pipeline import DEFAULT_COLLECTION
+from app.db.models import Collection
 from app.llm.base import EmbeddingClient, LLMClient
 from app.retrieval.prompt import NOT_FOUND_PHRASE, build_prompt, format_sources
 from app.retrieval.reranker import NoOpReranker, Reranker
@@ -22,21 +24,26 @@ class AnswerContext:
 
 
 def prepare_context(
+    db: Session,
     question: str,
     *,
+    collection: Collection,
     settings: Settings,
     embedding_client: EmbeddingClient,
     vector_store: VectorStore,
+    top_k: int | None = None,
+    system_instructions: str | None = None,
     reranker: Reranker | None = None,
-    collection: str = DEFAULT_COLLECTION,
 ) -> AnswerContext | None:
     """Returns None when there is nothing to retrieve (empty knowledge base)."""
     chunks = retrieve(
+        db,
         question,
+        collection=collection,
         settings=settings,
         embedding_client=embedding_client,
         vector_store=vector_store,
-        collection=collection,
+        top_k=top_k,
     )
     if not chunks:
         return None
@@ -44,26 +51,28 @@ def prepare_context(
     if settings.rerank_enabled:
         chunks = (reranker or NoOpReranker()).rerank(question, chunks)
 
-    return AnswerContext(prompt=build_prompt(question, chunks), chunks=chunks)
+    return AnswerContext(prompt=build_prompt(question, chunks, system_instructions), chunks=chunks)
 
 
 def answer_question(
+    db: Session,
     question: str,
     *,
+    collection: Collection,
     settings: Settings,
     embedding_client: EmbeddingClient,
     vector_store: VectorStore,
     llm_client: LLMClient,
-    collection: str = DEFAULT_COLLECTION,
 ) -> str:
     """Non-streaming answer with a trailing Sources section. Mainly for tests;
-    the CLI uses `prepare_context` directly so it can stream the answer."""
+    the CLI and chat API use `prepare_context` directly so they can stream."""
     context = prepare_context(
+        db,
         question,
+        collection=collection,
         settings=settings,
         embedding_client=embedding_client,
         vector_store=vector_store,
-        collection=collection,
     )
     if context is None:
         return NOT_FOUND_PHRASE

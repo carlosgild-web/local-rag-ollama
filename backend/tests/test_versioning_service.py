@@ -6,7 +6,7 @@ from pathlib import Path
 import pytest
 
 from app.core.config import Settings
-from app.db.models import Document, DocumentVersion
+from app.db.models import Chunk, Collection, Document, DocumentVersion
 from app.llm.fake_client import FakeEmbeddingClient
 from app.retrieval.fake_store import FakeVectorStore
 from app.versioning import service
@@ -173,22 +173,84 @@ def test_soft_delete_sets_trashed_at_and_restore_clears_it(db_session, tmp_path)
     assert document.trashed_at is None
 
 
-def test_blue_green_swap_deactivates_old_collection_and_keeps_it(db_session):
+def test_create_collection_rejects_existing_active_name(db_session):
     vector_store = FakeVectorStore()
-    first = service.create_collection(
+    service.create_collection(db_session, vector_store, name="docs", embedding_model="model-a")
+    with pytest.raises(service.ConflictError):
+        service.create_collection(db_session, vector_store, name="docs", embedding_model="model-b")
+
+
+def test_blue_green_rebuild_serves_old_until_swap_then_keeps_it(db_session, tmp_path):
+    settings = _settings(tmp_path)
+    vector_store = FakeVectorStore()
+    old = service.create_collection(
         db_session, vector_store, name="docs", embedding_model="model-a"
     )
-    second = service.create_collection(
-        db_session, vector_store, name="docs", embedding_model="model-b"
+    doc_path = tmp_path / "doc.txt"
+    doc_path.write_text("Version one content about espresso.")
+    v1 = service.ingest_document(
+        db_session,
+        collection=old,
+        source_path=doc_path,
+        settings=settings,
+        embedding_client=FakeEmbeddingClient(dimensions=8),
+        vector_store=vector_store,
     )
+    doc_path.write_text("Version two content, now about pour-over coffee instead.")
+    v2 = service.ingest_document(
+        db_session,
+        collection=old,
+        source_path=doc_path,
+        settings=settings,
+        embedding_client=FakeEmbeddingClient(dimensions=8),
+        vector_store=vector_store,
+    )
+    old_vector_count = vector_store.count(old.chroma_collection)
 
-    assert first.is_active is False
-    assert second.is_active is True
-    assert first.chroma_collection != second.chroma_collection
-    assert service.get_active_collection(db_session, "docs").id == second.id
-    # old collection row (and its vectors) still exist, just inactive
-    assert vector_store.count(first.chroma_collection) == 0  # nothing ingested into it, but present
-    assert first.chroma_collection in vector_store._collections
+    new = service.start_collection_rebuild(
+        db_session,
+        vector_store,
+        old.id,
+        embedding_model="model-b",
+        chunk_size_tokens=300,
+        chunk_overlap_pct=0.1,
+    )
+    # while building, the old generation keeps serving
+    assert new.is_active is False
+    assert service.get_active_collection(db_session, "docs").id == old.id
+    assert new.chroma_collection != old.chroma_collection
+
+    new_embedder = FakeEmbeddingClient(dimensions=12)
+    written = service.build_collection(
+        db_session,
+        old.id,
+        new.id,
+        settings=settings,
+        embedding_client=new_embedder,
+        vector_store=vector_store,
+    )
+    assert written == vector_store.count(new.chroma_collection) > 0
+    assert service.get_active_collection(db_session, "docs").id == old.id
+
+    service.swap_collection(db_session, old.id, new.id)
+
+    assert service.get_active_collection(db_session, "docs").id == new.id
+    document = db_session.get(Document, v1.document_id)
+    assert document.collection_id == new.id
+    # the old generation and its vectors are kept, just inactive
+    assert db_session.get(Collection, old.id).is_active is False
+    assert vector_store.count(old.chroma_collection) == old_vector_count
+    # every version was rebuilt, so rollback in the new generation needs no re-embedding
+    calls = new_embedder.call_count
+    service.rollback_document(db_session, v1.document_id, v1.version_id)
+    assert new_embedder.call_count == calls
+    new_chunks_v1 = (
+        db_session.query(Chunk)
+        .filter(Chunk.version_id == v1.version_id, Chunk.collection_id == new.id)
+        .count()
+    )
+    assert new_chunks_v1 > 0
+    assert v2.version_id != v1.version_id
 
 
 def test_diff_versions_shows_text_changes(db_session, tmp_path):

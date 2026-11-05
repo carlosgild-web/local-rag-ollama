@@ -7,11 +7,12 @@ module calls into). Routes and the CLI never write directly.
 Implements CLAUDE.md invariants 2-4 and 7, and PLAN.md section 5:
 content-addressed files, duplicate-by-hash skip, new-version-on-change,
 rollback-by-pointer-flip (no re-embedding), soft delete with trash, and
-blue/green collection swaps on embedding/chunking changes.
+blue/green collection rebuilds on embedding/chunking changes.
 """
 
 import datetime as dt
 import difflib
+from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -23,12 +24,25 @@ from app.db import fts
 from app.db.models import AuditLog, Chunk, Collection, Document, DocumentVersion, utcnow
 from app.ingest import file_store
 from app.ingest.chunker import chunk_blocks
-from app.ingest.parsers import parse_file
+from app.ingest.parsers import SUPPORTED_EXTENSIONS, parse_file
+from app.ingest.parsers.base import ParsedDocument
 from app.llm.base import EmbeddingClient
 from app.retrieval.vector_store import VectorStore
 
 DEFAULT_COLLECTION_NAME = "default"
 DEFAULT_TRASH_DAYS = 30
+
+# Called with a 0..1 fraction as long-running operations advance. The job
+# worker passes one that also raises JobCancelled when cancel is requested.
+ProgressCallback = Callable[[float], None]
+
+
+class NotFoundError(ValueError):
+    pass
+
+
+class ConflictError(ValueError):
+    pass
 
 
 @dataclass
@@ -39,10 +53,46 @@ class IngestResult:
     chunk_count: int = 0
 
 
-def _audit(
+def record_audit(
     db: Session, action: str, entity_type: str, entity_id: int | None, detail: str = ""
 ) -> None:
+    """Adds an audit row to the current transaction (invariant 7). Callers commit."""
     db.add(AuditLog(action=action, entity_type=entity_type, entity_id=entity_id, detail=detail))
+
+
+def discover_files(path: Path) -> list[Path]:
+    """A single file, or every supported file under a directory, sorted."""
+    if path.is_file():
+        return [path]
+    return sorted(
+        p for p in path.rglob("*") if p.is_file() and p.suffix.lower() in SUPPORTED_EXTENSIONS
+    )
+
+
+def _vector_metadata(collection: Collection) -> dict:
+    return {
+        "embedding_model": collection.embedding_model,
+        "chunk_size_tokens": collection.chunk_size_tokens,
+        "chunk_overlap_pct": collection.chunk_overlap_pct,
+    }
+
+
+def _vector_id(chunk: Chunk) -> str:
+    return f"{chunk.version_id}:{chunk.id}"
+
+
+def _parse(path: Path, settings: Settings) -> ParsedDocument:
+    return parse_file(
+        path,
+        ocr_lang=settings.ocr_lang,
+        ocr_min_text_chars=settings.ocr_min_text_chars,
+        tesseract_cmd=settings.tesseract_cmd,
+        tessdata_prefix=settings.tessdata_prefix,
+    )
+
+
+def _stored_path(settings: Settings, version: DocumentVersion) -> Path:
+    return file_store.files_path_for(settings.files_dir, version.sha256, version.ext)
 
 
 # --- Collections (invariant 4: embedding model per collection, blue/green) --
@@ -54,6 +104,13 @@ def get_active_collection(db: Session, name: str) -> Collection | None:
     ).scalar_one_or_none()
 
 
+def get_collection(db: Session, collection_id: int) -> Collection:
+    collection = db.get(Collection, collection_id)
+    if collection is None:
+        raise NotFoundError(f"collection {collection_id} not found")
+    return collection
+
+
 def create_collection(
     db: Session,
     vector_store: VectorStore,
@@ -63,53 +120,55 @@ def create_collection(
     chunk_size_tokens: int = 600,
     chunk_overlap_pct: float = 0.12,
 ) -> Collection:
-    """Creates a collection. If one with this name is already active (e.g.
-    the embedding model or chunking changed), this is a blue/green swap:
-    the old row is deactivated but kept until documents are reindexed into
-    the new one."""
-    existing_active = get_active_collection(db, name)
-    generation = 1
-    if existing_active is not None:
-        generation = _next_generation(db, name)
-        existing_active.is_active = False
+    """Creates a new, active collection. Changing the model or chunking of an
+    existing one goes through `start_collection_rebuild` instead."""
+    if get_active_collection(db, name) is not None:
+        raise ConflictError(f"collection '{name}' already exists")
 
-    chroma_collection = f"{name}__g{generation}"
-    collection = Collection(
+    collection = _new_generation(
+        db,
+        vector_store,
         name=name,
-        chroma_collection=chroma_collection,
         embedding_model=embedding_model,
         chunk_size_tokens=chunk_size_tokens,
         chunk_overlap_pct=chunk_overlap_pct,
         is_active=True,
     )
-    db.add(collection)
-    db.flush()
-
-    vector_store.get_or_create_collection(
-        chroma_collection,
-        metadata={
-            "embedding_model": embedding_model,
-            "chunk_size_tokens": chunk_size_tokens,
-            "chunk_overlap_pct": chunk_overlap_pct,
-        },
-    )
-
-    if existing_active is not None:
-        detail = (
-            f"blue/green swap from collection {existing_active.id} "
-            f"({existing_active.chroma_collection})"
-        )
-        _audit(db, "collection_swap", "collection", collection.id, detail)
-    else:
-        _audit(db, "collection_create", "collection", collection.id, chroma_collection)
-
+    record_audit(db, "collection_create", "collection", collection.id, collection.chroma_collection)
     db.commit()
     return collection
 
 
+def _new_generation(
+    db: Session,
+    vector_store: VectorStore,
+    *,
+    name: str,
+    embedding_model: str,
+    chunk_size_tokens: int,
+    chunk_overlap_pct: float,
+    is_active: bool,
+) -> Collection:
+    generation = _next_generation(db, name)
+    collection = Collection(
+        name=name,
+        chroma_collection=f"{name}__g{generation}",
+        embedding_model=embedding_model,
+        chunk_size_tokens=chunk_size_tokens,
+        chunk_overlap_pct=chunk_overlap_pct,
+        is_active=is_active,
+    )
+    db.add(collection)
+    db.flush()
+    vector_store.get_or_create_collection(
+        collection.chroma_collection, metadata=_vector_metadata(collection)
+    )
+    return collection
+
+
 def _next_generation(db: Session, name: str) -> int:
-    count = db.execute(select(Collection).where(Collection.name == name)).scalars().all()
-    return len(count) + 1
+    rows = db.execute(select(Collection.id).where(Collection.name == name)).scalars().all()
+    return len(rows) + 1
 
 
 def get_or_create_default_collection(
@@ -128,6 +187,182 @@ def get_or_create_default_collection(
     )
 
 
+def start_collection_rebuild(
+    db: Session,
+    vector_store: VectorStore,
+    source_collection_id: int,
+    *,
+    embedding_model: str,
+    chunk_size_tokens: int,
+    chunk_overlap_pct: float,
+) -> Collection:
+    """Blue/green step 1: creates the next, still-inactive generation of a
+    collection. The source keeps serving queries until `swap_collection`."""
+    source = get_collection(db, source_collection_id)
+    if not source.is_active:
+        raise ConflictError(f"collection {source.id} is not active")
+
+    target = _new_generation(
+        db,
+        vector_store,
+        name=source.name,
+        embedding_model=embedding_model,
+        chunk_size_tokens=chunk_size_tokens,
+        chunk_overlap_pct=chunk_overlap_pct,
+        is_active=False,
+    )
+    record_audit(
+        db,
+        "collection_rebuild_start",
+        "collection",
+        target.id,
+        f"from collection {source.id} ({source.chroma_collection}); model {embedding_model}, "
+        f"chunk size {chunk_size_tokens}, overlap {chunk_overlap_pct}",
+    )
+    db.commit()
+    return target
+
+
+def build_collection(
+    db: Session,
+    source_collection_id: int,
+    target_collection_id: int,
+    *,
+    settings: Settings,
+    embedding_client: EmbeddingClient,
+    vector_store: VectorStore,
+    progress: ProgressCallback | None = None,
+) -> int:
+    """Blue/green step 2: re-chunks and re-embeds every version of every
+    document (trashed ones too, so restore and rollback keep working) into
+    the target collection. Returns the number of chunks written."""
+    source = get_collection(db, source_collection_id)
+    target = get_collection(db, target_collection_id)
+    documents = (
+        db.execute(select(Document).where(Document.collection_id == source.id)).scalars().all()
+    )
+
+    total_chunks = 0
+    for i, document in enumerate(documents):
+        if progress:
+            progress(i / max(len(documents), 1))
+        for version in document.versions:
+            _clear_chunks(db, vector_store, target, version.id)
+            parsed = _parse(_stored_path(settings, version), settings)
+            total_chunks += _index_version(
+                db, target, document, version, parsed, embedding_client, vector_store
+            )
+        db.commit()
+
+    if progress:
+        progress(1.0)
+    return total_chunks
+
+
+def swap_collection(db: Session, source_collection_id: int, target_collection_id: int) -> None:
+    """Blue/green step 3: activates the target, repoints its documents, and
+    keeps the source (and its vectors) inactive until someone purges it."""
+    source = get_collection(db, source_collection_id)
+    target = get_collection(db, target_collection_id)
+    if source.name != target.name:
+        raise ConflictError("can only swap generations of the same collection")
+
+    documents = (
+        db.execute(select(Document).where(Document.collection_id == source.id)).scalars().all()
+    )
+    for document in documents:
+        document.collection_id = target.id
+    source.is_active = False
+    target.is_active = True
+    record_audit(
+        db,
+        "collection_swap",
+        "collection",
+        target.id,
+        f"blue/green swap from collection {source.id} ({source.chroma_collection})",
+    )
+    db.commit()
+
+
+# --- Indexing helpers -------------------------------------------------------
+
+
+def _index_version(
+    db: Session,
+    collection: Collection,
+    document: Document,
+    version: DocumentVersion,
+    parsed: ParsedDocument,
+    embedding_client: EmbeddingClient,
+    vector_store: VectorStore,
+) -> int:
+    """Chunks one version into one collection: SQLite rows, FTS5, vectors."""
+    chunks = chunk_blocks(
+        parsed.blocks,
+        chunk_size_tokens=collection.chunk_size_tokens,
+        overlap_pct=collection.chunk_overlap_pct,
+    )
+    rows = [
+        Chunk(
+            version_id=version.id,
+            collection_id=collection.id,
+            chunk_index=i,
+            text=c.text,
+            page=c.page,
+            heading=c.heading,
+            token_estimate=c.token_estimate,
+        )
+        for i, c in enumerate(chunks)
+    ]
+    db.add_all(rows)
+    db.flush()
+
+    for row in rows:
+        fts.index_chunk(db, row.id, row.text)
+
+    if rows:
+        embeddings = embedding_client.embed([row.text for row in rows])
+        vector_store.upsert(
+            collection.chroma_collection,
+            ids=[_vector_id(row) for row in rows],
+            embeddings=embeddings,
+            metadatas=[
+                {
+                    "document_id": document.id,
+                    "version_id": version.id,
+                    "filename": document.filename,
+                    "chunk_index": row.chunk_index,
+                    "page": row.page or 0,
+                    "heading": row.heading or "",
+                }
+                for row in rows
+            ],
+            documents=[row.text for row in rows],
+        )
+    return len(rows)
+
+
+def _clear_chunks(
+    db: Session, vector_store: VectorStore, collection: Collection, version_id: int
+) -> None:
+    chunks = (
+        db.execute(
+            select(Chunk).where(
+                Chunk.version_id == version_id, Chunk.collection_id == collection.id
+            )
+        )
+        .scalars()
+        .all()
+    )
+    if not chunks:
+        return
+    vector_store.delete(collection.chroma_collection, [_vector_id(c) for c in chunks])
+    for chunk in chunks:
+        fts.remove_chunk(db, chunk.id, chunk.text)
+        db.delete(chunk)
+    db.flush()
+
+
 # --- Ingestion (invariants 2, 3) -------------------------------------------
 
 
@@ -139,7 +374,12 @@ def ingest_document(
     settings: Settings,
     embedding_client: EmbeddingClient,
     vector_store: VectorStore,
+    filename: str | None = None,
+    tags: str | None = None,
 ) -> IngestResult:
+    """`filename` overrides `source_path.name` (uploads are staged under a
+    temporary name)."""
+    filename = filename or source_path.name
     sha256 = file_store.hash_file(source_path)
 
     existing_version = db.execute(
@@ -152,92 +392,44 @@ def ingest_document(
             version_id=existing_version.id,
         )
 
-    file_store.store_file(source_path, settings.files_dir)
+    _, stored_path = file_store.store_file(source_path, settings.files_dir)
 
     document = db.execute(
         select(Document).where(
             Document.collection_id == collection.id,
-            Document.filename == source_path.name,
+            Document.filename == filename,
             Document.trashed_at.is_(None),
         )
     ).scalar_one_or_none()
     if document is None:
-        document = Document(collection_id=collection.id, filename=source_path.name)
+        document = Document(collection_id=collection.id, filename=filename)
         db.add(document)
         db.flush()
+    if tags is not None:
+        document.tags = tags
 
-    version_number = _next_version_number(db, document.id)
-
-    parsed = parse_file(
-        source_path,
-        ocr_lang=settings.ocr_lang,
-        ocr_min_text_chars=settings.ocr_min_text_chars,
-        tesseract_cmd=settings.tesseract_cmd,
-        tessdata_prefix=settings.tessdata_prefix,
-    )
-    chunks = chunk_blocks(
-        parsed.blocks,
-        chunk_size_tokens=collection.chunk_size_tokens,
-        overlap_pct=collection.chunk_overlap_pct,
-    )
-
+    parsed = _parse(source_path, settings)
     version = DocumentVersion(
         document_id=document.id,
-        version_number=version_number,
+        version_number=_next_version_number(db, document.id),
         sha256=sha256,
-        original_path=str(source_path),
+        original_path=str(stored_path),
         ext=source_path.suffix.lower(),
         extracted_text=parsed.full_text,
     )
     db.add(version)
     db.flush()
 
-    chunk_rows = [
-        Chunk(
-            version_id=version.id,
-            chunk_index=i,
-            text=c.text,
-            page=c.page,
-            heading=c.heading,
-            token_estimate=c.token_estimate,
-        )
-        for i, c in enumerate(chunks)
-    ]
-    db.add_all(chunk_rows)
-    db.flush()
-
-    for row in chunk_rows:
-        fts.index_chunk(db, row.id, row.text)
-
-    if chunk_rows:
-        embeddings = embedding_client.embed([row.text for row in chunk_rows])
-        vector_store.upsert(
-            collection.chroma_collection,
-            ids=[f"{version.id}:{row.id}" for row in chunk_rows],
-            embeddings=embeddings,
-            metadatas=[
-                {
-                    "document_id": document.id,
-                    "version_id": version.id,
-                    "filename": document.filename,
-                    "chunk_index": row.chunk_index,
-                    "page": row.page or 0,
-                    "heading": row.heading or "",
-                }
-                for row in chunk_rows
-            ],
-            documents=[row.text for row in chunk_rows],
-        )
+    chunk_count = _index_version(
+        db, collection, document, version, parsed, embedding_client, vector_store
+    )
 
     document.active_version_id = version.id
-    _audit(db, "upload", "document", document.id, f"version {version_number}")
+    record_audit(db, "upload", "document", document.id, f"version {version.version_number}")
     db.commit()
 
     return IngestResult(
-        status="ingested",
-        document_id=document.id,
-        version_id=version.id,
-        chunk_count=len(chunk_rows),
+        status="ingested", document_id=document.id, version_id=version.id, chunk_count=chunk_count
     )
 
 
@@ -255,16 +447,21 @@ def _next_version_number(db: Session, document_id: int) -> int:
 # --- Rollback (invariant 3: pointer flip only, no re-embedding) -----------
 
 
-def rollback_document(db: Session, document_id: int, version_id: int) -> DocumentVersion:
+def get_document(db: Session, document_id: int) -> Document:
     document = db.get(Document, document_id)
     if document is None:
-        raise ValueError(f"document {document_id} not found")
+        raise NotFoundError(f"document {document_id} not found")
+    return document
+
+
+def rollback_document(db: Session, document_id: int, version_id: int) -> DocumentVersion:
+    document = get_document(db, document_id)
     version = db.get(DocumentVersion, version_id)
     if version is None or version.document_id != document_id:
-        raise ValueError(f"version {version_id} does not belong to document {document_id}")
+        raise NotFoundError(f"version {version_id} does not belong to document {document_id}")
 
     document.active_version_id = version.id
-    _audit(db, "rollback", "document", document.id, f"to version {version.version_number}")
+    record_audit(db, "rollback", "document", document.id, f"to version {version.version_number}")
     db.commit()
     return version
 
@@ -273,28 +470,26 @@ def rollback_document(db: Session, document_id: int, version_id: int) -> Documen
 
 
 def soft_delete_document(db: Session, document_id: int) -> None:
-    document = db.get(Document, document_id)
-    if document is None:
-        raise ValueError(f"document {document_id} not found")
+    document = get_document(db, document_id)
+    if document.trashed_at is not None:
+        return
     document.trashed_at = utcnow()
-    _audit(db, "delete", "document", document.id, "soft delete")
+    record_audit(db, "delete", "document", document.id, "soft delete")
     db.commit()
 
 
 def restore_document(db: Session, document_id: int) -> None:
-    document = db.get(Document, document_id)
-    if document is None:
-        raise ValueError(f"document {document_id} not found")
+    document = get_document(db, document_id)
     document.trashed_at = None
-    _audit(db, "restore", "document", document.id, "")
+    record_audit(db, "restore", "document", document.id, "")
     db.commit()
 
 
 def purge_expired_trash(
     db: Session, vector_store: VectorStore, *, older_than_days: int = DEFAULT_TRASH_DAYS
 ) -> list[int]:
-    """Hard-deletes documents trashed more than `older_than_days` ago.
-    Returns the purged document ids."""
+    """Hard-deletes documents trashed more than `older_than_days` ago, with
+    their chunks in every collection generation. Returns the purged ids."""
     cutoff = utcnow() - dt.timedelta(days=older_than_days)
     documents = (
         db.execute(
@@ -306,25 +501,24 @@ def purge_expired_trash(
 
     purged_ids = []
     for document in documents:
-        collection = db.get(Collection, document.collection_id)
-        versions = (
-            db.execute(select(DocumentVersion).where(DocumentVersion.document_id == document.id))
-            .scalars()
-            .all()
-        )
+        versions = list(document.versions)
         for version in versions:
             chunks = db.execute(select(Chunk).where(Chunk.version_id == version.id)).scalars().all()
-            if chunks:
+            by_collection: dict[int, list[Chunk]] = {}
+            for chunk in chunks:
+                by_collection.setdefault(chunk.collection_id, []).append(chunk)
+            for collection_id, collection_chunks in by_collection.items():
+                collection = db.get(Collection, collection_id)
                 vector_store.delete(
-                    collection.chroma_collection, [f"{version.id}:{c.id}" for c in chunks]
+                    collection.chroma_collection, [_vector_id(c) for c in collection_chunks]
                 )
-                for chunk in chunks:
-                    fts.remove_chunk(db, chunk.id, chunk.text)
-                    db.delete(chunk)
+            for chunk in chunks:
+                fts.remove_chunk(db, chunk.id, chunk.text)
+                db.delete(chunk)
             db.delete(version)
         purged_ids.append(document.id)
         db.delete(document)
-        _audit(db, "purge", "document", document.id, f"{len(versions)} version(s)")
+        record_audit(db, "purge", "document", document.id, f"{len(versions)} version(s)")
 
     db.commit()
     return purged_ids
@@ -337,7 +531,7 @@ def diff_versions(db: Session, version_a_id: int, version_b_id: int) -> list[str
     version_a = db.get(DocumentVersion, version_a_id)
     version_b = db.get(DocumentVersion, version_b_id)
     if version_a is None or version_b is None:
-        raise ValueError("one or both versions not found")
+        raise NotFoundError("one or both versions not found")
 
     return list(
         difflib.unified_diff(
@@ -350,7 +544,7 @@ def diff_versions(db: Session, version_a_id: int, version_b_id: int) -> list[str
     )
 
 
-# --- Reindex (realizes a blue/green swap for already-ingested documents) --
+# --- In-place reindex (same model and chunking, e.g. after a parser fix) --
 
 
 def reindex_document(
@@ -361,86 +555,26 @@ def reindex_document(
     embedding_client: EmbeddingClient,
     vector_store: VectorStore,
 ) -> IngestResult:
-    document = db.get(Document, document_id)
-    if document is None or document.active_version_id is None:
-        raise ValueError(f"document {document_id} has no active version to reindex")
-    collection = db.get(Collection, document.collection_id)
+    document = get_document(db, document_id)
+    if document.active_version_id is None:
+        raise ConflictError(f"document {document_id} has no active version to reindex")
+    collection = get_collection(db, document.collection_id)
     active_version = db.get(DocumentVersion, document.active_version_id)
 
-    source_path = file_store.files_path_for(
-        settings.files_dir, active_version.sha256, active_version.ext
+    _clear_chunks(db, vector_store, collection, active_version.id)
+    parsed = _parse(_stored_path(settings, active_version), settings)
+    chunk_count = _index_version(
+        db, collection, document, active_version, parsed, embedding_client, vector_store
     )
 
-    old_chunks = (
-        db.execute(select(Chunk).where(Chunk.version_id == active_version.id)).scalars().all()
-    )
-    if old_chunks:
-        vector_store.delete(
-            collection.chroma_collection, [f"{active_version.id}:{c.id}" for c in old_chunks]
-        )
-        for chunk in old_chunks:
-            fts.remove_chunk(db, chunk.id, chunk.text)
-            db.delete(chunk)
-    db.flush()
-
-    parsed = parse_file(
-        source_path,
-        ocr_lang=settings.ocr_lang,
-        ocr_min_text_chars=settings.ocr_min_text_chars,
-        tesseract_cmd=settings.tesseract_cmd,
-        tessdata_prefix=settings.tessdata_prefix,
-    )
-    chunks = chunk_blocks(
-        parsed.blocks,
-        chunk_size_tokens=collection.chunk_size_tokens,
-        overlap_pct=collection.chunk_overlap_pct,
-    )
-
-    chunk_rows = [
-        Chunk(
-            version_id=active_version.id,
-            chunk_index=i,
-            text=c.text,
-            page=c.page,
-            heading=c.heading,
-            token_estimate=c.token_estimate,
-        )
-        for i, c in enumerate(chunks)
-    ]
-    db.add_all(chunk_rows)
-    db.flush()
-
-    for row in chunk_rows:
-        fts.index_chunk(db, row.id, row.text)
-
-    if chunk_rows:
-        embeddings = embedding_client.embed([row.text for row in chunk_rows])
-        vector_store.upsert(
-            collection.chroma_collection,
-            ids=[f"{active_version.id}:{row.id}" for row in chunk_rows],
-            embeddings=embeddings,
-            metadatas=[
-                {
-                    "document_id": document.id,
-                    "version_id": active_version.id,
-                    "filename": document.filename,
-                    "chunk_index": row.chunk_index,
-                    "page": row.page or 0,
-                    "heading": row.heading or "",
-                }
-                for row in chunk_rows
-            ],
-            documents=[row.text for row in chunk_rows],
-        )
-
-    _audit(db, "reindex", "document", document.id, f"{len(chunk_rows)} chunks")
+    record_audit(db, "reindex", "document", document.id, f"{chunk_count} chunks")
     db.commit()
 
     return IngestResult(
         status="ingested",
         document_id=document.id,
         version_id=active_version.id,
-        chunk_count=len(chunk_rows),
+        chunk_count=chunk_count,
     )
 
 
@@ -451,6 +585,7 @@ def reindex_collection(
     settings: Settings,
     embedding_client: EmbeddingClient,
     vector_store: VectorStore,
+    progress: ProgressCallback | None = None,
 ) -> list[IngestResult]:
     document_ids = (
         db.execute(
@@ -461,13 +596,19 @@ def reindex_collection(
         .scalars()
         .all()
     )
-    return [
-        reindex_document(
-            db,
-            document_id,
-            settings=settings,
-            embedding_client=embedding_client,
-            vector_store=vector_store,
+    results = []
+    for i, document_id in enumerate(document_ids):
+        if progress:
+            progress(i / max(len(document_ids), 1))
+        results.append(
+            reindex_document(
+                db,
+                document_id,
+                settings=settings,
+                embedding_client=embedding_client,
+                vector_store=vector_store,
+            )
         )
-        for document_id in document_ids
-    ]
+    if progress:
+        progress(1.0)
+    return results

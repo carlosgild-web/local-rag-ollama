@@ -32,6 +32,11 @@ def format_sources(chunks: list[RetrievedChunk]) -> str:
     return "\n".join(_source_label(chunk, i) for i, chunk in enumerate(chunks, start=1))
 
 
-def build_prompt(question: str, chunks: list[RetrievedChunk]) -> str:
+def build_prompt(
+    question: str, chunks: list[RetrievedChunk], system_instructions: str | None = None
+) -> str:
+    """`system_instructions` comes from the active rag_profile; profiles are
+    validated to keep the not-found rule (app/versioning/profiles.py)."""
+    instructions = system_instructions or SYSTEM_INSTRUCTIONS
     context = format_context(chunks)
-    return f"{SYSTEM_INSTRUCTIONS}\n\nContext:\n{context}\n\nQuestion: {question}\n\nAnswer:"
+    return f"{instructions}\n\nContext:\n{context}\n\nQuestion: {question}\n\nAnswer:"

@@ -42,7 +42,7 @@ def remove_chunk(db: Session, chunk_id: int, chunk_text: str) -> None:
 
 def search(db: Session, query: str, top_k: int) -> list[int]:
     """Returns chunk ids ranked by FTS5 relevance, best first."""
-    match_query = _build_match_query(query)
+    match_query = build_match_query(query)
     if not match_query:
         return []
     rows = db.execute(
@@ -52,7 +52,7 @@ def search(db: Session, query: str, top_k: int) -> list[int]:
     return [row[0] for row in rows]
 
 
-def _build_match_query(value: str) -> str:
+def build_match_query(value: str) -> str:
     """Quotes each word so FTS5 doesn't choke on user punctuation/operators."""
     words = _WORD_RE.findall(value)
     return " OR ".join(f'"{w}"' for w in words)

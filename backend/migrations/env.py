@@ -8,8 +8,9 @@ from app.db.models import Base
 
 config = context.config
 
-if config.config_file_name is not None:
-    fileConfig(config.config_file_name)
+# Programmatic callers (app/db/migrate.py) keep the app's own logging config.
+if config.config_file_name is not None and config.attributes.get("configure_logging", True):
+    fileConfig(config.config_file_name, disable_existing_loggers=False)
 
 target_metadata = Base.metadata
 
@@ -21,6 +22,8 @@ def _include_object(obj, name, type_, reflected, compare_to) -> bool:
 
 
 def _get_url() -> str:
+    if "db_path" in config.attributes:
+        return f"sqlite:///{config.attributes['db_path']}"
     x_args = context.get_x_argument(as_dictionary=True)
     if "db_path" in x_args:
         return f"sqlite:///{x_args['db_path']}"

@@ -10,61 +10,62 @@ import sys
 from pathlib import Path
 
 from app.core.config import get_settings
-from app.ingest.pipeline import ingest_path
-from app.llm.ollama_client import OllamaEmbeddingClient, OllamaLLMClient
-from app.retrieval.chroma_store import ChromaVectorStore
+from app.core.runtime import build_runtime
 from app.retrieval.prompt import NOT_FOUND_PHRASE, format_sources
 from app.retrieval.qa import prepare_context
+from app.versioning import service
 
 
 def cmd_ingest(args: argparse.Namespace) -> int:
-    settings = get_settings()
-    settings.ensure_data_dirs()
+    runtime = build_runtime(get_settings())
+    settings = runtime.settings
 
-    embedding_client = OllamaEmbeddingClient(settings.ollama_base_url, settings.embedding_model)
-    vector_store = ChromaVectorStore(settings.chroma_dir)
+    with runtime.session_factory() as db:
+        collection = service.get_or_create_default_collection(db, runtime.vector_store, settings)
+        embedding_client = runtime.embedding_client_for(collection.embedding_model)
 
-    results = ingest_path(
-        Path(args.path),
-        settings=settings,
-        embedding_client=embedding_client,
-        vector_store=vector_store,
-    )
+        ingested = skipped = chunks = 0
+        for path in service.discover_files(Path(args.path)):
+            result = service.ingest_document(
+                db,
+                collection=collection,
+                source_path=path,
+                settings=settings,
+                embedding_client=embedding_client,
+                vector_store=runtime.vector_store,
+            )
+            if result.status == "ingested":
+                ingested += 1
+                chunks += result.chunk_count
+                print(f"ingested  {path}  ({result.chunk_count} chunks)")
+            else:
+                skipped += 1
+                print(f"skipped   {path}  (duplicate)")
 
-    ingested = [r for r in results if r.status == "ingested"]
-    skipped = [r for r in results if r.status == "skipped_duplicate"]
-
-    for r in ingested:
-        print(f"ingested  {r.path}  ({r.chunk_count} chunks)")
-    for r in skipped:
-        print(f"skipped   {r.path}  (duplicate)")
-
-    print(
-        f"\n{len(ingested)} ingested, {len(skipped)} skipped, "
-        f"{sum(r.chunk_count for r in ingested)} chunks total"
-    )
+    print(f"\n{ingested} ingested, {skipped} skipped, {chunks} chunks total")
     return 0
 
 
 def cmd_ask(args: argparse.Namespace) -> int:
-    settings = get_settings()
-    settings.ensure_data_dirs()
-
-    embedding_client = OllamaEmbeddingClient(settings.ollama_base_url, settings.embedding_model)
-    llm_client = OllamaLLMClient(settings.ollama_base_url, settings.chat_model)
-    vector_store = ChromaVectorStore(settings.chroma_dir)
-
+    runtime = build_runtime(get_settings())
+    settings = runtime.settings
     question = " ".join(args.question)
-    context = prepare_context(
-        question,
-        settings=settings,
-        embedding_client=embedding_client,
-        vector_store=vector_store,
-    )
+
+    with runtime.session_factory() as db:
+        collection = service.get_or_create_default_collection(db, runtime.vector_store, settings)
+        context = prepare_context(
+            db,
+            question,
+            collection=collection,
+            settings=settings,
+            embedding_client=runtime.embedding_client_for(collection.embedding_model),
+            vector_store=runtime.vector_store,
+        )
     if context is None:
         print(NOT_FOUND_PHRASE)
         return 0
 
+    llm_client = runtime.llm_client_for(settings.chat_model)
     for piece in llm_client.stream_generate(
         context.prompt, temperature=settings.llm_temperature, num_ctx=settings.ollama_num_ctx
     ):

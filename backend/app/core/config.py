@@ -32,6 +32,12 @@ class Settings(BaseSettings):
     llm_temperature: float = 0.2
     ollama_num_ctx: int = 8192
 
+    # OCR fallback for low-text-yield PDF pages
+    ocr_lang: str = "eng+spa"
+    ocr_min_text_chars: int = 20
+    tesseract_cmd: str | None = None
+    tessdata_prefix: str | None = None
+
     # File watching
     watch_polling: bool = False
 

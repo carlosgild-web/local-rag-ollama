@@ -12,6 +12,7 @@ from fastapi.responses import JSONResponse
 
 from app.api.routes import chat, collections, documents, jobs, models, ops, profiles, retrieval
 from app.core.config import get_settings
+from app.core.logging import RequestIdMiddleware, configure_logging
 from app.core.runtime import Runtime, build_runtime
 from app.ingest.uploads import UnsupportedUploadError, UploadTooLargeError
 from app.jobs.worker import JobWorker
@@ -36,7 +37,13 @@ def create_app(runtime: Runtime | None = None, *, start_worker: bool = True) -> 
 
     @asynccontextmanager
     async def lifespan(app: FastAPI):
-        app.state.runtime = runtime or build_runtime(get_settings())
+        if runtime is None:
+            # Real server: JSON logs (tests keep pytest's log capture).
+            settings = get_settings()
+            configure_logging(settings.log_level)
+            app.state.runtime = build_runtime(settings)
+        else:
+            app.state.runtime = runtime
         app.state.worker = JobWorker(app.state.runtime)
         if start_worker:
             app.state.worker.start()
@@ -63,6 +70,7 @@ def create_app(runtime: Runtime | None = None, *, start_worker: bool = True) -> 
     for exc_type, status_code in _ERROR_STATUS.items():
         app.add_exception_handler(exc_type, _error_handler(status_code))
     app.add_exception_handler(httpx.HTTPError, _ollama_error)
+    app.add_middleware(RequestIdMiddleware)
     return app
 
 

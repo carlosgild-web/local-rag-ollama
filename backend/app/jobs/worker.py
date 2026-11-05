@@ -10,7 +10,11 @@ import logging
 import threading
 from pathlib import Path
 
+from sqlalchemy.orm import Session
+
+from app.core.logging import request_id_var
 from app.core.runtime import Runtime
+from app.db.models import IngestJob
 from app.ingest.uploads import discard_staged
 from app.jobs import queue
 from app.jobs.handlers import HANDLERS
@@ -62,38 +66,45 @@ class JobWorker:
             if job is None:
                 return False
 
-            log_extra = {"job_id": job.id, "job_type": job.job_type}
-            logger.info("job started", extra=log_extra)
-            payload = json.loads(job.payload)
-            handler = HANDLERS.get(job.job_type)
-
-            def progress(fraction: float) -> None:
-                queue.report_progress(db, job, fraction)
-
+            token = request_id_var.set(f"job-{job.id}")
             try:
-                if handler is None:
-                    raise ValueError(f"no handler for job type {job.job_type!r}")
-                result = handler(db, payload, self._runtime, progress)
-            except JobCancelled:
-                db.rollback()
-                queue.mark_cancelled(db, job)
-                self._cleanup(job.job_type, payload)
-                logger.info("job cancelled", extra=log_extra)
-            except Exception as exc:
-                db.rollback()
-                queue.fail(
-                    db,
-                    job,
-                    f"{type(exc).__name__}: {exc}",
-                    max_retries=self._runtime.settings.job_max_retries,
-                )
-                logger.exception("job failed", extra={**log_extra, "status": job.status})
-            else:
-                if job.job_type == "ingest" and result.get("document_id"):
-                    job.document_id = result["document_id"]
-                queue.complete(db, job, result)
-                logger.info("job completed", extra=log_extra)
-            return True
+                return self._run(db, job)
+            finally:
+                request_id_var.reset(token)
+
+    def _run(self, db: Session, job: IngestJob) -> bool:
+        log_extra = {"job_id": job.id, "job_type": job.job_type}
+        logger.info("job started", extra=log_extra)
+        payload = json.loads(job.payload)
+        handler = HANDLERS.get(job.job_type)
+
+        def progress(fraction: float) -> None:
+            queue.report_progress(db, job, fraction)
+
+        try:
+            if handler is None:
+                raise ValueError(f"no handler for job type {job.job_type!r}")
+            result = handler(db, payload, self._runtime, progress)
+        except JobCancelled:
+            db.rollback()
+            queue.mark_cancelled(db, job)
+            self._cleanup(job.job_type, payload)
+            logger.info("job cancelled", extra=log_extra)
+        except Exception as exc:
+            db.rollback()
+            queue.fail(
+                db,
+                job,
+                f"{type(exc).__name__}: {exc}",
+                max_retries=self._runtime.settings.job_max_retries,
+            )
+            logger.exception("job failed", extra={**log_extra, "status": job.status})
+        else:
+            if job.job_type == "ingest" and result.get("document_id"):
+                job.document_id = result["document_id"]
+            queue.complete(db, job, result)
+            logger.info("job completed", extra=log_extra)
+        return True
 
     def run_until_idle(self, max_jobs: int = 100) -> int:
         """Test helper: drains the queue synchronously."""

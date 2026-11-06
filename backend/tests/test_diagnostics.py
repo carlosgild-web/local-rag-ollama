@@ -130,28 +130,58 @@ def test_unknown_fault_names_are_ignored(runtime):
         assert client.get("/api/diagnostics").json()["simulated"] == ["sqlite"]
 
 
-def test_support_ticket_is_saved_locally_with_the_full_report(runtime):
-    """The "send to L2 support" button is simulated: nothing leaves the
-    machine; the report a real integration would send is saved instead."""
+def test_support_draft_is_prefilled_from_the_checks(runtime):
+    with _client(runtime, simulate_faults="sqlite") as client:
+        draft = client.get("/api/support/draft").json()
+    env = draft["environment"]
+    assert (
+        env["computer_name"]
+        and env["user_name"]
+        and env["configuration_item"].startswith("Local RAG on ")
+    )
+    assert draft["assignment_group"] == "L2 Application Support"
+    # the database is down: the whole app is unusable -> impact 2, urgency 1 -> P2
+    assert (draft["impact"], draft["urgency"], draft["priority"]) == (2, 1, "2 - High")
+    assert draft["short_description"].startswith("Local RAG: check 'Database opens' is failing")
+    assert any(p["title"] == "Database opens" for p in draft["problems"])
+    assert draft["simulated_faults"] == ["sqlite"]
+
+
+def test_support_ticket_is_filed_locally_as_a_numbered_incident(runtime):
+    """Submitting is simulated: nothing leaves the machine; the incident a
+    real integration would send is saved instead, with an INC number."""
     with runtime.session_factory() as db:
         db.add(IngestJob(job_type="ingest", payload="{}", status="failed", error="boom"))
         db.commit()
-    with _client(runtime, simulate_faults="ollama_down") as client:
-        response = client.post("/api/support/tickets", json={"note": "Chat stopped answering"})
-        audit = client.get("/api/audit", params={"action": "support_ticket"}).json()
-
-    assert response.status_code == 201
-    ticket = response.json()
-    assert ticket["ticket_id"].startswith("L2-") and ticket["simulated"] is True
-    assert ticket["status"] == "fail" and ticket["problems"] >= 1
-    report = ticket["report"]
-    assert report["user_note"] == "Chat stopped answering"
-    assert report["recent_failed_jobs"][0]["error"] == "boom"
-    assert {c["id"] for c in report["troubleshooter"]["checks"]} >= {
-        "ollama.reachable",
-        "sqlite.open",
+    body = {
+        "caller_name": "Carlos",
+        "contact": "ext. 1234",
+        "impact": 1,
+        "urgency": 2,
+        "short_description": "Chat stopped answering",
+        "description": "After the patch from yesterday the system is down.",
+        "recent_changes": "Windows patch KB000000 installed yesterday",
     }
+    with _client(runtime, simulate_faults="ollama_down") as client:
+        first = client.post("/api/support/tickets", json=body)
+        second = client.post("/api/support/tickets", json=body)
+        audit = client.get("/api/audit", params={"action": "support_ticket"}).json()
+        missing = client.post("/api/support/tickets", json={**body, "description": ""})
 
-    saved = runtime.settings.support_dir / f"{ticket['ticket_id']}.json"
-    assert saved.exists() and "Chat stopped answering" in saved.read_text(encoding="utf-8")
-    assert audit and ticket["ticket_id"] in audit[0]["detail"]
+    assert first.status_code == 201
+    ticket = first.json()
+    incident = ticket["incident"]
+    assert ticket["number"] == "INC0010001" and second.json()["number"] == "INC0010002"
+    assert incident["state"] == "New" and incident["simulated"] is True
+    assert incident["priority"] == "2 - High"  # impact 1, urgency 2
+    assert incident["response_due"] > incident["opened_at"]
+    assert incident["description"].startswith("After the patch")
+    assert incident["user_details"]["recent_changes"].startswith("Windows patch")
+    assert incident["work_notes"]["recent_failed_jobs"][0]["error"] == "boom"
+    assert any(p["title"] == "Ollama is reachable" for p in incident["work_notes"]["problems"])
+    assert "checks" in incident["attachments"]["diagnostics.json"]
+
+    saved = runtime.settings.support_dir / "INC0010001.json"
+    assert saved.exists() and "After the patch" in saved.read_text(encoding="utf-8")
+    assert {a["detail"].split()[0] for a in audit} == {"INC0010001", "INC0010002"}
+    assert missing.status_code == 422  # "what happened" is required

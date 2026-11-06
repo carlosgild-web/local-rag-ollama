@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { NavLink, Outlet } from "react-router-dom";
+import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { Troubleshooter } from "@/components/Troubleshooter";
 import { TroubleshooterProvider, useTroubleshooter } from "@/components/TroubleshooterContext";
 import { Button } from "@/components/ui/button";
@@ -132,10 +133,14 @@ function Shell() {
       <main className="flex min-w-0 flex-1 flex-col overflow-y-auto">
         <StatusBar status={status} onTroubleshoot={troubleshooter.open} />
         <div className="flex-1">
-          <Outlet />
+          <ErrorBoundary area="this page">
+            <Outlet />
+          </ErrorBoundary>
         </div>
       </main>
-      <Troubleshooter open={troubleshooter.isOpen} onClose={troubleshooter.close} unreachable={status.state === "unreachable"} />
+      <ErrorBoundary area="the troubleshooter">
+        <Troubleshooter open={troubleshooter.isOpen} onClose={troubleshooter.close} unreachable={status.state === "unreachable"} />
+      </ErrorBoundary>
       <Toasts toasts={toasts.items} onDismiss={toasts.dismiss} />
     </div>
   );

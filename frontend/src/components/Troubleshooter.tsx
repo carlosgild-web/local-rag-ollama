@@ -21,7 +21,7 @@ import { api } from "@/api/client";
 import { postEventStream } from "@/api/sse";
 import type { CheckStatus, DiagnosticAction, DiagnosticCheck } from "@/api/types";
 import { ErrorNote } from "@/components/common";
-import { SupportTicketForm } from "@/components/SupportTicketForm";
+import { ServiceDeskTicket } from "@/components/ServiceDeskTicket";
 import { Button } from "@/components/ui/button";
 import { Dialog } from "@/components/ui/dialog";
 import { useDiagnostics } from "@/hooks/queries";
@@ -76,6 +76,9 @@ export function Troubleshooter({
     return <ServerUnreachableHelp open={open} onClose={onClose} onRetry={() => diagnostics.refetch()} />;
   }
   const report = diagnostics.data;
+  if (supporting) {
+    return <ServiceDeskTicket open={open} onBack={() => setSupporting(false)} onClose={close} />;
+  }
   return (
     <Dialog
       open={open}
@@ -94,8 +97,8 @@ export function Troubleshooter({
             variant="outline"
             className="mr-auto"
             onClick={() => setSupporting(true)}
-            disabled={supporting || !report}
-            title="Simulated: creates a support ticket on this computer"
+            disabled={!report}
+            title="Open an incident for L2 support (simulated: nothing is sent)"
           >
             <Headset /> Send to L2 support
           </Button>
@@ -106,7 +109,6 @@ export function Troubleshooter({
         </>
       }
     >
-      {supporting && <SupportTicketForm onCancel={() => setSupporting(false)} />}
       {report && report.simulated.length > 0 && (
         <div className="mb-4 rounded-md border border-warning/40 bg-warning/10 px-3 py-2 text-sm text-warning">
           Test mode: these faults are simulated on purpose (SIMULATE_FAULTS = {report.simulated.join(", ")}). Nothing

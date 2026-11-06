@@ -319,18 +319,40 @@ class DiagnosticsOut(BaseModel):
     ran_at: UtcDatetime
 
 
+class SupportDraftOut(BaseModel):
+    """A prefilled service-desk incident, for the user to review."""
+
+    environment: dict[str, Any]  # computer, user, OS, versions, models
+    category: str
+    subcategory: str
+    assignment_group: str
+    impact: int  # 1 high .. 3 low
+    urgency: int  # 1 high .. 3 low
+    priority: str  # from the impact/urgency matrix, e.g. "2 - High"
+    short_description: str
+    system_status: str  # troubleshooter: ok | warn | fail
+    problems: list[dict[str, Any]]
+    simulated_faults: list[str]
+
+
 class SupportTicketIn(BaseModel):
-    note: str | None = Field(default=None, max_length=2000)  # "what were you doing?"
+    caller_name: str = Field(min_length=1, max_length=120)
+    contact: str | None = Field(default=None, max_length=200)
+    best_time_to_contact: str | None = Field(default=None, max_length=200)
+    impact: int = Field(ge=1, le=3)
+    urgency: int = Field(ge=1, le=3)
+    short_description: str = Field(min_length=1, max_length=160)
+    description: str = Field(min_length=1, max_length=4000)  # "what happened"
+    started_at: str | None = Field(default=None, max_length=100)
+    recent_changes: str | None = Field(default=None, max_length=1000)
+    users_affected: str | None = Field(default=None, max_length=200)
+    steps_to_reproduce: str | None = Field(default=None, max_length=2000)
 
 
 class SupportTicketOut(BaseModel):
-    ticket_id: str
-    created_at: UtcDatetime
-    simulated: bool  # always true: the ticket is saved locally, never sent
-    saved_to: str
-    status: str  # overall troubleshooter status in the report
-    problems: int  # checks that failed or warned
-    report: dict[str, Any]
+    number: str  # e.g. INC0010001
+    saved_to: str  # simulated: the incident is saved locally, never sent
+    incident: dict[str, Any]
 
 
 class HealthOut(BaseModel):

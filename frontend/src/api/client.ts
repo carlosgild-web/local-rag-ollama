@@ -5,7 +5,9 @@ import type {
   Document,
   ChunkDetail,
   Diagnostics,
+  SupportDraft,
   SupportTicket,
+  SupportTicketIn,
   Health,
   Job,
   JobQueued,
@@ -83,7 +85,8 @@ export const api = {
   },
 
   diagnostics: () => request<Diagnostics>("/diagnostics"),
-  createSupportTicket: (note: string) => request<SupportTicket>("/support/tickets", json("POST", { note })),
+  supportDraft: () => request<SupportDraft>("/support/draft"),
+  submitSupportTicket: (body: SupportTicketIn) => request<SupportTicket>("/support/tickets", json("POST", body)),
 
   documents: (filters: DocumentFilters = {}) =>
     request<Document[]>(`/documents${query({ ...filters, limit: 500 })}`),

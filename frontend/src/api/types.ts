@@ -42,15 +42,57 @@ export interface Diagnostics {
   ran_at: string;
 }
 
-/** A simulated L2 support ticket: saved locally, never sent anywhere. */
+/** A prefilled service-desk incident (GET /api/support/draft). */
+export interface SupportDraft {
+  environment: {
+    computer_name: string;
+    user_name: string;
+    os: string;
+    app_version: string;
+    python: string;
+    configuration_item: string;
+    ollama_base_url: string;
+    chat_model: string;
+    embedding_model: string;
+    data_dir: string;
+  };
+  category: string;
+  subcategory: string;
+  assignment_group: string;
+  impact: number;
+  urgency: number;
+  priority: string;
+  short_description: string;
+  system_status: "ok" | "warn" | "fail";
+  problems: { title: string; status: string; detail: string; cause: string | null; fix: string | null }[];
+  simulated_faults: string[];
+}
+
+export interface SupportTicketIn {
+  caller_name: string;
+  contact?: string;
+  best_time_to_contact?: string;
+  impact: number;
+  urgency: number;
+  short_description: string;
+  description: string;
+  started_at?: string;
+  recent_changes?: string;
+  users_affected?: string;
+  steps_to_reproduce?: string;
+}
+
+/** A filed incident: simulated, saved locally, never sent. */
 export interface SupportTicket {
-  ticket_id: string;
-  created_at: string;
-  simulated: boolean;
+  number: string;
   saved_to: string;
-  status: "ok" | "warn" | "fail";
-  problems: number;
-  report: Record<string, unknown>;
+  incident: Record<string, unknown> & {
+    state: string;
+    opened_at: string;
+    response_due: string;
+    priority: string;
+    assignment_group: string;
+  };
 }
 
 export interface QueuedUpload {

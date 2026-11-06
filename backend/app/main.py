@@ -11,6 +11,7 @@ from fastapi import APIRouter, FastAPI, Request
 from fastapi.responses import JSONResponse
 
 from app.api.routes import chat, collections, documents, jobs, models, ops, profiles, retrieval
+from app.api.static import find_static_dir, mount_frontend
 from app.core.config import get_settings
 from app.core.logging import RequestIdMiddleware, configure_logging
 from app.core.runtime import Runtime, build_runtime
@@ -55,7 +56,7 @@ def create_app(runtime: Runtime | None = None, *, start_worker: bool = True) -> 
 
     app = FastAPI(
         title="Local RAG with Ollama",
-        version="0.3.0",
+        version="0.4.0",
         description="Fully local retrieval-augmented generation: documents, versions, chat.",
         lifespan=lifespan,
     )
@@ -72,6 +73,12 @@ def create_app(runtime: Runtime | None = None, *, start_worker: bool = True) -> 
     app.add_exception_handler(httpx.HTTPError, _ollama_error)
     app.add_middleware(RequestIdMiddleware)
     _patch_openapi_file_fields(app)
+
+    # Last, so the catch-all never shadows the API, /docs or /health.
+    settings = runtime.settings if runtime is not None else get_settings()
+    static_dir = find_static_dir(settings.static_dir)
+    if static_dir is not None:
+        mount_frontend(app, static_dir, api_prefix=API_PREFIX)
     return app
 
 

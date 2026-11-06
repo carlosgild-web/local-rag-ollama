@@ -19,6 +19,8 @@ class Settings(BaseSettings):
 
     # Paths
     data_dir: Path = Path("./data")
+    # Built frontend; empty = backend/static, then ../frontend/dist (none = API only)
+    static_dir: Path | None = None
 
     # Ollama
     ollama_base_url: str = "http://localhost:11434"

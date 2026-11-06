@@ -42,7 +42,7 @@ export default function Chat() {
   const [question, setQuestion] = useState("");
 
   const onSession = useCallback((id: number) => navigate(`/chat/${id}`, { replace: true }), [navigate]);
-  const { pending, ask, stop, isStreaming } = useChatStream(onSession);
+  const { pending, ask, stop, reset, isStreaming } = useChatStream(onSession);
 
   const bottom = useRef<HTMLDivElement>(null);
   const messages = sessionId === null ? [] : (session.data?.messages ?? []);
@@ -65,7 +65,7 @@ export default function Chat() {
             variant="outline"
             className="w-full"
             onClick={() => {
-              stop();
+              reset();
               navigate("/chat");
             }}
           >
@@ -108,6 +108,18 @@ export default function Chat() {
                   content={pending.answer}
                   sources={pending.sources}
                   streaming={pending.status === "streaming"}
+                  idleText={
+                    pending.status === "stopped"
+                      ? "Stopped before the answer started."
+                      : pending.status === "error"
+                        ? "No answer."
+                        : undefined
+                  }
+                  footer={
+                    pending.status === "stopped" && (
+                      <p className="mt-2 text-xs text-muted-foreground">Stopped. The partial answer is saved.</p>
+                    )
+                  }
                 />
                 {pending.error && <ErrorNote error={pending.error} />}
               </>
@@ -212,11 +224,14 @@ function AssistantBubble({
   content,
   sources,
   streaming,
+  idleText,
   footer,
 }: {
   content: string;
   sources: Source[];
   streaming?: boolean;
+  /** Shown instead of the spinner when there is no answer and none is coming. */
+  idleText?: string;
   footer?: ReactNode;
 }) {
   const [highlighted, setHighlighted] = useState<number | null>(null);
@@ -225,6 +240,8 @@ function AssistantBubble({
     <div className="max-w-[92%] rounded-2xl rounded-bl-sm border bg-muted/30 px-4 py-3">
       {content ? (
         <CitedAnswer content={content} sources={sources} highlighted={highlighted} onCite={toggle} />
+      ) : idleText ? (
+        <p className="text-sm text-muted-foreground">{idleText}</p>
       ) : (
         <div className="flex items-center gap-2 text-sm text-muted-foreground">
           <Loader2 className="size-4 animate-spin" />

@@ -9,19 +9,21 @@ export interface PendingAnswer {
   question: string;
   answer: string;
   sources: Source[];
-  status: "streaming" | "error";
+  status: "streaming" | "stopped" | "error";
   error?: string;
 }
 
 /**
  * Sends one question to POST /api/chat and accumulates the streamed answer.
  * When the stream ends the session is refetched and the saved messages
- * replace the pending answer.
+ * replace the pending answer. After Stop, the partial answer stays on
+ * screen until the server has saved it (it saves on disconnect).
  */
 export function useChatStream(onSession: (id: number) => void) {
   const client = useQueryClient();
   const [pending, setPending] = useState<PendingAnswer | null>(null);
   const controller = useRef<AbortController | null>(null);
+  const sessionRef = useRef<number | null>(null);
 
   useEffect(() => () => controller.current?.abort(), []);
 
@@ -33,12 +35,14 @@ export function useChatStream(onSession: (id: number) => void) {
       setPending({ question, answer: "", sources: [], status: "streaming" });
 
       let session = sessionId;
+      sessionRef.current = sessionId;
       try {
         const body = { question, session_id: sessionId, collection_id: collectionId ?? null };
         for await (const message of postEventStream("/chat", body, abort.signal)) {
           switch (message.event) {
             case "session":
               session = message.data.session_id;
+              sessionRef.current = session;
               if (sessionId === null) onSession(session);
               break;
             case "sources":
@@ -71,13 +75,32 @@ export function useChatStream(onSession: (id: number) => void) {
     [client, onSession],
   );
 
-  const stop = useCallback(() => {
+  /** Stops generating but keeps the partial answer visible, then swaps in
+   * the saved message once the server has written it. */
+  const stop = useCallback(async () => {
+    controller.current?.abort();
+    controller.current = null;
+    const id = sessionRef.current;
+    setPending((p) => p && { ...p, status: "stopped" });
+    if (id !== null) {
+      for (let attempt = 0; attempt < 15; attempt += 1) {
+        await new Promise((resolve) => setTimeout(resolve, 1000));
+        const saved = await client
+          .fetchQuery({ queryKey: keys.session(id), queryFn: () => api.session(id) })
+          .catch(() => null);
+        if (saved?.messages.at(-1)?.role === "assistant") break;
+      }
+    }
+    setPending((p) => (p?.status === "stopped" ? null : p));
+    client.invalidateQueries({ queryKey: keys.sessions });
+  }, [client]);
+
+  /** Drops any pending answer at once (starting a new chat). */
+  const reset = useCallback(() => {
     controller.current?.abort();
     controller.current = null;
     setPending(null);
-    client.invalidateQueries({ queryKey: keys.sessions });
-    client.invalidateQueries({ queryKey: ["session"] });
-  }, [client]);
+  }, []);
 
-  return { pending, ask, stop, isStreaming: pending?.status === "streaming" };
+  return { pending, ask, stop, reset, isStreaming: pending?.status === "streaming" };
 }

@@ -7,10 +7,39 @@ export interface ComponentHealth {
 
 export interface Health {
   status: "ok" | "degraded" | "down";
+  simulated: string[];
   ollama: ComponentHealth;
   sqlite: ComponentHealth;
   vector_store: ComponentHealth;
   job_worker: ComponentHealth;
+}
+
+export type CheckStatus = "ok" | "warn" | "fail" | "skip";
+
+export interface DiagnosticAction {
+  kind: "pull_model" | "reindex_collection" | "open_queue" | "open_collections";
+  label: string;
+  target: string | null;
+}
+
+/** One troubleshooter check (GET /api/diagnostics). */
+export interface DiagnosticCheck {
+  id: string;
+  component: "ollama" | "sqlite" | "vector_store" | "jobs";
+  title: string;
+  status: CheckStatus;
+  detail: string;
+  cause: string | null;
+  fix: string | null;
+  commands: string[];
+  action: DiagnosticAction | null;
+}
+
+export interface Diagnostics {
+  status: "ok" | "warn" | "fail";
+  checks: DiagnosticCheck[];
+  simulated: string[];
+  ran_at: string;
 }
 
 export interface QueuedUpload {

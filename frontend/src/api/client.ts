@@ -4,6 +4,7 @@ import type {
   CollectionReindex,
   Document,
   ChunkDetail,
+  Diagnostics,
   Health,
   Job,
   JobQueued,
@@ -79,6 +80,8 @@ export const api = {
     if (response.ok || response.status === 503) return (await response.json()) as Health;
     throw await errorFromResponse(response);
   },
+
+  diagnostics: () => request<Diagnostics>("/diagnostics"),
 
   documents: (filters: DocumentFilters = {}) =>
     request<Document[]>(`/documents${query({ ...filters, limit: 500 })}`),

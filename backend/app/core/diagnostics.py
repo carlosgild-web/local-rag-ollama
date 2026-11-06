@@ -244,6 +244,10 @@ def _memory_check(runtime: Runtime, chat_model: str, installed: dict) -> Check:
         return Check(
             "ollama.memory", "ollama", title, "ok", f"{chat_model} is already loaded in memory."
         )
+    if _base(chat_model) not in installed:
+        return Check(
+            "ollama.memory", "ollama", title, "skip", f"Not checked: {chat_model} isn't installed."
+        )
     size = (installed.get(_base(chat_model)) or {}).get("size")
     free = free_memory_bytes()
     if "low_memory" in active_faults(runtime.settings.simulate_faults):
@@ -270,8 +274,10 @@ def _memory_check(runtime: Runtime, chat_model: str, installed: dict) -> Check:
         detail=detail,
         cause="Other programs (browsers, Docker Desktop, IDEs) are using the memory the model needs.",
         fix=(
-            "Close programs you don't need and ask again. If it keeps failing, use a smaller "
-            "chat model, e.g. qwen2.5:3b (CHAT_MODEL in backend/.env; decision 0004)."
+            "Close programs you don't need (browser tabs first) and ask again. If it keeps "
+            f"failing, use a smaller chat model than {chat_model}, e.g. "
+            f"{'qwen2.5:3b' if size > 3 * GB else 'qwen2.5:1.5b'} "
+            "(set CHAT_MODEL in backend/.env and restart the app)."
         ),
     )
 

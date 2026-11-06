@@ -1,5 +1,5 @@
 import { Database, FolderOpen, LayoutDashboard, ListTodo, MessageSquare } from "lucide-react";
-import { NavLink, Outlet } from "react-router-dom";
+import { Link, NavLink, Outlet } from "react-router-dom";
 import { isActiveJob, useHealth, useJobs } from "@/hooks/queries";
 import { cn } from "@/lib/utils";
 
@@ -52,10 +52,15 @@ export function Layout() {
             </NavLink>
           ))}
         </nav>
-        <div className="flex items-center gap-2 border-t px-5 py-4 text-xs text-muted-foreground">
+        <Link
+          to="/?troubleshoot=1"
+          title="Open troubleshooting"
+          className="flex items-center gap-2 border-t px-5 py-4 text-xs text-muted-foreground hover:bg-accent hover:text-accent-foreground"
+        >
           <span className={cn("size-2 rounded-full bg-muted-foreground/40", status && STATUS_COLOR[status])} />
           {status ? `System ${status}` : "Checking…"}
-        </div>
+          {status && status !== "ok" && <span className="ml-auto underline">Troubleshoot</span>}
+        </Link>
       </aside>
       <main className="min-w-0 flex-1 overflow-y-auto">
         <Outlet />

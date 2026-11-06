@@ -17,6 +17,17 @@ export const keys = {
 const ACTIVE: Job["status"][] = ["pending", "running"];
 export const isActiveJob = (job: Job) => ACTIVE.includes(job.status);
 
+/** The troubleshooter; runs only while its panel is open. */
+export function useDiagnostics(enabled: boolean) {
+  return useQuery({
+    queryKey: ["diagnostics"],
+    queryFn: api.diagnostics,
+    enabled,
+    staleTime: 0,
+    refetchOnWindowFocus: false,
+  });
+}
+
 export function useHealth() {
   return useQuery({ queryKey: keys.health, queryFn: api.health, refetchInterval: 10_000 });
 }

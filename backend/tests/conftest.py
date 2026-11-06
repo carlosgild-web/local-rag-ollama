@@ -1,5 +1,6 @@
 import json
 import shutil
+import subprocess
 from pathlib import Path
 
 import httpx
@@ -31,6 +32,9 @@ def tesseract_config():
     on_path = shutil.which("tesseract")
     if on_path and (_FALLBACK_TESSDATA / "spa.traineddata").exists():
         return {"tesseract_cmd": None, "tessdata_prefix": str(_FALLBACK_TESSDATA)}
+    if on_path and {"eng", "spa"} <= _installed_languages(on_path):
+        # System install with language packs (CI, Docker): default tessdata.
+        return {"tesseract_cmd": None, "tessdata_prefix": None}
 
     if _FALLBACK_TESSERACT.exists() and (_FALLBACK_TESSDATA / "spa.traineddata").exists():
         return {
@@ -39,6 +43,16 @@ def tesseract_config():
         }
 
     pytest.skip("Tesseract with eng+spa language data not found")
+
+
+def _installed_languages(tesseract: str) -> set[str]:
+    try:
+        out = subprocess.run(
+            [tesseract, "--list-langs"], capture_output=True, text=True, timeout=10, check=False
+        )
+    except OSError:
+        return set()
+    return {line.strip() for line in out.stdout.splitlines()[1:] if line.strip()}
 
 
 @pytest.fixture

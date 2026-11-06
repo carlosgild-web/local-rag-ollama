@@ -54,8 +54,20 @@ const SUMMARY = {
 
 /** The troubleshooting panel: runs every check and shows what is wrong, the
  * likely cause and what to do, with buttons for the fixes the app can do. */
-export function Troubleshooter({ open, onClose }: { open: boolean; onClose: () => void }) {
-  const diagnostics = useDiagnostics(open);
+export function Troubleshooter({
+  open,
+  onClose,
+  unreachable = false,
+}: {
+  open: boolean;
+  onClose: () => void;
+  /** The app server didn't answer: show built-in help, the checks can't run. */
+  unreachable?: boolean;
+}) {
+  const diagnostics = useDiagnostics(open && !unreachable);
+  if (unreachable || (diagnostics.isError && !diagnostics.data)) {
+    return <ServerUnreachableHelp open={open} onClose={onClose} onRetry={() => diagnostics.refetch()} />;
+  }
   const report = diagnostics.data;
   return (
     <Dialog
@@ -247,5 +259,59 @@ function ActionButton({
       {message && <p className="text-xs text-muted-foreground">{message}</p>}
       {error && <p className="text-xs text-destructive">{error}</p>}
     </div>
+  );
+}
+
+/** Shown when the backend doesn't answer at all, so no check can run. */
+function ServerUnreachableHelp({ open, onClose, onRetry }: { open: boolean; onClose: () => void; onRetry: () => void }) {
+  return (
+    <Dialog
+      open={open}
+      onClose={onClose}
+      title={
+        <span className="flex items-center gap-2">
+          <XCircle className="size-5 text-destructive" /> The app server isn't answering
+        </span>
+      }
+      description="The page is loaded, but the server behind it (the backend on port 8000) doesn't respond, so nothing can be checked or saved."
+      footer={
+        <>
+          <Button variant="outline" onClick={onRetry}>
+            <RefreshCw /> Try again
+          </Button>
+          <Button onClick={onClose}>Close</Button>
+        </>
+      }
+    >
+      <ol className="list-decimal space-y-3 pl-5 text-sm">
+        <li>
+          <span className="font-medium">Start the backend</span> if it isn't running, and leave its window open:
+          <div className="mt-1 space-y-1">
+            <CommandLine command="cd backend" />
+            <CommandLine command=".venv\Scripts\python -m uvicorn app.main:app --port 8000" />
+          </div>
+        </li>
+        <li>
+          <span className="font-medium">If it stops right away</span> with "address already in use" (error 10048),
+          another copy is already using port 8000. Close the other terminal, or find and stop it:
+          <div className="mt-1">
+            <CommandLine command="netstat -ano | findstr :8000" />
+          </div>
+        </li>
+        <li>
+          <span className="font-medium">If it starts and then fails</span>, read the last lines in its window: a
+          missing setting, a locked database or a failed migration is reported there.
+        </li>
+        <li>
+          <span className="font-medium">In Docker</span>, check the app container:
+          <div className="mt-1">
+            <CommandLine command="docker compose ps" />
+          </div>
+        </li>
+      </ol>
+      <p className="mt-4 text-xs text-muted-foreground">
+        The page checks again every 10 seconds and unlocks by itself once the server answers.
+      </p>
+    </Dialog>
   );
 }

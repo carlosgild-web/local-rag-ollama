@@ -1,6 +1,6 @@
-import { AlertTriangle, CheckCircle2, MessageSquare, Upload, Wrench, XCircle } from "lucide-react";
-import { Link, useSearchParams } from "react-router-dom";
-import { Troubleshooter } from "@/components/Troubleshooter";
+import { CheckCircle2, MessageSquare, Upload, Wrench, XCircle } from "lucide-react";
+import { Link } from "react-router-dom";
+import { useTroubleshooter } from "@/components/TroubleshooterContext";
 import type { ComponentHealth } from "@/api/types";
 import { ErrorNote, JOB_LABEL, JobStatusBadge, PageHeader } from "@/components/common";
 import { Button } from "@/components/ui/button";
@@ -25,11 +25,7 @@ const COMPONENTS = [
 
 export default function Dashboard() {
   const health = useHealth();
-  // ?troubleshoot=1 opens the panel (the sidebar health indicator links here).
-  const [params, setParams] = useSearchParams();
-  const troubleshooting = params.get("troubleshoot") === "1";
-  const openTroubleshooter = () => setParams({ troubleshoot: "1" });
-  const closeTroubleshooter = () => setParams({});
+  const { open: openTroubleshooter } = useTroubleshooter();
   const documents = useDocuments();
   const collections = useCollections();
   const sessions = useSessions();
@@ -66,19 +62,6 @@ export default function Dashboard() {
       />
       <div className="space-y-6 px-8 py-6">
         <ErrorNote error={health.error} />
-        {(health.isError || (health.data && health.data.status !== "ok")) && (
-          <div className="flex flex-wrap items-center gap-3 rounded-lg border border-warning/40 bg-warning/10 px-4 py-3 text-sm">
-            <AlertTriangle className="size-4 shrink-0 text-warning" />
-            <span className="flex-1">
-              Something needs attention
-              {health.data?.status === "down" ? ": the app can't work until it's fixed." : "."}
-            </span>
-            <Button size="sm" onClick={openTroubleshooter}>
-              <Wrench /> Troubleshoot
-            </Button>
-          </div>
-        )}
-        <Troubleshooter open={troubleshooting} onClose={closeTroubleshooter} />
 
         <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           {stats.map((s) => (

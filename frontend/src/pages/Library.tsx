@@ -15,6 +15,8 @@ import {
   useReindexDocument,
   useUpload,
 } from "@/hooks/queries";
+import { useSystemStatus } from "@/hooks/useSystemStatus";
+import { Paused } from "@/components/Paused";
 import { cn, formatDate } from "@/lib/utils";
 
 const ACCEPT = ".pdf,.docx,.txt,.md";
@@ -27,6 +29,7 @@ export default function Library() {
   const collections = useCollections();
   const remove = useDeleteDocument();
   const restore = useRestoreDocument();
+  const system = useSystemStatus();
   const reindex = useReindexDocument();
 
   const collectionName = (id: number) =>
@@ -39,7 +42,9 @@ export default function Library() {
         description="Upload PDF, Word, Markdown or text files. Same content is skipped; a known filename with new content becomes a new version."
       />
       <div className="space-y-6 px-8 py-6">
-        <UploadPanel />
+        <Paused reason={system.processBlocked} what="Uploading documents">
+          <UploadPanel />
+        </Paused>
 
         <div className="flex flex-wrap items-center gap-2">
           <Input
@@ -105,6 +110,7 @@ export default function Library() {
                     collection={collectionName(doc.collection_id)}
                     onTag={setTag}
                     onReindex={() => reindex.mutate(doc.id)}
+                    reindexBlocked={system.processBlocked}
                     onRestore={() => restore.mutate(doc.id)}
                     onDelete={() => {
                       if (confirm(`Move "${doc.filename}" to the trash? It is kept for 30 days.`)) {
@@ -129,7 +135,9 @@ function DocumentRow({
   onReindex,
   onRestore,
   onDelete,
+  reindexBlocked,
 }: {
+  reindexBlocked: string | null;
   doc: Document;
   collection: string;
   onTag: (tag: string) => void;
@@ -173,7 +181,13 @@ function DocumentRow({
         )}
         {!isTrashed && (
           <div className="flex justify-end gap-1">
-            <Button variant="ghost" size="icon" title="Reindex" onClick={onReindex}>
+            <Button
+              variant="ghost"
+              size="icon"
+              title={reindexBlocked ? `Reindex is paused: ${reindexBlocked}` : "Reindex"}
+              onClick={onReindex}
+              disabled={!!reindexBlocked}
+            >
               <RefreshCw />
             </Button>
             <Button variant="ghost" size="icon" title="Move to trash" onClick={onDelete}>

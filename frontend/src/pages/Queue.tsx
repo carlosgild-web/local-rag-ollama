@@ -4,12 +4,14 @@ import { EmptyState, ErrorNote, JOB_LABEL, JobStatusBadge, PageHeader } from "@/
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { useCancelJob, useJobs, useRetryJob } from "@/hooks/queries";
+import { useSystemStatus } from "@/hooks/useSystemStatus";
 import { formatDate } from "@/lib/utils";
 
 export default function Queue() {
   const jobs = useJobs();
   const retry = useRetryJob();
   const cancel = useCancelJob();
+  const system = useSystemStatus();
 
   return (
     <>
@@ -39,6 +41,7 @@ export default function Queue() {
                     job={job}
                     onRetry={() => retry.mutate(job.id)}
                     onCancel={() => cancel.mutate(job.id)}
+                    retryBlocked={system.processBlocked}
                   />
                 ))}
               </tbody>
@@ -50,7 +53,17 @@ export default function Queue() {
   );
 }
 
-function JobRow({ job, onRetry, onCancel }: { job: Job; onRetry: () => void; onCancel: () => void }) {
+function JobRow({
+  job,
+  onRetry,
+  onCancel,
+  retryBlocked,
+}: {
+  job: Job;
+  onRetry: () => void;
+  onCancel: () => void;
+  retryBlocked: string | null;
+}) {
   const subject = job.subject ?? (job.document_id ? `document ${job.document_id}` : "");
   return (
     <tr className="align-top">
@@ -77,7 +90,13 @@ function JobRow({ job, onRetry, onCancel }: { job: Job; onRetry: () => void; onC
       <td className="whitespace-nowrap px-4 py-3 text-muted-foreground">{formatDate(job.updated_at)}</td>
       <td className="px-4 py-3 text-right">
         {(job.status === "failed" || job.status === "cancelled") && (
-          <Button variant="outline" size="sm" onClick={onRetry}>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={onRetry}
+            disabled={!!retryBlocked}
+            title={retryBlocked ? `Retry is paused: ${retryBlocked}` : undefined}
+          >
             <RotateCcw /> Retry
           </Button>
         )}

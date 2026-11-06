@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { useCollections, useCreateCollection, useModels, useReindexCollection } from "@/hooks/queries";
+import { useSystemStatus } from "@/hooks/useSystemStatus";
 import { formatDate } from "@/lib/utils";
 
 export default function Collections() {
@@ -15,6 +16,8 @@ export default function Collections() {
   const [creating, setCreating] = useState(false);
   const collections = useCollections(showInactive);
   const reindex = useReindexCollection();
+  const system = useSystemStatus();
+  const processBlocked = system.processBlocked;
 
   return (
     <>
@@ -22,12 +25,22 @@ export default function Collections() {
         title="Collections"
         description="Separate shelves for your documents. A question is answered from one shelf only."
         actions={
-          <Button onClick={() => setCreating((v) => !v)}>
+          <Button
+            onClick={() => setCreating((v) => !v)}
+            disabled={!!processBlocked}
+            title={processBlocked ? `Paused: ${processBlocked}` : undefined}
+          >
             <Plus /> New collection
           </Button>
         }
       />
       <div className="space-y-4 px-8 py-6">
+        {processBlocked && (
+          <p className="rounded-md border border-warning/40 bg-warning/10 px-3 py-2 text-sm">
+            Creating, reindexing and rebuilding shelves is paused because {processBlocked}. You can still look
+            around.
+          </p>
+        )}
         <CollectionsHelp />
         {creating && <CreateForm onDone={() => setCreating(false)} />}
 
@@ -56,6 +69,7 @@ export default function Collections() {
               key={c.id}
               collection={c}
               onReindex={(body) => reindex.mutate({ id: c.id, body })}
+              blocked={processBlocked}
             />
           ))}
         </div>
@@ -67,9 +81,11 @@ export default function Collections() {
 function CollectionCard({
   collection: c,
   onReindex,
+  blocked,
 }: {
   collection: Collection;
   onReindex: (body?: CollectionReindex) => void;
+  blocked: string | null;
 }) {
   const [editing, setEditing] = useState(false);
   return (
@@ -82,7 +98,7 @@ function CollectionCard({
           </CardTitle>
           <CardDescription>Created {formatDate(c.created_at)}</CardDescription>
         </div>
-        {c.is_active && (
+        {c.is_active && !blocked && (
           <div className="flex gap-1">
             <Button variant="ghost" size="sm" title="Read every document on this shelf again" onClick={() => onReindex()}>
               <RefreshCw /> Reindex

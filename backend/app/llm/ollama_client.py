@@ -8,6 +8,33 @@ import httpx
 from app.llm.base import EmbeddingClient, LLMClient
 
 
+class OllamaError(httpx.HTTPError):
+    """Ollama answered with an error. Carries Ollama's own reason (for
+    example an out-of-memory model load) instead of a bare status code."""
+
+    def __init__(self, status_code: int | None, reason: str, model: str):
+        super().__init__(f"Ollama error ({status_code or 'stream'}) for {model}: {reason}")
+        self.status_code = status_code
+        self.reason = reason
+        self.model = model
+
+    @property
+    def out_of_memory(self) -> bool:
+        text = self.reason.lower()
+        return "out of memory" in text or "out-of-memory" in text or "failed to allocate" in text
+
+
+def _check(response: httpx.Response, model: str) -> None:
+    if response.is_success:
+        return
+    response.read()  # streamed responses need the body read first
+    try:
+        reason = response.json().get("error") or response.text
+    except ValueError:
+        reason = response.text
+    raise OllamaError(response.status_code, reason.strip() or response.reason_phrase, model)
+
+
 class OllamaLLMClient(LLMClient):
     def __init__(self, base_url: str, model: str, timeout: float = 300.0):
         self._base_url = base_url.rstrip("/")
@@ -25,7 +52,7 @@ class OllamaLLMClient(LLMClient):
             },
             timeout=self._timeout,
         )
-        response.raise_for_status()
+        _check(response, self._model)
         return response.json()["response"]
 
     def stream_generate(
@@ -42,11 +69,13 @@ class OllamaLLMClient(LLMClient):
             },
             timeout=self._timeout,
         ) as response:
-            response.raise_for_status()
+            _check(response, self._model)
             for line in response.iter_lines():
                 if not line:
                     continue
                 data = json.loads(line)
+                if data.get("error"):  # Ollama can fail mid-stream too
+                    raise OllamaError(None, data["error"], self._model)
                 if data.get("response"):
                     yield data["response"]
                 if data.get("done"):
@@ -68,7 +97,7 @@ class OllamaEmbeddingClient(EmbeddingClient):
             json={"model": self._model, "input": texts},
             timeout=self._timeout,
         )
-        response.raise_for_status()
+        _check(response, self._model)
         embeddings = response.json()["embeddings"]
         if embeddings:
             self._dimensions = len(embeddings[0])

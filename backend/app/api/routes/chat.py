@@ -13,6 +13,7 @@ import logging
 from collections.abc import Iterator
 from typing import Annotated
 
+import httpx
 from fastapi import APIRouter, Query
 from fastapi.responses import StreamingResponse
 from sqlalchemy import select
@@ -31,6 +32,7 @@ from app.api.schemas import (
 from app.api.sse import SSE_HEADERS, drive_sync_stream, sse
 from app.core.runtime import Runtime
 from app.db.models import Chunk, Document, DocumentVersion, Feedback, Message, MessageSource
+from app.llm.ollama_client import OllamaError
 from app.retrieval.prompt import NOT_FOUND_PHRASE
 from app.retrieval.qa import AnswerContext, prepare_context
 from app.versioning import history, profiles
@@ -149,11 +151,26 @@ def _answer_stream(
         )
     except Exception as exc:
         logger.exception("chat generation failed", extra={"session_id": session_id})
-        yield sse("error", {"detail": f"generation failed: {type(exc).__name__}"})
+        yield sse("error", {"detail": generation_error_detail(exc, chat_model)})
     finally:
         # Client went away mid-answer: keep what was generated, with its sources.
         if not saved and parts:
             save()
+
+
+def generation_error_detail(exc: Exception, chat_model: str) -> str:
+    """A message the chat can show as is: what went wrong and what to do."""
+    if isinstance(exc, OllamaError) and exc.out_of_memory:
+        return (
+            f"Ollama doesn't have enough free memory to load the chat model ({chat_model}). "
+            "Close other programs (Docker Desktop and browsers use a lot) and ask again, "
+            "or switch to a smaller chat model."
+        )
+    if isinstance(exc, OllamaError):
+        return f"Ollama couldn't answer with {chat_model}: {exc.reason}"
+    if isinstance(exc, httpx.TransportError):
+        return "Can't reach Ollama. Check that it is running, then ask again."
+    return f"The answer failed ({type(exc).__name__}). Check the server log for details."
 
 
 @router.get("/sessions", response_model=list[SessionSummary])

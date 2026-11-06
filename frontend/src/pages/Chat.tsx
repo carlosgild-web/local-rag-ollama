@@ -18,7 +18,27 @@ export default function Chat() {
   const sessions = useSessions();
   const session = useSession(sessionId);
   const collections = useCollections();
-  const [collectionId, setCollectionId] = useState<number | undefined>();
+  const shelves = collections.data ?? [];
+  // The shelf to search: the open session's, else the one used last.
+  const [chosen, setChosen] = useState<number | undefined>(() => {
+    const stored = Number(localStorage.getItem(LAST_SHELF_KEY));
+    return Number.isFinite(stored) && stored > 0 ? stored : undefined;
+  });
+  const sessionShelf = sessionId === null ? undefined : session.data?.collection_id;
+  useEffect(() => {
+    if (sessionShelf != null) setChosen(sessionShelf);
+  }, [sessionShelf]);
+  const shelfId = shelves.some((c) => c.id === chosen)
+    ? chosen
+    : shelves.length === 1
+      ? shelves[0].id
+      : undefined;
+  // An open session whose shelf was rebuilt: the server follows it to the new copy.
+  const needsShelfChoice = shelfId === undefined && sessionId === null && shelves.length > 1;
+  const chooseShelf = (id: number) => {
+    setChosen(id);
+    localStorage.setItem(LAST_SHELF_KEY, String(id));
+  };
   const [question, setQuestion] = useState("");
 
   const onSession = useCallback((id: number) => navigate(`/chat/${id}`, { replace: true }), [navigate]);
@@ -32,9 +52,9 @@ export default function Chat() {
 
   const submit = () => {
     const text = question.trim();
-    if (!text || isStreaming) return;
+    if (!text || isStreaming || needsShelfChoice || shelves.length === 0) return;
     setQuestion("");
-    ask(text, sessionId, collectionId);
+    ask(text, sessionId, shelfId);
   };
 
   return (
@@ -117,26 +137,39 @@ export default function Chat() {
                   <Square />
                 </Button>
               ) : (
-                <Button size="icon" className="size-10" title="Send" onClick={submit} disabled={!question.trim()}>
+                <Button
+                  size="icon"
+                  className="size-10"
+                  title="Send"
+                  onClick={submit}
+                  disabled={!question.trim() || needsShelfChoice || shelves.length === 0}
+                >
                   <Send />
                 </Button>
               )}
             </div>
             <div className="flex items-center justify-between text-xs text-muted-foreground">
               <span>Answers use only your documents and cite them. Each question is answered on its own.</span>
-              {(collections.data?.length ?? 0) > 1 && (
-                <select
-                  className="rounded border bg-background px-1 py-0.5"
-                  value={collectionId ?? ""}
-                  onChange={(e) => setCollectionId(e.target.value ? Number(e.target.value) : undefined)}
-                >
-                  <option value="">Default collection</option>
-                  {collections.data?.map((c) => (
-                    <option key={c.id} value={c.id}>
-                      {c.name}
-                    </option>
-                  ))}
-                </select>
+              {collections.isSuccess && shelves.length === 0 ? (
+                <span className="text-warning">
+                  No shelves yet: <Link to="/library" className="underline">upload documents</Link> first.
+                </span>
+              ) : (
+                <label className={cn("flex items-center gap-1.5", needsShelfChoice && "text-warning")}>
+                  {needsShelfChoice ? "Choose a shelf:" : "Shelf:"}
+                  <select
+                    className="rounded border bg-background px-1 py-0.5 text-foreground"
+                    value={shelfId ?? ""}
+                    onChange={(e) => chooseShelf(Number(e.target.value))}
+                  >
+                    {shelfId === undefined && <option value="">—</option>}
+                    {shelves.map((c) => (
+                      <option key={c.id} value={c.id}>
+                        {c.name}
+                      </option>
+                    ))}
+                  </select>
+                </label>
               )}
             </div>
           </div>
@@ -145,6 +178,8 @@ export default function Chat() {
     </div>
   );
 }
+
+const LAST_SHELF_KEY = "chat.lastShelf";
 
 function endsWithQuestion(messages: Message[], question: string) {
   const last = messages.at(-1);

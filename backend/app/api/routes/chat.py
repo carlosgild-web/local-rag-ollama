@@ -55,13 +55,20 @@ def chat(db: DbDep, runtime: RuntimeDep, body: ChatIn):
     profile = profiles.get_active_profile(
         db, settings, body.profile or profiles.DEFAULT_PROFILE_NAME
     )
-    collection = resolve_collection(db, runtime, body.collection_id)
-
-    session = (
-        history.get_session(db, body.session_id)
-        if body.session_id is not None
-        else history.create_session(db, body.question)
+    existing = history.get_session(db, body.session_id) if body.session_id is not None else None
+    collection = resolve_collection(
+        db,
+        runtime,
+        body.collection_id,
+        session_collection_id=existing.collection_id if existing else None,
     )
+    if existing is None:
+        session = history.create_session(db, body.question, collection_id=collection.id)
+    else:
+        session = existing
+        if session.collection_id != collection.id:  # remember the shelf for follow-ups
+            session.collection_id = collection.id
+            db.commit()
 
     context = prepare_context(
         db,
@@ -180,7 +187,13 @@ def list_sessions(
     offset: Annotated[int, Query(ge=0)] = 0,
 ):
     return [
-        SessionSummary(id=s.id, title=s.title, created_at=s.created_at, message_count=count)
+        SessionSummary(
+            id=s.id,
+            title=s.title,
+            created_at=s.created_at,
+            message_count=count,
+            collection_id=s.collection_id,
+        )
         for s, count in history.list_sessions(db, limit=limit, offset=offset)
     ]
 
@@ -227,6 +240,7 @@ def get_session(db: DbDep, session_id: int):
         id=session.id,
         title=session.title,
         created_at=session.created_at,
+        collection_id=session.collection_id,
         messages=[
             MessageOut(
                 id=m.id,

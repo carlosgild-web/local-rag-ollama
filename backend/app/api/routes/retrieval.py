@@ -14,10 +14,13 @@ from app.versioning import service
 router = APIRouter(tags=["retrieval"])
 
 
-def resolve_collection(db: Session, runtime: Runtime, collection_id: int | None) -> Collection:
-    if collection_id is None:
-        return service.get_or_create_default_collection(db, runtime.vector_store, runtime.settings)
-    return service.get_collection(db, collection_id)
+def resolve_collection(
+    db: Session, runtime: Runtime, collection_id: int | None, *, session_collection_id=None
+) -> Collection:
+    """For questions: never creates a collection (see collection_for_question)."""
+    return service.collection_for_question(
+        db, collection_id, session_collection_id=session_collection_id
+    )
 
 
 def chunk_out(rank: int, chunk: RetrievedChunk) -> ChunkOut:

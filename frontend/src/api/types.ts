@@ -110,12 +110,14 @@ export interface SessionSummary {
   title: string;
   created_at: string;
   message_count: number;
+  collection_id: number | null;
 }
 
 export interface Session {
   id: number;
   title: string;
   created_at: string;
+  collection_id: number | null;
   messages: Message[];
 }
 

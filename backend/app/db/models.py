@@ -147,6 +147,8 @@ class ChatSession(Base):
     id: Mapped[int] = mapped_column(primary_key=True)
     title: Mapped[str] = mapped_column(default="New chat")
     created_at: Mapped[dt.datetime] = mapped_column(default=utcnow)
+    # The shelf the conversation searches; follow-up questions reuse it.
+    collection_id: Mapped[int | None] = mapped_column(ForeignKey("collections.id"), default=None)
 
     messages: Mapped[list["Message"]] = relationship(back_populates="session")
 

@@ -169,6 +169,7 @@ class SessionSummary(BaseModel):
     title: str
     created_at: UtcDatetime
     message_count: int
+    collection_id: int | None = None
 
 
 class SourceOut(BaseModel):
@@ -207,6 +208,7 @@ class SessionOut(BaseModel):
     id: int
     title: str
     created_at: UtcDatetime
+    collection_id: int | None = None
     messages: list[MessageOut]
 
 

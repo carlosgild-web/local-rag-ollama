@@ -187,6 +187,41 @@ def _next_generation(db: Session, name: str) -> int:
     return len(rows) + 1
 
 
+def collection_for_question(
+    db: Session, collection_id: int | None, *, session_collection_id: int | None = None
+) -> Collection:
+    """Which shelf a question searches. Never creates one: asking on an empty
+    new 'default' shelf could only ever answer "not found".
+
+    An explicit id must be active. Otherwise the chat session's shelf is
+    used (following a blue/green rebuild to its active copy), then the only
+    active shelf, then an existing 'default' shelf."""
+    if collection_id is not None:
+        collection = get_collection(db, collection_id)
+        if not collection.is_active:
+            raise ConflictError(
+                f"collection {collection.name!r} (#{collection.id}) is a retired copy; "
+                "ask the active one"
+            )
+        return collection
+    if session_collection_id is not None:
+        previous = db.get(Collection, session_collection_id)
+        if previous is not None:
+            active = previous if previous.is_active else get_active_collection(db, previous.name)
+            if active is not None:
+                return active
+    active = list(db.execute(select(Collection).where(Collection.is_active)).scalars())
+    if len(active) == 1:
+        return active[0]
+    default = next((c for c in active if c.name == DEFAULT_COLLECTION_NAME), None)
+    if default is not None:
+        return default
+    if not active:
+        raise ConflictError("there are no collections yet: upload documents first")
+    names = ", ".join(sorted(c.name for c in active))
+    raise ConflictError(f"choose a collection to search ({names})")
+
+
 def get_or_create_default_collection(
     db: Session, vector_store: VectorStore, settings: Settings
 ) -> Collection:

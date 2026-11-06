@@ -234,6 +234,7 @@ def test_chat_streams_and_records_sources_profile_and_feedback(client, runtime):
 
 
 def test_chat_with_empty_knowledge_base_answers_not_found(client, runtime):
+    client.post("/api/collections", json={"name": "empty"})
     events = _events(client.post("/api/chat", json={"question": "Anything?"}))
     tokens = [data["text"] for name, data in events if name == "token"]
     assert tokens == [NOT_FOUND_PHRASE]
@@ -341,3 +342,64 @@ def test_timestamps_are_marked_utc(runtime):
         client.post("/api/documents", files=[("files", ("a.txt", b"alpha", "text/plain"))])
         [job] = client.get("/api/jobs").json()
     assert job["created_at"].endswith("Z") or job["created_at"].endswith("+00:00")
+
+
+# --- Which shelf a question searches (end-to-end test 2026-11-06) ----------
+
+
+def _collection_ids(client):
+    return {c["name"]: c["id"] for c in client.get("/api/collections").json()}
+
+
+def test_questions_never_create_a_collection(client):
+    response = client.post("/api/chat", json={"question": "Anything?"})
+    assert response.status_code == 409
+    assert "no collections yet" in response.json()["detail"]
+    assert client.get("/api/collections").json() == []
+
+
+def test_question_without_a_shelf_needs_a_choice_when_several_exist(client):
+    client.post("/api/collections", json={"name": "hr"})
+    client.post("/api/collections", json={"name": "sales"})
+    response = client.post("/api/chat", json={"question": "Anything?"})
+    assert response.status_code == 409
+    assert "choose a collection" in response.json()["detail"]
+    assert sorted(_collection_ids(client)) == ["hr", "sales"]  # no 'default' appeared
+
+
+def test_chat_session_remembers_its_shelf_for_follow_ups(client):
+    client.post("/api/collections", json={"name": "hr"})
+    client.post("/api/collections", json={"name": "sales"})
+    ids = _collection_ids(client)
+    first = _events(
+        client.post("/api/chat", json={"question": "First?", "collection_id": ids["sales"]})
+    )
+    session_id = first[0][1]["session_id"]
+
+    follow_up = client.post("/api/chat", json={"question": "And?", "session_id": session_id})
+
+    assert follow_up.status_code == 200
+    session = client.get(f"/api/sessions/{session_id}").json()
+    assert session["collection_id"] == ids["sales"]
+    listed = next(s for s in client.get("/api/sessions").json() if s["id"] == session_id)
+    assert listed["collection_id"] == ids["sales"]
+
+
+def test_retired_collection_copy_is_refused_and_sessions_follow_the_rebuild(client):
+    _upload(client, "a.txt", b"alpha beta gamma")
+    [default] = client.get("/api/collections").json()
+    first = _events(
+        client.post("/api/chat", json={"question": "alpha?", "collection_id": default["id"]})
+    )
+    session_id = first[0][1]["session_id"]
+    client.post(f"/api/collections/{default['id']}/reindex", json={"chunk_size_tokens": 300})
+    client.drain()
+    new_id = _collection_ids(client)["default"]
+    assert new_id != default["id"]
+
+    retired = client.post("/api/chat", json={"question": "x", "collection_id": default["id"]})
+    assert retired.status_code == 409 and "retired copy" in retired.json()["detail"]
+
+    follow_up = client.post("/api/chat", json={"question": "and?", "session_id": session_id})
+    assert follow_up.status_code == 200
+    assert client.get(f"/api/sessions/{session_id}").json()["collection_id"] == new_id

@@ -19,9 +19,11 @@ class SourceRef:
     score: float
 
 
-def create_session(db: Session, first_question: str) -> ChatSession:
+def create_session(
+    db: Session, first_question: str, *, collection_id: int | None = None
+) -> ChatSession:
     title = " ".join(first_question.split())[:TITLE_MAX_CHARS] or "New chat"
-    session = ChatSession(title=title)
+    session = ChatSession(title=title, collection_id=collection_id)
     db.add(session)
     db.commit()
     return session

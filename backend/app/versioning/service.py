@@ -302,12 +302,11 @@ def build_collection(
         if progress:
             progress(i / max(len(documents), 1))
         for version in document.versions:
-            _clear_chunks(db, vector_store, target, version.id)
             parsed = _parse(_stored_path(settings, version), settings)
-            total_chunks += _index_version(
-                db, target, document, version, parsed, embedding_client, vector_store
-            )
-        db.commit()
+            prepared = _prepare(parsed, target, embedding_client)
+            _clear_chunks(db, vector_store, target, version.id)
+            total_chunks += _index_version(db, target, document, version, prepared, vector_store)
+            db.commit()
 
     if progress:
         progress(1.0)
@@ -342,21 +341,39 @@ def swap_collection(db: Session, source_collection_id: int, target_collection_id
 # --- Indexing helpers -------------------------------------------------------
 
 
-def _index_version(
-    db: Session,
-    collection: Collection,
-    document: Document,
-    version: DocumentVersion,
-    parsed: ParsedDocument,
-    embedding_client: EmbeddingClient,
-    vector_store: VectorStore,
-) -> int:
-    """Chunks one version into one collection: SQLite rows, FTS5, vectors."""
+@dataclass
+class _Prepared:
+    """Chunks and their embeddings, computed without touching the database."""
+
+    chunks: list
+    embeddings: list[list[float]]
+
+
+def _prepare(
+    parsed: ParsedDocument, collection: Collection, embedding_client: EmbeddingClient
+) -> _Prepared:
+    """The slow part of indexing (chunking and the embedding call), done
+    before any write. SQLite allows one writer, so a write transaction held
+    open through the embedding call blocked every other request: a Cancel
+    click waited 9-12 s in the 2026-11-06 end-to-end test."""
     chunks = chunk_blocks(
         parsed.blocks,
         chunk_size_tokens=collection.chunk_size_tokens,
         overlap_pct=collection.chunk_overlap_pct,
     )
+    embeddings = embedding_client.embed([c.text for c in chunks]) if chunks else []
+    return _Prepared(chunks=chunks, embeddings=embeddings)
+
+
+def _index_version(
+    db: Session,
+    collection: Collection,
+    document: Document,
+    version: DocumentVersion,
+    prepared: _Prepared,
+    vector_store: VectorStore,
+) -> int:
+    """Writes one prepared version into one collection: SQLite rows, FTS5, vectors."""
     rows = [
         Chunk(
             version_id=version.id,
@@ -367,12 +384,9 @@ def _index_version(
             heading=c.heading,
             token_estimate=c.token_estimate,
         )
-        for i, c in enumerate(chunks)
+        for i, c in enumerate(prepared.chunks)
     ]
-    # Embed before the first write: the flush takes SQLite's write lock, and
-    # holding it through a slow embedding call blocks every other request
-    # (a Cancel click waited 9 s in the 2026-11-06 end-to-end test).
-    embeddings = embedding_client.embed([row.text for row in rows]) if rows else []
+    embeddings = prepared.embeddings
     db.add_all(rows)
     db.flush()
 
@@ -453,9 +467,11 @@ def ingest_document(
     vector_store: VectorStore,
     filename: str | None = None,
     tags: str | None = None,
+    progress: ProgressCallback | None = None,
 ) -> IngestResult:
     """`filename` overrides `source_path.name` (uploads are staged under a
-    temporary name)."""
+    temporary name). `progress` is called once the slow work is done and
+    before anything is written, so a cancelled job stops cleanly there."""
     filename = filename or source_path.name
     sha256 = file_store.hash_file(source_path)
 
@@ -474,6 +490,9 @@ def ingest_document(
     parsed = _parse(source_path, settings)
     if not parsed.full_text.strip():
         raise NoTextError(f"no text could be read from {filename!r}; it is empty or a blank scan")
+    prepared = _prepare(parsed, collection, embedding_client)
+    if progress:
+        progress(0.8)  # raises JobCancelled if a cancel came in; nothing written yet
 
     _, stored_path = file_store.store_file(source_path, settings.files_dir)
 
@@ -502,9 +521,7 @@ def ingest_document(
     db.add(version)
     db.flush()
 
-    chunk_count = _index_version(
-        db, collection, document, version, parsed, embedding_client, vector_store
-    )
+    chunk_count = _index_version(db, collection, document, version, prepared, vector_store)
 
     document.active_version_id = version.id
     record_audit(db, "upload", "document", document.id, f"version {version.version_number}")
@@ -660,11 +677,10 @@ def reindex_document(
     collection = get_collection(db, document.collection_id)
     active_version = db.get(DocumentVersion, document.active_version_id)
 
-    _clear_chunks(db, vector_store, collection, active_version.id)
     parsed = _parse(_stored_path(settings, active_version), settings)
-    chunk_count = _index_version(
-        db, collection, document, active_version, parsed, embedding_client, vector_store
-    )
+    prepared = _prepare(parsed, collection, embedding_client)
+    _clear_chunks(db, vector_store, collection, active_version.id)
+    chunk_count = _index_version(db, collection, document, active_version, prepared, vector_store)
 
     record_audit(db, "reindex", "document", document.id, f"{chunk_count} chunks")
     db.commit()

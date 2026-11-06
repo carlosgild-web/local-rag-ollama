@@ -237,3 +237,73 @@ def test_upload_with_no_text_fails_once_with_a_clear_reason(runtime, setup):
     assert job.status == "failed" and job.retries == 0
     assert "no text could be read from 'blank.txt'" in job.error
     assert db.query(Document).count() == 0
+
+
+class _DuringEmbed:
+    """Wraps the fake embedder to run `action` while the embedding call is
+    in flight, i.e. while a real model would still be thinking."""
+
+    def __init__(self, inner, action):
+        self.inner, self.action = inner, action
+
+    def embed(self, texts):
+        self.action()
+        return self.inner.embed(texts)
+
+    @property
+    def dimensions(self):
+        return self.inner.dimensions
+
+
+def _hook_embedding(runtime, monkeypatch, action):
+    real = runtime.embedding_client_for
+    monkeypatch.setattr(runtime, "embedding_client_for", lambda m: _DuringEmbed(real(m), action))
+
+
+def _write_with_short_timeout(db_path):
+    """A second writer that gives up after 0.5 s instead of SQLite's 30 s."""
+    import sqlite3
+
+    conn = sqlite3.connect(db_path, timeout=0.5)
+    try:
+        conn.execute("BEGIN IMMEDIATE")  # takes the write lock or fails
+        conn.rollback()
+    finally:
+        conn.close()
+
+
+def test_ingest_and_reindex_do_not_hold_the_write_lock_while_embedding(runtime, setup, monkeypatch):
+    """Regression (end-to-end test 2026-11-06): Cancel waited 9-12 s because
+    indexing kept SQLite's write lock through the embedding call."""
+    db, collection, worker = setup
+    _hook_embedding(
+        runtime, monkeypatch, lambda: _write_with_short_timeout(runtime.settings.db_path)
+    )
+    job, _ = _enqueue_ingest(db, runtime, collection)
+
+    worker.run_until_idle()  # raises nothing: the hook's write got the lock
+    assert queue.get_job(db, job.id).status == "completed", queue.get_job(db, job.id).error
+
+    reindex = queue.enqueue(
+        db, "reindex_document", {"document_id": queue.get_job(db, job.id).document_id}
+    )
+    worker.run_until_idle()
+    assert queue.get_job(db, reindex.id).status == "completed", queue.get_job(db, reindex.id).error
+
+
+def test_cancel_during_an_upload_stops_it_before_anything_is_written(runtime, setup, monkeypatch):
+    db, collection, worker = setup
+
+    def click_cancel():
+        with runtime.session_factory() as api_db:
+            [running] = queue.list_jobs(api_db, status="running")
+            queue.cancel(api_db, running.id)
+
+    _hook_embedding(runtime, monkeypatch, click_cancel)
+    job, staged = _enqueue_ingest(db, runtime, collection)
+
+    worker.run_until_idle()
+
+    assert queue.get_job(db, job.id).status == "cancelled"
+    assert db.query(Document).count() == 0
+    assert not staged.exists()

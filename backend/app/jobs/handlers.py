@@ -35,6 +35,7 @@ def handle_ingest(db: Session, payload: dict, runtime: Runtime, progress: Progre
         settings=runtime.settings,
         embedding_client=runtime.embedding_client_for(collection.embedding_model),
         vector_store=runtime.vector_store,
+        progress=progress,
     )
     discard_staged(staged, runtime.settings.uploads_dir)
     return {

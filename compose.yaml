@@ -1,0 +1,52 @@
+# Mode A (PLAN.md appendix A): Ollama and the app as two containers.
+#   docker compose up --build
+#   docker compose exec ollama ollama pull bge-m3
+#   docker compose exec ollama ollama pull llama3.1      # or qwen2.5:3b on 8 GB RAM
+# Then open http://localhost:8000
+#
+# Mode B, Ollama already running on the host:
+#   docker compose -f compose.yaml -f compose.host-ollama.yaml up --build
+
+services:
+  ollama:
+    image: ollama/ollama:latest # pin a version later (Phase 8)
+    volumes:
+      - ollama_models:/root/.ollama
+    ports:
+      - "127.0.0.1:11434:11434"
+    healthcheck:
+      test: ["CMD", "ollama", "list"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+    # GPU (NVIDIA): uncomment
+    # deploy:
+    #   resources:
+    #     reservations:
+    #       devices:
+    #         - driver: nvidia
+    #           count: all
+    #           capabilities: [gpu]
+
+  app:
+    build: .
+    image: ollama-rag:latest
+    environment:
+      OLLAMA_BASE_URL: http://ollama:11434
+      DATA_DIR: /data
+      CHAT_MODEL: ${CHAT_MODEL:-llama3.1}
+      EMBEDDING_MODEL: ${EMBEDDING_MODEL:-bge-m3}
+      WATCH_POLLING: "true"
+      WEB_CONCURRENCY: "1"
+    volumes:
+      - app_data:/data
+      # Phase 6 adds the watched folder: - ./inbox:/watch:ro
+    ports:
+      - "127.0.0.1:8000:8000"
+    depends_on:
+      ollama:
+        condition: service_healthy
+
+volumes:
+  ollama_models:
+  app_data:

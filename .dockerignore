@@ -1,0 +1,20 @@
+# Keep the build context small and free of data and secrets.
+.git
+.github
+.claude
+**/.env
+**/.env.*
+!**/.env.example
+data/
+backend/data/
+backend/.venv/
+backend/tests/
+**/__pycache__/
+**/*.pyc
+backend/.pytest_cache/
+backend/.ruff_cache/
+frontend/node_modules/
+frontend/dist/
+docs/
+inbox/
+*.log

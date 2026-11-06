@@ -1,0 +1,11 @@
+# Mode B: use the Ollama already running on the host instead of a container.
+#   docker compose -f compose.yaml -f compose.host-ollama.yaml up --build
+services:
+  ollama:
+    profiles: ["container-ollama"] # not started in this mode
+  app:
+    environment:
+      OLLAMA_BASE_URL: http://host.docker.internal:11434
+    extra_hosts:
+      - "host.docker.internal:host-gateway" # needed on Linux; harmless elsewhere
+    depends_on: !reset {}

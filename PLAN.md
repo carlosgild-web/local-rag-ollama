@@ -174,6 +174,8 @@ Total is about 30 working days; the MVP (through phase 4) is about 15.
 
 **Done when:** uploading a PDF in the browser indexes it and you can ask about it, and `docker compose up` gives the same result.
 
+✅ **Done 2026-11-06.** Browser upload and chat were verified locally and in Docker (host-Ollama mode). A full end-to-end test (`e2e/`) followed, with 52/52 must-pass checks on the re-test; see `docs/test-reports/2026-11-06-e2e.md` and `CHANGELOG.md` (0.4.0).
+
 ### Phase 5 — Versions and history (3 d) — plan first, then code
 
 - [ ] Version timeline per document, text diff, rollback, notes
@@ -199,6 +201,12 @@ Total is about 30 working days; the MVP (through phase 4) is about 15.
 - [ ] Compare two profiles or two index versions side by side
 
 **Done when:** vector only, hybrid and hybrid + reranker can be compared on the same question set.
+
+Open quality items from the 2026-11-06 end-to-end test, to measure here (`docs/test-reports/2026-11-06-e2e.md`):
+- FAQ questions answered "not found" although the right passages were retrieved (sc-06, sc-07). Check the chunking of `08-customer-faq.txt`.
+- A price-table mix-up: a wholesale price given as the retail price (sc-01).
+- About 1 in 5 citations are valid numbers that point to the wrong document. `citation_status` can't detect this (decision 0007).
+- Try a 7B/8B chat model on better hardware against `qwen2.5:3b` (decision 0004).
 
 ### Phase 8 — Hardening (2 d)
 

@@ -54,6 +54,9 @@ npm run build
 
 # containers
 docker compose up --build
+
+# end-to-end test: real Ollama + a running server on an EMPTY data dir (not run in CI)
+backend/.venv/Scripts/python.exe e2e/run_e2e.py --run-dir <dir> --server-log <server log>
 ```
 
 ## Invariants (never break these)

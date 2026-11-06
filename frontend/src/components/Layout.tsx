@@ -4,6 +4,8 @@ import {
   FolderOpen,
   LayoutDashboard,
   ListTodo,
+  Bell,
+  BellOff,
   Lock,
   MessageSquare,
   Wrench,
@@ -53,7 +55,8 @@ function Shell() {
   const troubleshooter = useTroubleshooter();
   const jobs = useJobs();
   const activeJobs = jobs.data?.filter(isActiveJob).length ?? 0;
-  const toasts = useStatusToasts(status);
+  const notifications = useDesktopNotifications();
+  const toasts = useStatusToasts(status, notifications.send);
   useStatusTitle(status.state);
   useAutoOpenWhenDown(status.state, troubleshooter.open);
 
@@ -81,9 +84,13 @@ function Shell() {
           )}
         >
           <span className={cn("size-2 shrink-0 rounded-full", pill.dot, status.state !== "ok" && "animate-pulse")} />
-          <span className="flex-1">{pill.label}</span>
+          <span className="flex-1">
+            {pill.label}
+            <LastChecked at={status.lastChecked} />
+          </span>
           {status.state !== "ok" && status.state !== "checking" && <Wrench className="size-3.5" />}
         </button>
+        <NotifyToggle notify={notifications} />
         <nav className="flex flex-1 flex-col gap-0.5 px-3">
           {NAV.map(({ to, label, icon: Icon, end, needs, partly }) => {
             const blocked = blockedFor(needs);
@@ -200,8 +207,9 @@ const MESSAGES: Partial<Record<SystemState, { tone: ToastMessage["tone"]; text: 
   unreachable: { tone: "error", text: "Lost the connection to the app server." },
 };
 
-/** A notice whenever the state changes after the first check. */
-function useStatusToasts(status: SystemStatus) {
+/** A notice whenever the state changes after the first check; also a
+ * desktop notification if the user turned them on and the tab is hidden. */
+function useStatusToasts(status: SystemStatus, sendDesktop: (title: string, body: string) => void) {
   const [items, setItems] = useState<ToastMessage[]>([]);
   const previous = useRef<SystemState>("checking");
   useEffect(() => {
@@ -209,8 +217,10 @@ function useStatusToasts(status: SystemStatus) {
     previous.current = status.state;
     if (before === "checking" || status.state === "checking" || before === status.state) return;
     const message = MESSAGES[status.state];
-    if (message) setItems((list) => [...list, { id: Date.now(), ...message }]);
-  }, [status.state]);
+    if (!message) return;
+    setItems((list) => [...list, { id: Date.now(), ...message }]);
+    sendDesktop(PILL[status.state].label, status.headline || message.text);
+  }, [status.state, status.headline, sendDesktop]);
   const dismiss = useCallback((id: number) => setItems((list) => list.filter((t) => t.id !== id)), []);
   return { items, dismiss };
 }
@@ -237,4 +247,77 @@ function useAutoOpenWhenDown(state: SystemState, open: () => void) {
       open();
     }
   }, [state, open]);
+}
+
+/** "checked 5 s ago" under the status pill, ticking every few seconds. */
+function LastChecked({ at }: { at: number }) {
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    const timer = setInterval(() => setNow(Date.now()), 5000);
+    return () => clearInterval(timer);
+  }, []);
+  if (!at) return null;
+  const seconds = Math.max(0, Math.round((now - at) / 1000));
+  const text = seconds < 60 ? `${seconds} s ago` : `${Math.round(seconds / 60)} min ago`;
+  return <span className="block text-[10px] font-normal opacity-80">checked {text}</span>;
+}
+
+const NOTIFY_KEY = "status.desktopNotifications";
+type Notifications = ReturnType<typeof useDesktopNotifications>;
+
+/** Opt-in desktop notifications for status changes. They only fire while
+ * the tab is hidden: on screen, the bar and the notice already show it. */
+function useDesktopNotifications() {
+  const supported = typeof window !== "undefined" && "Notification" in window;
+  const [enabled, setEnabled] = useState(
+    () => supported && Notification.permission === "granted" && localStorage.getItem(NOTIFY_KEY) === "1",
+  );
+  const [permission, setPermission] = useState(() => (supported ? Notification.permission : "denied"));
+
+  const toggle = async () => {
+    if (!supported) return;
+    if (enabled) {
+      localStorage.setItem(NOTIFY_KEY, "0");
+      setEnabled(false);
+      return;
+    }
+    const result = Notification.permission === "granted" ? "granted" : await Notification.requestPermission();
+    setPermission(result);
+    if (result === "granted") {
+      localStorage.setItem(NOTIFY_KEY, "1");
+      setEnabled(true);
+      new Notification("Local RAG", { body: "You'll be notified here when the system status changes." });
+    }
+  };
+
+  const send = useCallback(
+    (title: string, body: string) => {
+      if (enabled && document.hidden) new Notification(`Local RAG: ${title}`, { body, tag: "system-status" });
+    },
+    [enabled],
+  );
+  return { supported, enabled, permission, toggle, send };
+}
+
+function NotifyToggle({ notify }: { notify: Notifications }) {
+  if (!notify.supported) return null;
+  const blocked = notify.permission === "denied" && !notify.enabled;
+  return (
+    <button
+      type="button"
+      onClick={notify.toggle}
+      disabled={blocked}
+      title={
+        blocked
+          ? "Notifications are blocked for this site in your browser settings"
+          : notify.enabled
+            ? "Turn off desktop notifications"
+            : "Get a desktop notification when the system status changes while this tab is in the background"
+      }
+      className="mx-3 -mt-2 mb-3 flex items-center gap-1.5 rounded px-3 py-1 text-left text-xs text-muted-foreground hover:bg-accent hover:text-accent-foreground disabled:opacity-60"
+    >
+      {notify.enabled ? <Bell className="size-3.5 text-primary" /> : <BellOff className="size-3.5" />}
+      {blocked ? "Notifications blocked" : notify.enabled ? "Notifications on" : "Notify me of changes"}
+    </button>
+  );
 }

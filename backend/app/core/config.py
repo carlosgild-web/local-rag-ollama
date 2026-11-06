@@ -74,6 +74,11 @@ class Settings(BaseSettings):
         return self.data_dir / "uploads"
 
     @property
+    def support_dir(self) -> Path:
+        """Simulated L2 support tickets (nothing is sent anywhere)."""
+        return self.data_dir / "support"
+
+    @property
     def backups_dir(self) -> Path:
         return self.data_dir / "backups"
 

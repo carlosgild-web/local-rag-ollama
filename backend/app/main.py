@@ -10,7 +10,17 @@ import httpx
 from fastapi import APIRouter, FastAPI, Request
 from fastapi.responses import JSONResponse
 
-from app.api.routes import chat, collections, documents, jobs, models, ops, profiles, retrieval
+from app.api.routes import (
+    chat,
+    collections,
+    documents,
+    jobs,
+    models,
+    ops,
+    profiles,
+    retrieval,
+    support,
+)
 from app.api.static import find_static_dir, mount_frontend
 from app.core.config import get_settings
 from app.core.logging import RequestIdMiddleware, configure_logging
@@ -63,7 +73,7 @@ def create_app(runtime: Runtime | None = None, *, start_worker: bool = True) -> 
     )
 
     api = APIRouter(prefix=API_PREFIX)
-    for module in (documents, collections, chat, retrieval, jobs, models, profiles, ops):
+    for module in (documents, collections, chat, retrieval, jobs, models, profiles, ops, support):
         api.include_router(module.router)
     app.include_router(api)
     # Unprefixed alias for container health checks.

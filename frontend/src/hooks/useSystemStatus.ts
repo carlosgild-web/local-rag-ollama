@@ -20,6 +20,8 @@ export interface SystemStatus {
   processBlocked: string | null;
   /** One sentence for the status bar. */
   headline: string;
+  /** When the last health check answered (ms since epoch), 0 if never. */
+  lastChecked: number;
 }
 
 const REASON = {
@@ -81,5 +83,6 @@ export function useSystemStatus(): SystemStatus {
     chatBlocked: join(chatReasons),
     processBlocked: join(processReasons),
     headline,
+    lastChecked: health.dataUpdatedAt,
   };
 }

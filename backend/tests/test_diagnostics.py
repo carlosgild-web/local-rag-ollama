@@ -128,3 +128,30 @@ def test_failed_jobs_and_an_old_schema_are_reported(runtime):
 def test_unknown_fault_names_are_ignored(runtime):
     with _client(runtime, simulate_faults="nonsense, sqlite") as client:
         assert client.get("/api/diagnostics").json()["simulated"] == ["sqlite"]
+
+
+def test_support_ticket_is_saved_locally_with_the_full_report(runtime):
+    """The "send to L2 support" button is simulated: nothing leaves the
+    machine; the report a real integration would send is saved instead."""
+    with runtime.session_factory() as db:
+        db.add(IngestJob(job_type="ingest", payload="{}", status="failed", error="boom"))
+        db.commit()
+    with _client(runtime, simulate_faults="ollama_down") as client:
+        response = client.post("/api/support/tickets", json={"note": "Chat stopped answering"})
+        audit = client.get("/api/audit", params={"action": "support_ticket"}).json()
+
+    assert response.status_code == 201
+    ticket = response.json()
+    assert ticket["ticket_id"].startswith("L2-") and ticket["simulated"] is True
+    assert ticket["status"] == "fail" and ticket["problems"] >= 1
+    report = ticket["report"]
+    assert report["user_note"] == "Chat stopped answering"
+    assert report["recent_failed_jobs"][0]["error"] == "boom"
+    assert {c["id"] for c in report["troubleshooter"]["checks"]} >= {
+        "ollama.reachable",
+        "sqlite.open",
+    }
+
+    saved = runtime.settings.support_dir / f"{ticket['ticket_id']}.json"
+    assert saved.exists() and "Chat stopped answering" in saved.read_text(encoding="utf-8")
+    assert audit and ticket["ticket_id"] in audit[0]["detail"]

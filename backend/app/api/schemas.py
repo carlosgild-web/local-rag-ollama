@@ -319,6 +319,20 @@ class DiagnosticsOut(BaseModel):
     ran_at: UtcDatetime
 
 
+class SupportTicketIn(BaseModel):
+    note: str | None = Field(default=None, max_length=2000)  # "what were you doing?"
+
+
+class SupportTicketOut(BaseModel):
+    ticket_id: str
+    created_at: UtcDatetime
+    simulated: bool  # always true: the ticket is saved locally, never sent
+    saved_to: str
+    status: str  # overall troubleshooter status in the report
+    problems: int  # checks that failed or warned
+    report: dict[str, Any]
+
+
 class HealthOut(BaseModel):
     status: str  # "ok" | "degraded" | "down"
     simulated: list[str] = []

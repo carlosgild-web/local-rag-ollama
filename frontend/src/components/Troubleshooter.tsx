@@ -9,6 +9,7 @@ import {
   Loader2,
   MinusCircle,
   RefreshCw,
+  Headset,
   Search,
   Server,
   Wrench,
@@ -20,6 +21,7 @@ import { api } from "@/api/client";
 import { postEventStream } from "@/api/sse";
 import type { CheckStatus, DiagnosticAction, DiagnosticCheck } from "@/api/types";
 import { ErrorNote } from "@/components/common";
+import { SupportTicketForm } from "@/components/SupportTicketForm";
 import { Button } from "@/components/ui/button";
 import { Dialog } from "@/components/ui/dialog";
 import { useDiagnostics } from "@/hooks/queries";
@@ -65,6 +67,11 @@ export function Troubleshooter({
   unreachable?: boolean;
 }) {
   const diagnostics = useDiagnostics(open && !unreachable);
+  const [supporting, setSupporting] = useState(false);
+  const close = () => {
+    setSupporting(false);
+    onClose();
+  };
   if (unreachable || (diagnostics.isError && !diagnostics.data)) {
     return <ServerUnreachableHelp open={open} onClose={onClose} onRetry={() => diagnostics.refetch()} />;
   }
@@ -72,7 +79,7 @@ export function Troubleshooter({
   return (
     <Dialog
       open={open}
-      onClose={onClose}
+      onClose={close}
       title={
         <span className="flex items-center gap-2">
           <Wrench className="size-5" /> Troubleshooting
@@ -83,13 +90,23 @@ export function Troubleshooter({
       }
       footer={
         <>
+          <Button
+            variant="outline"
+            className="mr-auto"
+            onClick={() => setSupporting(true)}
+            disabled={supporting || !report}
+            title="Simulated: creates a support ticket on this computer"
+          >
+            <Headset /> Send to L2 support
+          </Button>
           <Button variant="outline" onClick={() => diagnostics.refetch()} disabled={diagnostics.isFetching}>
             <RefreshCw className={cn(diagnostics.isFetching && "animate-spin")} /> Run checks again
           </Button>
-          <Button onClick={onClose}>Close</Button>
+          <Button onClick={close}>Close</Button>
         </>
       }
     >
+      {supporting && <SupportTicketForm onCancel={() => setSupporting(false)} />}
       {report && report.simulated.length > 0 && (
         <div className="mb-4 rounded-md border border-warning/40 bg-warning/10 px-3 py-2 text-sm text-warning">
           Test mode: these faults are simulated on purpose (SIMULATE_FAULTS = {report.simulated.join(", ")}). Nothing
@@ -118,7 +135,7 @@ export function Troubleshooter({
                 </h3>
                 <ul className="space-y-1.5">
                   {checks.map((check) => (
-                    <CheckRow key={check.id} check={check} onDone={() => diagnostics.refetch()} onClose={onClose} />
+                    <CheckRow key={check.id} check={check} onDone={() => diagnostics.refetch()} onClose={close} />
                   ))}
                 </ul>
               </section>

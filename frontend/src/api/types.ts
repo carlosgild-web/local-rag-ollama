@@ -42,6 +42,17 @@ export interface Diagnostics {
   ran_at: string;
 }
 
+/** A simulated L2 support ticket: saved locally, never sent anywhere. */
+export interface SupportTicket {
+  ticket_id: string;
+  created_at: string;
+  simulated: boolean;
+  saved_to: string;
+  status: "ok" | "warn" | "fail";
+  problems: number;
+  report: Record<string, unknown>;
+}
+
 export interface QueuedUpload {
   job_id: number;
   filename: string;

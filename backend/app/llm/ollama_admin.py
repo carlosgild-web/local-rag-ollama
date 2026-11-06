@@ -38,9 +38,20 @@ class OllamaAdmin:
                 "modified_at": model.get("modified_at"),
                 "family": model.get("details", {}).get("family"),
                 "parameter_size": model.get("details", {}).get("parameter_size"),
+                "capabilities": self.capabilities(model["name"]),
             }
             for model in response.json().get("models", [])
         ]
+
+    def capabilities(self, name: str) -> list[str]:
+        """What a model can do, from /api/show: e.g. ["embedding"] or
+        ["completion", "tools"]. Empty if Ollama doesn't say."""
+        try:
+            response = self._client.post("/api/show", json={"model": name})
+            response.raise_for_status()
+        except httpx.HTTPError:
+            return []
+        return list(response.json().get("capabilities") or [])
 
     def pull(self, name: str) -> Iterator[dict]:
         """Yields Ollama's progress objects ({status, total?, completed?})."""

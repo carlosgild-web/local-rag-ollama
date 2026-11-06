@@ -127,6 +127,7 @@ export interface Model {
   modified_at: string | null;
   family: string | null;
   parameter_size: string | null;
+  capabilities: string[];
 }
 
 export interface Profile {

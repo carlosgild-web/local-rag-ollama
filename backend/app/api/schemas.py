@@ -221,6 +221,7 @@ class ModelOut(BaseModel):
     modified_at: str | None = None
     family: str | None = None
     parameter_size: str | None = None
+    capabilities: list[str] = []  # from Ollama, e.g. ["embedding"] or ["completion"]
 
 
 class ModelPullIn(BaseModel):

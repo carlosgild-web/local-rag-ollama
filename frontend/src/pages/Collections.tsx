@@ -1,7 +1,7 @@
 import { HelpCircle, Plus, RefreshCw, Shuffle } from "lucide-react";
 import { useState } from "react";
 import { Link } from "react-router-dom";
-import type { Collection, CollectionReindex } from "@/api/types";
+import type { Collection, CollectionReindex, Model } from "@/api/types";
 import { ErrorNote, PageHeader } from "@/components/common";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -167,6 +167,8 @@ function SettingsForm({
   const [size, setSize] = useState(initial ? String(initial.chunk_size_tokens) : "");
   const [overlap, setOverlap] = useState(initial ? String(Math.round(initial.chunk_overlap_pct * 100)) : "");
 
+  const options = embeddingModelOptions(models.data ?? [], model);
+
   const submit = () => {
     const body: CollectionReindex = {};
     if (model) body.embedding_model = model;
@@ -185,12 +187,11 @@ function SettingsForm({
           onChange={(e) => setModel(e.target.value)}
         >
           <option value="">Default</option>
-          {models.data?.map((m) => (
-            <option key={m.name} value={m.name}>
-              {m.name}
+          {options.map((name) => (
+            <option key={name} value={name}>
+              {name}
             </option>
           ))}
-          {model && !models.data?.some((m) => m.name === model) && <option value={model}>{model}</option>}
         </select>
       </label>
       <label className="space-y-1">
@@ -255,4 +256,18 @@ function CollectionsHelp() {
       </div>
     </details>
   );
+}
+
+const baseName = (name: string) => name.replace(/:latest$/, "");
+
+/** Embedding models only (a chat model here would break the shelf), each
+ * listed once: "bge-m3" and "bge-m3:latest" are the same model. The current
+ * value keeps its exact spelling so the select shows it. */
+export function embeddingModelOptions(models: Model[], current: string): string[] {
+  const knowsCapabilities = models.some((m) => m.capabilities.length > 0);
+  const names = models
+    .filter((m) => !knowsCapabilities || m.capabilities.includes("embedding"))
+    .map((m) => (current && baseName(m.name) === baseName(current) ? current : m.name));
+  if (current && !names.includes(current)) names.push(current);
+  return [...new Set(names)];
 }

@@ -403,3 +403,8 @@ def test_retired_collection_copy_is_refused_and_sessions_follow_the_rebuild(clie
     follow_up = client.post("/api/chat", json={"question": "and?", "session_id": session_id})
     assert follow_up.status_code == 200
     assert client.get(f"/api/sessions/{session_id}").json()["collection_id"] == new_id
+
+
+def test_models_report_whether_they_embed_or_chat(client):
+    models = {m["name"]: m["capabilities"] for m in client.get("/api/models").json()}
+    assert models == {"llama3.1:latest": ["completion", "tools"], "bge-m3:latest": ["embedding"]}

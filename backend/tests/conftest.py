@@ -85,6 +85,10 @@ def _fake_ollama_handler(request: httpx.Request) -> httpx.Response:
                 ]
             },
         )
+    if path == "/api/show":
+        name = json.loads(request.content)["model"]
+        caps = ["embedding"] if name.startswith("bge-m3") else ["completion", "tools"]
+        return httpx.Response(200, json={"capabilities": caps})
     if path == "/api/pull":
         lines = [{"status": "pulling manifest"}, {"status": "success"}]
         body = "\n".join(json.dumps(line) for line in lines)

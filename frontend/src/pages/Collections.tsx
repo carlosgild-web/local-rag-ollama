@@ -1,4 +1,4 @@
-import { Plus, RefreshCw, Shuffle } from "lucide-react";
+import { HelpCircle, Plus, RefreshCw, Shuffle } from "lucide-react";
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import type { Collection, CollectionReindex } from "@/api/types";
@@ -20,7 +20,7 @@ export default function Collections() {
     <>
       <PageHeader
         title="Collections"
-        description="Each collection fixes its embedding model and chunking. Changing them rebuilds a new generation in the background and swaps it in when ready."
+        description="Separate shelves for your documents. A question is answered from one shelf only."
         actions={
           <Button onClick={() => setCreating((v) => !v)}>
             <Plus /> New collection
@@ -28,6 +28,7 @@ export default function Collections() {
         }
       />
       <div className="space-y-4 px-8 py-6">
+        <CollectionsHelp />
         {creating && <CreateForm onDone={() => setCreating(false)} />}
 
         <label className="flex items-center gap-2 text-sm text-muted-foreground">
@@ -36,7 +37,7 @@ export default function Collections() {
             checked={showInactive}
             onChange={(e) => setShowInactive(e.target.checked)}
           />
-          Show retired generations
+          Show old copies kept after a rebuild
         </label>
 
         <ErrorNote error={collections.error ?? reindex.error} />
@@ -83,10 +84,15 @@ function CollectionCard({
         </div>
         {c.is_active && (
           <div className="flex gap-1">
-            <Button variant="ghost" size="sm" title="Re-chunk and re-embed with the same settings" onClick={() => onReindex()}>
+            <Button variant="ghost" size="sm" title="Read every document on this shelf again" onClick={() => onReindex()}>
               <RefreshCw /> Reindex
             </Button>
-            <Button variant="ghost" size="sm" onClick={() => setEditing((v) => !v)}>
+            <Button
+              variant="ghost"
+              size="sm"
+              title="Advanced: change how this shelf reads its documents"
+              onClick={() => setEditing((v) => !v)}
+            >
               <Shuffle /> Change
             </Button>
           </div>
@@ -199,5 +205,54 @@ function SettingsForm({
         {submitLabel}
       </Button>
     </div>
+  );
+}
+
+const HELP_KEY = "help.collections.open";
+
+/** Plain-language explanation; open until the user folds it away. */
+function CollectionsHelp() {
+  const [open, setOpen] = useState(() => localStorage.getItem(HELP_KEY) !== "false");
+  return (
+    <details
+      open={open}
+      onToggle={(e) => {
+        const next = e.currentTarget.open;
+        setOpen(next);
+        localStorage.setItem(HELP_KEY, String(next));
+      }}
+      className="rounded-lg border bg-accent/40 px-5 py-3 text-sm"
+    >
+      <summary className="flex cursor-pointer items-center gap-2 font-medium text-accent-foreground">
+        <HelpCircle className="size-4" /> How collections work
+      </summary>
+      <div className="mt-3 space-y-3 text-foreground/90">
+        <p>
+          A collection is a <strong>separate shelf</strong> for your documents. When you ask a
+          question, the app reads only the documents on <strong>one shelf</strong>, so answers stay
+          on topic. For example: an <em>HR</em> shelf for holidays and policies, a{" "}
+          <em>Products</em> shelf for catalogs and price lists.
+        </p>
+        <p>
+          If all your documents are about one subject, the <strong>default</strong> shelf is all you
+          need. Once you have a second shelf, the Library asks where to put new files and the Chat
+          asks which shelf to search.
+        </p>
+        <ul className="list-disc space-y-1 pl-5">
+          <li>
+            <strong>A document lives on one shelf.</strong> Uploading a file that is already on
+            another shelf is skipped, not copied.
+          </li>
+          <li>
+            <strong>Reindex</strong> reads every document on the shelf again. Rarely needed: after
+            an update, or if answers miss something that is clearly in a document.
+          </li>
+          <li>
+            <strong>Change</strong> is an advanced setting for how documents are read. The shelf is
+            rebuilt in the background and the old copy keeps answering until the new one is ready.
+          </li>
+        </ul>
+      </div>
+    </details>
   );
 }

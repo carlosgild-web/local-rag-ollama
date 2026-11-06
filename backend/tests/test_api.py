@@ -214,6 +214,8 @@ def test_chat_streams_and_records_sources_profile_and_feedback(client, runtime):
     assert assistant["content"] == answer
     assert assistant["rag_profile_id"] == done["rag_profile_id"] is not None
     assert [s["chunk_id"] for s in assistant["sources"]] == [s["chunk_id"] for s in sources]
+    assert done["citation_status"] == assistant["citation_status"] == "ok"
+    assert user["citation_status"] is None
 
     feedback = client.post(
         f"/api/messages/{assistant['id']}/feedback", json={"thumbs_up": False, "comment": "vague"}
@@ -415,3 +417,15 @@ def test_empty_upload_is_refused(client):
     assert response.status_code == 422
     assert "'empty.txt' is empty" in response.json()["detail"]
     assert client.get("/api/jobs").json() == []
+
+
+def test_answers_without_valid_citations_are_flagged(client, runtime):
+    _upload(client, "coffee.txt", (CORPUS / "coffee-brewing-methods.txt").read_bytes())
+    runtime.fake_llm._responses.extend(["Espresso uses pressure.", "Espresso uses pressure [9]."])
+
+    statuses = []
+    for _ in range(2):
+        events = _events(client.post("/api/chat", json={"question": "How is espresso brewed?"}))
+        statuses.append(events[-1][1]["citation_status"])
+
+    assert statuses == ["missing", "invalid"]

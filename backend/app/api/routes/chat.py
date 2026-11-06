@@ -33,6 +33,7 @@ from app.api.sse import SSE_HEADERS, drive_sync_stream, sse
 from app.core.runtime import Runtime
 from app.db.models import Chunk, Document, DocumentVersion, Feedback, Message, MessageSource
 from app.llm.ollama_client import OllamaError
+from app.retrieval.citations import citation_status
 from app.retrieval.prompt import NOT_FOUND_PHRASE
 from app.retrieval.qa import AnswerContext, prepare_context
 from app.versioning import history, profiles
@@ -154,6 +155,7 @@ def _answer_stream(
                 "message_id": message_id,
                 "rag_profile_id": profile_id,
                 "not_found": context is None,
+                "citation_status": citation_status("".join(parts), len(chunks)),
             },
         )
     except Exception as exc:
@@ -250,6 +252,11 @@ def get_session(db: DbDep, session_id: int):
                 created_at=m.created_at,
                 sources=sources.get(m.id, []),
                 feedback=FeedbackOut.model_validate(feedback[m.id]) if m.id in feedback else None,
+                citation_status=(
+                    citation_status(m.content, len(sources.get(m.id, [])))
+                    if m.role == "assistant"
+                    else None
+                ),
             )
             for m in messages
         ],

@@ -39,4 +39,22 @@ def build_prompt(
     validated to keep the not-found rule (app/versioning/profiles.py)."""
     instructions = system_instructions or SYSTEM_INSTRUCTIONS
     context = format_context(chunks)
-    return f"{instructions}\n\nContext:\n{context}\n\nQuestion: {question}\n\nAnswer:"
+    return (
+        f"{instructions}\n\nContext:\n{context}\n\nQuestion: {question}\n\n"
+        f"{citation_reminder(len(chunks))}\n\nAnswer:"
+    )
+
+
+def citation_reminder(source_count: int) -> str:
+    """Repeated right before "Answer:", where a small model attends most. In
+    the 2026-11-06 end-to-end test qwen2.5:3b left out or misnumbered 36% of
+    its citations with the rules only at the top. Part of the prompt code,
+    not the profile, so it also applies to existing profile versions."""
+    allowed = "[1]" if source_count == 1 else f"[1] to [{source_count}]"
+    return (
+        "Reminder: answer only from the context above. End every sentence with the number "
+        "of the source it came from, in square brackets, for example: "
+        '"Orders ship in 5 business days [2]." '
+        f"Only use the source numbers shown in the context ({allowed}). "
+        f'If the context does not contain the answer, reply exactly: "{NOT_FOUND_PHRASE}"'
+    )

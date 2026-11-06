@@ -202,6 +202,8 @@ class MessageOut(BaseModel):
     created_at: UtcDatetime
     sources: list[SourceOut]
     feedback: FeedbackOut | None
+    # Assistant messages: ok / missing / invalid / not_applicable (retrieval.citations)
+    citation_status: str | None = None
 
 
 class SessionOut(BaseModel):

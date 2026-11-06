@@ -1,7 +1,7 @@
-import { Loader2, MessageSquarePlus, Send, Square, ThumbsDown, ThumbsUp } from "lucide-react";
+import { AlertTriangle, Loader2, MessageSquarePlus, Send, Square, ThumbsDown, ThumbsUp } from "lucide-react";
 import { type ReactNode, useCallback, useEffect, useRef, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
-import type { Message, Source } from "@/api/types";
+import type { CitationStatus, Message, Source } from "@/api/types";
 import { CitedAnswer, SourceList } from "@/components/CitedAnswer";
 import { ErrorNote } from "@/components/common";
 import { Button } from "@/components/ui/button";
@@ -264,6 +264,8 @@ function MessageView({ message, sessionId }: { message: Message; sessionId: numb
       content={message.content}
       sources={message.sources}
       footer={
+        <>
+        <CitationWarning status={message.citation_status} />
         <div className="mt-2 flex items-center gap-1 text-xs text-muted-foreground">
           <Button
             variant="ghost"
@@ -288,7 +290,26 @@ function MessageView({ message, sessionId }: { message: Message; sessionId: numb
             {formatDate(message.created_at)}
           </span>
         </div>
+        </>
       }
     />
+  );
+}
+
+const CITATION_WARNING: Partial<Record<CitationStatus, string>> = {
+  missing: "This answer has no citations, so it could not be checked against the sources. Verify it below.",
+  invalid: "Some citation numbers don't match a source. Verify the answer against the sources below.",
+};
+
+/** Invariant 6: citations are mandatory. The model sometimes skips them or
+ * cites a number that has no source; say so instead of hiding it. */
+function CitationWarning({ status }: { status: CitationStatus | null }) {
+  const text = status ? CITATION_WARNING[status] : undefined;
+  if (!text) return null;
+  return (
+    <p className="mt-2 flex items-start gap-1.5 text-xs text-warning">
+      <AlertTriangle className="mt-px size-3.5 shrink-0" />
+      {text}
+    </p>
   );
 }

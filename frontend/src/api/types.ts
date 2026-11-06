@@ -103,7 +103,12 @@ export interface Message {
   created_at: string;
   sources: Source[];
   feedback: Feedback | null;
+  citation_status: CitationStatus | null;
 }
+
+/** ok: every [n] points at a source; missing: no citation; invalid: a
+ * number with no source; not_applicable: "not found" answers. */
+export type CitationStatus = "ok" | "missing" | "invalid" | "not_applicable";
 
 export interface SessionSummary {
   id: number;
@@ -150,5 +155,8 @@ export type ChatEvent =
   | { event: "session"; data: { session_id: number; user_message_id: number } }
   | { event: "sources"; data: Source[] }
   | { event: "token"; data: { text: string } }
-  | { event: "done"; data: { message_id: number; rag_profile_id: number; not_found: boolean } }
+  | {
+      event: "done";
+      data: { message_id: number; rag_profile_id: number; not_found: boolean; citation_status: CitationStatus };
+    }
   | { event: "error"; data: { detail: string } };

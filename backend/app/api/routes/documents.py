@@ -157,6 +157,7 @@ def list_versions(db: DbDep, document_id: int):
         .where(
             Chunk.version_id == DocumentVersion.id,
             Chunk.collection_id == document.collection_id,
+            Chunk.retired_at.is_(None),
         )
         .scalar_subquery()
     )
@@ -198,7 +199,9 @@ def rollback_document(db: DbDep, document_id: int, body: RollbackIn):
     document = service.get_document(db, document_id)
     chunk_count = db.execute(
         select(func.count(Chunk.id)).where(
-            Chunk.version_id == version.id, Chunk.collection_id == document.collection_id
+            Chunk.version_id == version.id,
+            Chunk.collection_id == document.collection_id,
+            Chunk.retired_at.is_(None),
         )
     ).scalar_one()
     return VersionOut(

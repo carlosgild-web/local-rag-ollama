@@ -91,6 +91,10 @@ class Chunk(Base):
     page: Mapped[int | None] = mapped_column(default=None)
     heading: Mapped[str | None] = mapped_column(default=None)
     token_estimate: Mapped[int]
+    # Set when a reindex replaces a chunk that a saved answer cites: the row
+    # stays so the answer keeps its exact sources (invariant 5), but it is
+    # out of Chroma and FTS and never served again.
+    retired_at: Mapped[dt.datetime | None] = mapped_column(default=None)
 
     version: Mapped["DocumentVersion"] = relationship(back_populates="chunks")
 

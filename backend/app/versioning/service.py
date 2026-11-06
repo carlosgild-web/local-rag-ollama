@@ -16,12 +16,20 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
 
-from sqlalchemy import select
+from sqlalchemy import delete, select
 from sqlalchemy.orm import Session
 
 from app.core.config import Settings
 from app.db import fts
-from app.db.models import AuditLog, Chunk, Collection, Document, DocumentVersion, utcnow
+from app.db.models import (
+    AuditLog,
+    Chunk,
+    Collection,
+    Document,
+    DocumentVersion,
+    MessageSource,
+    utcnow,
+)
 from app.ingest import file_store
 from app.ingest.chunker import chunk_blocks
 from app.ingest.parsers import SUPPORTED_EXTENSIONS, parse_file
@@ -350,13 +358,27 @@ def _index_version(
     return len(rows)
 
 
+def _cited_chunk_ids(db: Session, chunk_ids: list[int]) -> set[int]:
+    if not chunk_ids:
+        return set()
+    return set(
+        db.execute(
+            select(MessageSource.chunk_id).where(MessageSource.chunk_id.in_(chunk_ids)).distinct()
+        ).scalars()
+    )
+
+
 def _clear_chunks(
     db: Session, vector_store: VectorStore, collection: Collection, version_id: int
 ) -> None:
+    """Takes a version's live chunks in `collection` out of search. Chunks a
+    saved answer cites are retired (kept, never served); the rest are deleted."""
     chunks = (
         db.execute(
             select(Chunk).where(
-                Chunk.version_id == version_id, Chunk.collection_id == collection.id
+                Chunk.version_id == version_id,
+                Chunk.collection_id == collection.id,
+                Chunk.retired_at.is_(None),
             )
         )
         .scalars()
@@ -365,9 +387,14 @@ def _clear_chunks(
     if not chunks:
         return
     vector_store.delete(collection.chroma_collection, [_vector_id(c) for c in chunks])
+    cited = _cited_chunk_ids(db, [c.id for c in chunks])
+    now = utcnow()
     for chunk in chunks:
         fts.remove_chunk(db, chunk.id, chunk.text)
-        db.delete(chunk)
+        if chunk.id in cited:
+            chunk.retired_at = now
+        else:
+            db.delete(chunk)
     db.flush()
 
 
@@ -510,23 +537,36 @@ def purge_expired_trash(
     purged_ids = []
     for document in documents:
         versions = list(document.versions)
+        unlinked = 0
         for version in versions:
             chunks = db.execute(select(Chunk).where(Chunk.version_id == version.id)).scalars().all()
+            # Retired chunks are already out of Chroma and FTS; deleting an
+            # FTS row that isn't there would corrupt the index.
+            live = [c for c in chunks if c.retired_at is None]
             by_collection: dict[int, list[Chunk]] = {}
-            for chunk in chunks:
+            for chunk in live:
                 by_collection.setdefault(chunk.collection_id, []).append(chunk)
             for collection_id, collection_chunks in by_collection.items():
                 collection = db.get(Collection, collection_id)
                 vector_store.delete(
                     collection.chroma_collection, [_vector_id(c) for c in collection_chunks]
                 )
-            for chunk in chunks:
+            for chunk in live:
                 fts.remove_chunk(db, chunk.id, chunk.text)
+            # Purge is the deliberate permanent delete: answers keep their
+            # text but lose the links to the purged chunks.
+            unlinked += db.execute(
+                delete(MessageSource).where(MessageSource.chunk_id.in_([c.id for c in chunks]))
+            ).rowcount
+            for chunk in chunks:
                 db.delete(chunk)
             db.delete(version)
         purged_ids.append(document.id)
         db.delete(document)
-        record_audit(db, "purge", "document", document.id, f"{len(versions)} version(s)")
+        detail = f"{len(versions)} version(s)"
+        if unlinked:
+            detail += f", {unlinked} answer source link(s) removed"
+        record_audit(db, "purge", "document", document.id, detail)
 
     db.commit()
     return purged_ids

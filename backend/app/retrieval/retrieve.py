@@ -83,6 +83,7 @@ def _eligible(collection: Collection):
     """SQL conditions for a chunk that may be served from `collection`."""
     return (
         Chunk.collection_id == collection.id,
+        Chunk.retired_at.is_(None),
         Document.active_version_id == Chunk.version_id,
         Document.trashed_at.is_(None),
     )

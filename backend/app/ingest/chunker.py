@@ -87,6 +87,12 @@ def _pack_blocks(blocks: list[Block], max_chars: int) -> list[_RawChunk]:
             if current_parts and current_len + piece_len > max_chars:
                 flush()
 
+            # Never span a page break: a chunk's page label must hold for all
+            # of its text (end-to-end test 2026-11-06 cited page 1 for text
+            # that was on page 2).
+            if current_parts and block.page != current_page:
+                flush()
+
             if not current_parts:
                 current_page = block.page
                 current_heading = last_heading

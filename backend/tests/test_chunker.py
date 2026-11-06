@@ -69,3 +69,11 @@ def test_page_number_is_preserved_per_chunk():
     chunks = chunk_blocks(blocks, chunk_size_tokens=5, overlap_pct=0.0)
     pages = {c.page for c in chunks}
     assert pages == {1, 2}
+
+
+def test_short_pages_are_not_merged_into_one_chunk():
+    """Regression (end-to-end test 2026-11-06): a 2-page PDF became one
+    chunk labelled page 1, so page-2 facts were cited as page 1."""
+    blocks = [Block(text="Closure dates.", page=1), Block(text="A note of thanks.", page=2)]
+    chunks = chunk_blocks(blocks, chunk_size_tokens=600, overlap_pct=0.0)
+    assert [(c.page, c.text) for c in chunks] == [(1, "Closure dates."), (2, "A note of thanks.")]

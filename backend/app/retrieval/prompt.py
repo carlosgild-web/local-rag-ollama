@@ -46,15 +46,13 @@ def build_prompt(
 
 
 def citation_reminder(source_count: int) -> str:
-    """Repeated right before "Answer:", where a small model attends most. In
-    the 2026-11-06 end-to-end test qwen2.5:3b left out or misnumbered 36% of
-    its citations with the rules only at the top. Part of the prompt code,
-    not the profile, so it also applies to existing profile versions."""
+    """A one-line hint right before "Answer:", where a small model attends
+    most. Part of the prompt code, not the profile, so it applies to existing
+    profile versions too.
+
+    Measured on 6 questions with qwen2.5:3b (decision 0007): no hint gave 6/6
+    right facts and 4/6 valid citations; this hint gave 6/6 and 6/6. A longer
+    reminder that repeated all the rules gave 0/6 facts: the model mixed the
+    citation and not-found rules and answered "not found in the documents [1]"."""
     allowed = "[1]" if source_count == 1 else f"[1] to [{source_count}]"
-    return (
-        "Reminder: answer only from the context above. End every sentence with the number "
-        "of the source it came from, in square brackets, for example: "
-        '"Orders ship in 5 business days [2]." '
-        f"Only use the source numbers shown in the context ({allowed}). "
-        f'If the context does not contain the answer, reply exactly: "{NOT_FOUND_PHRASE}"'
-    )
+    return f"(Cite the sources you use as {allowed}.)"

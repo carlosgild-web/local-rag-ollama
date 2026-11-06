@@ -8,7 +8,16 @@ In the 2026-11-06 end-to-end test (`docs/test-reports/2026-11-06-e2e.md`), `qwen
 
 ## Decision
 
-- **A reminder in the prompt.** `build_prompt` adds a short reminder between the question and "Answer:". It says: cite every sentence, here is an example, only use numbers 1 to N, otherwise reply "not found in the documents". The reminder lives in the prompt code, not in the RAG profile, so it applies to every profile version without silently changing stored profiles. The profile's `system_prompt` still holds the main rules and is still required to contain the not-found rule.
+- **A one-line hint in the prompt.** `build_prompt` adds "(Cite the sources you use as [1] to [N].)" between the question and "Answer:". The hint lives in the prompt code, not in the RAG profile, so it applies to every profile version without silently changing stored profiles. The profile's `system_prompt` still holds the main rules and is still required to contain the not-found rule.
+- **Why this wording.** It was measured on 6 questions from the e2e run that had citation problems, using `qwen2.5:3b` with the app's real retrieval:
+
+  | Prompt | Right facts | Valid citations | Wrongly "not found" |
+  |---|---|---|---|
+  | No hint | 6/6 | 4/6 | 0 |
+  | Long reminder (all rules repeated, with an example) | 0/6 | 2/6 | 4 |
+  | One-line hint (chosen) | 6/6 | 6/6 | 0 |
+
+  The long reminder made the small model merge the citation and not-found rules. It answered "not found in the documents [1]", or only "[2]".
 - **A citation check.** `app/retrieval/citations.py` rates each assistant answer as `ok`, `missing`, `invalid` or `not_applicable`, the last one for "not found" answers. The chat `done` event and every assistant message in `GET /api/sessions/{id}` carry this `citation_status`. The UI shows a warning when it is `missing` or `invalid`. The answer is kept as it is: the user sees the sources and decides.
 
 ## Consequences

@@ -49,7 +49,6 @@ def _chunk(i: int) -> RetrievedChunk:
 def test_prompt_ends_with_a_numbered_citation_reminder_before_answer():
     chunks = [_chunk(1), _chunk(2), _chunk(3)]
     prompt = build_prompt("Which fact?", chunks)
-    assert prompt.endswith(f"{citation_reminder(3)}\n\nAnswer:")
-    assert "Only use the source numbers shown in the context ([1] to [3])" in prompt
-    assert NOT_FOUND_PHRASE in citation_reminder(3)
-    assert "([1])" in citation_reminder(1)
+    assert prompt.endswith("(Cite the sources you use as [1] to [3].)\n\nAnswer:")
+    assert NOT_FOUND_PHRASE in prompt  # the rule stays in the instructions at the top
+    assert citation_reminder(1) == "(Cite the sources you use as [1].)"

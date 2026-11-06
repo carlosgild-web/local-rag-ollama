@@ -74,8 +74,26 @@ export interface Job {
   cancel_requested: boolean;
   document_id: number | null;
   payload: Record<string, unknown>;
+  /** What the job is about: a file name or "shelf <name>". */
+  subject: string | null;
+  /** Plain-language outcome, e.g. why an upload was skipped. */
+  note: string | null;
   created_at: string;
   updated_at: string;
+}
+
+/** The passage behind a citation. */
+export interface ChunkDetail {
+  id: number;
+  text: string;
+  document_id: number;
+  filename: string;
+  collection_id: number;
+  version_id: number;
+  version_number: number;
+  page: number | null;
+  heading: string | null;
+  retired: boolean;
 }
 
 export interface Source {

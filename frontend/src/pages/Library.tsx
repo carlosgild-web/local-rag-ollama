@@ -1,5 +1,5 @@
-import { FileText, RefreshCw, Trash2, Upload } from "lucide-react";
-import { useRef, useState } from "react";
+import { FileText, RefreshCw, RotateCcw, Trash2, Upload } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import type { Document } from "@/api/types";
 import { EmptyState, ErrorNote, PageHeader } from "@/components/common";
@@ -9,6 +9,8 @@ import { Input } from "@/components/ui/input";
 import {
   useCollections,
   useDeleteDocument,
+  useJobs,
+  useRestoreDocument,
   useDocuments,
   useReindexDocument,
   useUpload,
@@ -24,6 +26,7 @@ export default function Library() {
   const documents = useDocuments({ q: search.trim() || undefined, tag: tag || undefined, trashed });
   const collections = useCollections();
   const remove = useDeleteDocument();
+  const restore = useRestoreDocument();
   const reindex = useReindexDocument();
 
   const collectionName = (id: number) =>
@@ -67,7 +70,7 @@ export default function Library() {
           </div>
         </div>
 
-        <ErrorNote error={documents.error ?? remove.error ?? reindex.error} />
+        <ErrorNote error={documents.error ?? remove.error ?? reindex.error ?? restore.error} />
         {reindex.isSuccess && (
           <p className="text-sm text-muted-foreground">
             Reindex queued. Follow it in the <Link to="/queue" className="underline">queue</Link>.
@@ -102,6 +105,7 @@ export default function Library() {
                     collection={collectionName(doc.collection_id)}
                     onTag={setTag}
                     onReindex={() => reindex.mutate(doc.id)}
+                    onRestore={() => restore.mutate(doc.id)}
                     onDelete={() => {
                       if (confirm(`Move "${doc.filename}" to the trash? It is kept for 30 days.`)) {
                         remove.mutate(doc.id);
@@ -123,12 +127,14 @@ function DocumentRow({
   collection,
   onTag,
   onReindex,
+  onRestore,
   onDelete,
 }: {
   doc: Document;
   collection: string;
   onTag: (tag: string) => void;
   onReindex: () => void;
+  onRestore: () => void;
   onDelete: () => void;
 }) {
   const isTrashed = doc.trashed_at !== null;
@@ -160,6 +166,11 @@ function DocumentRow({
         {formatDate(isTrashed ? doc.trashed_at : doc.created_at)}
       </td>
       <td className="px-4 py-3 text-right">
+        {isTrashed && (
+          <Button variant="outline" size="sm" title="Take it out of the trash" onClick={onRestore}>
+            <RotateCcw /> Restore
+          </Button>
+        )}
         {!isTrashed && (
           <div className="flex justify-end gap-1">
             <Button variant="ghost" size="icon" title="Reindex" onClick={onReindex}>
@@ -254,13 +265,52 @@ function UploadPanel() {
       </div>
 
       <ErrorNote error={upload.error} />
-      {upload.data && (
-        <p className="text-sm text-muted-foreground">
-          Queued {upload.data.jobs.length} file{upload.data.jobs.length === 1 ? "" : "s"} for indexing.
-          The list updates when {upload.data.jobs.length === 1 ? "it is" : "they are"} done, or follow
-          progress in the <Link to="/queue" className="underline">queue</Link>.
-        </p>
-      )}
+      {upload.data && <UploadProgress jobIds={upload.data.jobs.map((j) => j.job_id)} onDone={upload.reset} />}
+    </div>
+  );
+}
+
+/** Follows the jobs of one upload: "2 of 3 done, 1 skipped", then a short
+ * summary that clears itself. Notes (e.g. why a file was skipped) are listed. */
+export function UploadProgress({ jobIds, onDone }: { jobIds: number[]; onDone: () => void }) {
+  const jobs = useJobs();
+  const mine = (jobs.data ?? []).filter((j) => jobIds.includes(j.id));
+  const finished = mine.filter((j) => ["completed", "failed", "cancelled"].includes(j.status));
+  const skipped = mine.filter((j) => j.result?.status === "skipped_duplicate");
+  const failed = mine.filter((j) => j.status === "failed");
+  const allDone = mine.length === jobIds.length && finished.length === mine.length;
+
+  useEffect(() => {
+    if (!allDone || failed.length > 0) return;
+    const timer = setTimeout(onDone, 8000);
+    return () => clearTimeout(timer);
+  }, [allDone, failed.length, onDone]);
+
+  const n = jobIds.length;
+  return (
+    <div className="space-y-1 rounded-md border bg-muted/30 px-3 py-2 text-sm">
+      <p>
+        {allDone ? "Done: " : `Processing ${n} file${n === 1 ? "" : "s"}: `}
+        {finished.length - skipped.length - failed.length} indexed
+        {skipped.length > 0 && `, ${skipped.length} skipped`}
+        {failed.length > 0 && `, ${failed.length} failed`}
+        {!allDone && `, ${n - finished.length} to go`}.{" "}
+        <Link to="/queue" className="underline">
+          Open the queue
+        </Link>
+        {allDone && (
+          <button type="button" className="ml-2 text-muted-foreground underline" onClick={onDone}>
+            Dismiss
+          </button>
+        )}
+      </p>
+      {mine
+        .filter((j) => j.note || j.error)
+        .map((j) => (
+          <p key={j.id} className={cn("text-xs", j.error ? "text-destructive" : "text-warning")}>
+            {j.subject}: {j.note ?? j.error}
+          </p>
+        ))}
     </div>
   );
 }

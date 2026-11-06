@@ -90,17 +90,7 @@ def list_documents(
     limit: Annotated[int, Query(ge=1, le=500)] = 100,
     offset: Annotated[int, Query(ge=0)] = 0,
 ):
-    version_count = (
-        select(func.count(DocumentVersion.id))
-        .where(DocumentVersion.document_id == Document.id)
-        .scalar_subquery()
-    )
-    active_number = (
-        select(DocumentVersion.version_number)
-        .where(DocumentVersion.id == Document.active_version_id)
-        .scalar_subquery()
-    )
-    query = select(Document, version_count, active_number).order_by(Document.id.desc())
+    query = _document_rows().order_by(Document.id.desc())
     query = query.where(
         Document.trashed_at.isnot(None) if trashed else Document.trashed_at.is_(None)
     )
@@ -113,20 +103,40 @@ def list_documents(
         query = query.where(("," + Document.tags + ",").contains(f",{tag.strip()},"))
 
     rows = db.execute(query.limit(limit).offset(offset)).all()
-    return [
-        DocumentOut(
-            id=d.id,
-            collection_id=d.collection_id,
-            filename=d.filename,
-            tags=split_tags(d.tags),
-            active_version_id=d.active_version_id,
-            active_version_number=number,
-            version_count=count,
-            trashed_at=d.trashed_at,
-            created_at=d.created_at,
-        )
-        for d, count, number in rows
-    ]
+    return [_row_out(*row) for row in rows]
+
+
+def _document_rows():
+    """Documents with their version count and active version number."""
+    version_count = (
+        select(func.count(DocumentVersion.id))
+        .where(DocumentVersion.document_id == Document.id)
+        .scalar_subquery()
+    )
+    active_number = (
+        select(DocumentVersion.version_number)
+        .where(DocumentVersion.id == Document.active_version_id)
+        .scalar_subquery()
+    )
+    return select(Document, version_count, active_number)
+
+
+def _row_out(d: Document, count: int, number: int | None) -> DocumentOut:
+    return DocumentOut(
+        id=d.id,
+        collection_id=d.collection_id,
+        filename=d.filename,
+        tags=split_tags(d.tags),
+        active_version_id=d.active_version_id,
+        active_version_number=number,
+        version_count=count,
+        trashed_at=d.trashed_at,
+        created_at=d.created_at,
+    )
+
+
+def _document_out(db, document: Document) -> DocumentOut:
+    return _row_out(*db.execute(_document_rows().where(Document.id == document.id)).one())
 
 
 @router.delete("/documents/{document_id}", status_code=status.HTTP_204_NO_CONTENT)
@@ -134,6 +144,13 @@ def delete_document(db: DbDep, document_id: int):
     """Soft delete: moves the document to the 30-day trash."""
     service.soft_delete_document(db, document_id)
     return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
+@router.post("/documents/{document_id}/restore", response_model=DocumentOut)
+def restore_document(db: DbDep, document_id: int):
+    """Takes a document out of the trash (409 if a newer one has its name)."""
+    service.restore_document(db, document_id)
+    return _document_out(db, service.get_document(db, document_id))
 
 
 @router.post(

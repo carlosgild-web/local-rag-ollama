@@ -100,6 +100,24 @@ export function useDeleteDocument() {
   });
 }
 
+export function useRestoreDocument() {
+  const invalidate = useInvalidate();
+  return useMutation({
+    mutationFn: api.restoreDocument,
+    onSuccess: () => invalidate("documents", "collections"),
+  });
+}
+
+/** A citation's passage; fetched only when someone opens it. */
+export function useChunk(id: number | null) {
+  return useQuery({
+    queryKey: ["chunk", id],
+    queryFn: () => api.chunk(id as number),
+    enabled: id !== null,
+    staleTime: Number.POSITIVE_INFINITY, // passages never change
+  });
+}
+
 export function useReindexDocument() {
   const invalidate = useInvalidate();
   return useMutation({ mutationFn: api.reindexDocument, onSuccess: () => invalidate("jobs") });

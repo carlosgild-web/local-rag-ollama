@@ -119,6 +119,8 @@ class JobOut(BaseModel):
     cancel_requested: bool
     document_id: int | None
     payload: dict[str, Any]
+    subject: str | None = None  # what the job is about: a file name or "shelf <name>"
+    note: str | None = None  # plain-language outcome, e.g. why an upload was skipped
     created_at: UtcDatetime
     updated_at: UtcDatetime
 
@@ -162,6 +164,21 @@ class ChatIn(BaseModel):
     session_id: int | None = None
     collection_id: int | None = None
     profile: str | None = None  # profile name; defaults to "default"
+
+
+class ChunkDetail(BaseModel):
+    """One passage, for showing what a citation points at."""
+
+    id: int
+    text: str
+    document_id: int
+    filename: str
+    collection_id: int
+    version_id: int
+    version_number: int
+    page: int | None
+    heading: str | None
+    retired: bool  # replaced by a reindex; kept because an answer cites it
 
 
 class SessionSummary(BaseModel):

@@ -3,6 +3,7 @@ import type {
   CollectionCreate,
   CollectionReindex,
   Document,
+  ChunkDetail,
   Health,
   Job,
   JobQueued,
@@ -89,6 +90,8 @@ export const api = {
     return request<UploadResponse>("/documents", { method: "POST", body: form });
   },
   deleteDocument: (id: number) => request<void>(`/documents/${id}`, { method: "DELETE" }),
+  restoreDocument: (id: number) => request<Document>(`/documents/${id}/restore`, json("POST")),
+  chunk: (id: number) => request<ChunkDetail>(`/chunks/${id}`),
   reindexDocument: (id: number) => request<JobQueued>(`/documents/${id}/reindex`, json("POST")),
 
   collections: (includeInactive = false) =>

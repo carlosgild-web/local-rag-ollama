@@ -546,6 +546,13 @@ def _next_version_number(db: Session, document_id: int) -> int:
 # --- Rollback (invariant 3: pointer flip only, no re-embedding) -----------
 
 
+def get_chunk(db: Session, chunk_id: int) -> Chunk:
+    chunk = db.get(Chunk, chunk_id)
+    if chunk is None:
+        raise NotFoundError(f"chunk {chunk_id} not found")
+    return chunk
+
+
 def get_document(db: Session, document_id: int) -> Document:
     document = db.get(Document, document_id)
     if document is None:
@@ -578,7 +585,24 @@ def soft_delete_document(db: Session, document_id: int) -> None:
 
 
 def restore_document(db: Session, document_id: int) -> None:
+    """Takes a document out of the trash. Refused if a document with the same
+    name was added to that shelf since: two would answer as one."""
     document = get_document(db, document_id)
+    if document.trashed_at is None:
+        return
+    clash = db.execute(
+        select(Document).where(
+            Document.collection_id == document.collection_id,
+            Document.filename == document.filename,
+            Document.trashed_at.is_(None),
+            Document.id != document.id,
+        )
+    ).scalar_one_or_none()
+    if clash is not None:
+        raise ConflictError(
+            f"'{document.filename}' was uploaded again after it was deleted; "
+            "delete or rename the newer one before restoring this one"
+        )
     document.trashed_at = None
     record_audit(db, "restore", "document", document.id, "")
     db.commit()

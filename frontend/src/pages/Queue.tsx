@@ -51,18 +51,16 @@ export default function Queue() {
 }
 
 function JobRow({ job, onRetry, onCancel }: { job: Job; onRetry: () => void; onCancel: () => void }) {
-  const subject = job.payload.filename ?? (job.document_id ? `document ${job.document_id}` : "");
+  const subject = job.subject ?? (job.document_id ? `document ${job.document_id}` : "");
   return (
     <tr className="align-top">
       <td className="px-4 py-3">
         <div className="font-medium">
           #{job.id} {JOB_LABEL[job.job_type] ?? job.job_type}
         </div>
-        <div className="text-muted-foreground">{String(subject)}</div>
+        <div className="text-muted-foreground">{subject}</div>
         {job.error && <div className="mt-1 break-words text-xs text-destructive">{job.error}</div>}
-        {job.status === "completed" && job.result?.status === "skipped_duplicate" && (
-          <div className="mt-1 text-xs text-muted-foreground">Already in the library (same content).</div>
-        )}
+        {job.note && <div className="mt-1 text-xs text-warning">{job.note}</div>}
       </td>
       <td className="px-4 py-3">
         <JobStatusBadge status={job.status} />

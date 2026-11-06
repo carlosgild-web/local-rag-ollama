@@ -5,7 +5,7 @@ from fastapi import APIRouter
 from sqlalchemy.orm import Session
 
 from app.api.deps import DbDep, RuntimeDep
-from app.api.schemas import ChunkOut, RetrieveIn, RetrieveOut
+from app.api.schemas import ChunkDetail, ChunkOut, RetrieveIn, RetrieveOut
 from app.core.runtime import Runtime
 from app.db.models import Collection
 from app.retrieval.retrieve import RetrievedChunk, retrieve
@@ -52,4 +52,24 @@ def retrieve_chunks(db: DbDep, runtime: RuntimeDep, body: RetrieveIn):
     return RetrieveOut(
         collection_id=collection.id,
         chunks=[chunk_out(rank, c) for rank, c in enumerate(chunks, start=1)],
+    )
+
+
+@router.get("/chunks/{chunk_id}", response_model=ChunkDetail)
+def get_chunk(db: DbDep, chunk_id: int):
+    """The text behind a citation, including passages a reindex has retired."""
+    chunk = service.get_chunk(db, chunk_id)
+    version = chunk.version
+    document = service.get_document(db, version.document_id)
+    return ChunkDetail(
+        id=chunk.id,
+        text=chunk.text,
+        document_id=document.id,
+        filename=document.filename,
+        collection_id=chunk.collection_id,
+        version_id=version.id,
+        version_number=version.version_number,
+        page=chunk.page,
+        heading=chunk.heading,
+        retired=chunk.retired_at is not None,
     )

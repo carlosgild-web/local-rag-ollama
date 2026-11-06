@@ -429,3 +429,48 @@ def test_answers_without_valid_citations_are_flagged(client, runtime):
         statuses.append(events[-1][1]["citation_status"])
 
     assert statuses == ["missing", "invalid"]
+
+
+# --- UI improvements, step 1 -----------------------------------------------
+
+
+def test_jobs_say_what_they_are_about_and_why_an_upload_was_skipped(client):
+    _upload(client, "notes.txt", b"alpha beta")
+    doc = client.get("/api/documents").json()[0]
+    client.post(f"/api/documents/{doc['id']}/reindex")
+    client.drain()
+    _upload(client, "copy-of-notes.txt", b"alpha beta")  # same content
+
+    jobs = {j["id"]: j for j in client.get("/api/jobs").json()}
+    ingest, reindex, skipped = (jobs[i] for i in sorted(jobs))
+    assert ingest["subject"] == "notes.txt" and ingest["note"] is None
+    assert reindex["subject"] == "notes.txt"  # reindex payloads carry no filename
+    assert skipped["note"] == "Skipped: already in the library as 'notes.txt' on shelf 'default'."
+
+
+def test_restore_from_trash_and_refuse_when_the_name_was_reused(client):
+    _upload(client, "notes.txt", b"version one")
+    doc = client.get("/api/documents").json()[0]
+    client.delete(f"/api/documents/{doc['id']}")
+
+    restored = client.post(f"/api/documents/{doc['id']}/restore")
+    assert restored.status_code == 200 and restored.json()["trashed_at"] is None
+    assert [d["id"] for d in client.get("/api/documents").json()] == [doc["id"]]
+
+    client.delete(f"/api/documents/{doc['id']}")
+    _upload(client, "notes.txt", b"a different file, same name")
+    clash = client.post(f"/api/documents/{doc['id']}/restore")
+    assert clash.status_code == 409 and "uploaded again" in clash.json()["detail"]
+
+
+def test_chunk_endpoint_returns_the_passage_behind_a_citation(client, runtime):
+    _upload(client, "coffee.txt", (CORPUS / "coffee-brewing-methods.txt").read_bytes())
+    runtime.fake_llm._responses.append("Espresso is brewed under pressure [1].")
+    events = _events(client.post("/api/chat", json={"question": "How is espresso brewed?"}))
+    chunk_id = events[1][1][0]["chunk_id"]
+
+    passage = client.get(f"/api/chunks/{chunk_id}").json()
+
+    assert passage["filename"] == "coffee.txt" and passage["version_number"] == 1
+    assert passage["text"] and passage["retired"] is False
+    assert client.get("/api/chunks/999999").status_code == 404

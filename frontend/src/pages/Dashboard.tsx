@@ -134,7 +134,7 @@ export default function Dashboard() {
                     <JobStatusBadge status={job.status} />
                     <span>{JOB_LABEL[job.job_type] ?? job.job_type}</span>
                     <span className="truncate text-muted-foreground">
-                      {String(job.payload.filename ?? "")}
+                      {job.subject ?? ""}
                     </span>
                     <span className="ml-auto shrink-0 text-xs text-muted-foreground">
                       {formatDate(job.updated_at)}

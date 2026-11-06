@@ -1,6 +1,10 @@
 """SQLite-backed job queue (no Redis): the service layer for `ingest_jobs`.
 
 Status flow: pending -> running -> completed | failed | cancelled.
+
+Status changes that can race (the worker claiming a job while a request
+cancels or retries it) are conditional UPDATEs: they only apply if the row
+is still in the expected status, so neither side overwrites the other.
 A failure is retried automatically up to `max_retries` times; after that
 the job stays `failed` until someone calls `retry`. Cancelling a pending
 job is immediate. Cancelling a running job sets `cancel_requested`, which
@@ -9,7 +13,7 @@ the worker checks at each progress report.
 
 import json
 
-from sqlalchemy import select
+from sqlalchemy import select, update
 from sqlalchemy.orm import Session
 
 from app.db.models import IngestJob, utcnow
@@ -51,18 +55,34 @@ def list_jobs(
     return list(db.execute(query).scalars().all())
 
 
+def _transition(db: Session, job_id: int, from_statuses: set[str], **values) -> bool:
+    """Applies `values` only if the job is still in one of `from_statuses`.
+    Does not commit. Returns whether the row changed."""
+    result = db.execute(
+        update(IngestJob)
+        .where(IngestJob.id == job_id, IngestJob.status.in_(from_statuses))
+        .values(updated_at=utcnow(), **values)
+    )
+    return result.rowcount == 1
+
+
 def claim_next(db: Session) -> IngestJob | None:
-    """Marks the oldest pending job running. Safe with exactly one worker."""
-    job = db.execute(
-        select(IngestJob).where(IngestJob.status == "pending").order_by(IngestJob.id).limit(1)
-    ).scalar_one_or_none()
-    if job is None:
-        return None
-    job.status = "running"
-    job.progress = 0.0
-    job.updated_at = utcnow()
-    db.commit()
-    return job
+    """Marks the oldest pending job running. A job cancelled between the
+    read and the update is skipped, not resurrected."""
+    while True:
+        job_id = db.execute(
+            select(IngestJob.id)
+            .where(IngestJob.status == "pending")
+            .order_by(IngestJob.id)
+            .limit(1)
+        ).scalar_one_or_none()
+        if job_id is None:
+            db.rollback()
+            return None
+        claimed = _transition(db, job_id, {"pending"}, status="running", progress=0.0)
+        db.commit()
+        if claimed:
+            return get_job(db, job_id)
 
 
 def report_progress(db: Session, job: IngestJob, fraction: float) -> None:
@@ -103,32 +123,41 @@ def fail(db: Session, job: IngestJob, error: str, *, max_retries: int) -> None:
 
 
 def cancel(db: Session, job_id: int) -> IngestJob:
+    """Pending: cancelled at once. Running: asks the worker to stop at its
+    next progress report. Conditional, so a job the worker claims at the
+    same moment is asked to stop instead of silently running on."""
     job = get_job(db, job_id)
-    if job.status in TERMINAL:
+    if not (
+        _transition(db, job_id, {"pending"}, status="cancelled")
+        or _transition(db, job_id, {"running"}, cancel_requested=True)
+    ):
+        db.rollback()
+        job = get_job(db, job_id)
         raise ConflictError(f"job {job_id} is already {job.status}")
-    if job.status == "pending":
-        job.status = "cancelled"
-    else:
-        job.cancel_requested = True
-    job.updated_at = utcnow()
-    record_audit(db, "job_cancel", "job", job.id, job.job_type)
+    record_audit(db, "job_cancel", "job", job_id, job.job_type)
     db.commit()
-    return job
+    return get_job(db, job_id)
 
 
 def retry(db: Session, job_id: int) -> IngestJob:
     job = get_job(db, job_id)
-    if job.status not in {"failed", "cancelled"}:
+    retried = _transition(
+        db,
+        job_id,
+        {"failed", "cancelled"},
+        status="pending",
+        progress=0.0,
+        error=None,
+        cancel_requested=False,
+        retries=IngestJob.retries + 1,
+    )
+    if not retried:
+        db.rollback()
+        job = get_job(db, job_id)
         raise ConflictError(f"job {job_id} is {job.status}; only failed or cancelled jobs retry")
-    job.status = "pending"
-    job.progress = 0.0
-    job.error = None
-    job.cancel_requested = False
-    job.retries += 1
-    job.updated_at = utcnow()
-    record_audit(db, "job_retry", "job", job.id, job.job_type)
+    record_audit(db, "job_retry", "job", job_id, job.job_type)
     db.commit()
-    return job
+    return get_job(db, job_id)
 
 
 def recover_stale(db: Session) -> int:

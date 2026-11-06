@@ -112,6 +112,46 @@ def test_cancel_pending_job_is_immediate_and_worker_skips_it(runtime, setup):
         queue.cancel(db, job.id)
 
 
+def test_cancel_landing_between_claim_read_and_update_is_not_lost(runtime, setup, monkeypatch):
+    """Regression (end-to-end test 2026-11-06): the worker read a job as
+    pending, a Cancel committed, then the worker overwrote it with running."""
+    db, collection, worker = setup
+    job, _ = _enqueue_ingest(db, runtime, collection)
+    real_transition = queue._transition
+
+    def cancel_first(session, job_id, from_statuses, **values):
+        if values.get("status") == "running":
+            with runtime.session_factory() as other:  # the API request
+                queue.cancel(other, job_id)
+        return real_transition(session, job_id, from_statuses, **values)
+
+    monkeypatch.setattr(queue, "_transition", cancel_first)
+    assert queue.claim_next(db) is None
+    monkeypatch.undo()
+
+    assert queue.get_job(db, job.id).status == "cancelled"
+    assert worker.run_once() is False
+
+
+def test_cancel_of_a_job_claimed_meanwhile_asks_it_to_stop(runtime, setup):
+    db, collection, _ = setup
+    job, _ = _enqueue_ingest(db, runtime, collection)
+    with runtime.session_factory() as worker_db:
+        queue.claim_next(worker_db)
+
+    cancelled = queue.cancel(db, job.id)
+
+    assert cancelled.status == "running" and cancelled.cancel_requested is True
+
+
+def test_retry_is_refused_for_a_job_that_is_not_failed_or_cancelled(runtime, setup):
+    db, collection, _ = setup
+    job, _ = _enqueue_ingest(db, runtime, collection)
+    with pytest.raises(service.ConflictError):
+        queue.retry(db, job.id)
+    assert queue.get_job(db, job.id).retries == 0
+
+
 def test_cancel_requested_while_running_stops_at_next_progress_report(runtime, setup):
     db, collection, worker = setup
     for name in ("coffee-brewing-methods.txt", "intro-to-astronomy-telescopes.txt"):

@@ -330,6 +330,10 @@ def _index_version(
         )
         for i, c in enumerate(chunks)
     ]
+    # Embed before the first write: the flush takes SQLite's write lock, and
+    # holding it through a slow embedding call blocks every other request
+    # (a Cancel click waited 9 s in the 2026-11-06 end-to-end test).
+    embeddings = embedding_client.embed([row.text for row in rows]) if rows else []
     db.add_all(rows)
     db.flush()
 
@@ -337,7 +341,6 @@ def _index_version(
         fts.index_chunk(db, row.id, row.text)
 
     if rows:
-        embeddings = embedding_client.embed([row.text for row in rows])
         vector_store.upsert(
             collection.chroma_collection,
             ids=[_vector_id(row) for row in rows],

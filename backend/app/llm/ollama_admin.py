@@ -53,6 +53,12 @@ class OllamaAdmin:
             return []
         return list(response.json().get("capabilities") or [])
 
+    def loaded_models(self) -> list[str]:
+        """Models Ollama currently holds in memory (/api/ps)."""
+        response = self._client.get("/api/ps")
+        response.raise_for_status()
+        return [m["name"] for m in response.json().get("models", [])]
+
     def pull(self, name: str) -> Iterator[dict]:
         """Yields Ollama's progress objects ({status, total?, completed?})."""
         with self._client.stream(

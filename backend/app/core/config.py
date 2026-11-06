@@ -53,6 +53,10 @@ class Settings(BaseSettings):
     # Logging
     log_level: str = "INFO"
 
+    # Developer only: simulate failures for the troubleshooter, e.g.
+    # "sqlite,ollama_down" (see app/core/faults.py). Empty = off.
+    simulate_faults: str = ""
+
     @property
     def files_dir(self) -> Path:
         return self.data_dir / "files"

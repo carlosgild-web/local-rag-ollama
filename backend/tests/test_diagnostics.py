@@ -1,0 +1,130 @@
+"""The troubleshooter (GET /api/diagnostics): each failure names its cause
+and fix, and SIMULATE_FAULTS reproduces every one of them."""
+
+import dataclasses
+
+import pytest
+from fastapi.testclient import TestClient
+from sqlalchemy import text
+
+from app.db.models import IngestJob
+from app.main import create_app
+
+
+def _client(runtime, **settings):
+    rt = dataclasses.replace(runtime, settings=runtime.settings.model_copy(update=settings))
+    app = create_app(rt, start_worker=False)
+    client = TestClient(app)
+    client.app_state = app.state
+    return client
+
+
+def _checks(client) -> dict[str, dict]:
+    report = client.get("/api/diagnostics").json()
+    return {c["id"]: c for c in report["checks"]} | {"_report": report}
+
+
+def test_everything_ok_on_a_healthy_install(runtime):
+    with _client(runtime) as client:
+        client.app_state.worker.start()
+        checks = _checks(client)
+        client.app_state.worker.stop()
+    report = checks.pop("_report")
+    bad = {
+        k: (c["status"], c["detail"])
+        for k, c in checks.items()
+        if c["status"] not in ("ok", "skip")
+    }
+    assert bad == {} and report["status"] == "ok" and report["simulated"] == []
+
+
+@pytest.mark.parametrize(
+    ("fault", "check_id", "skipped", "health_status"),
+    [
+        ("sqlite", "sqlite.open", ["sqlite.integrity", "sqlite.schema", "sqlite.fts"], "down"),
+        ("vector_store", "vector.open", [], "down"),
+        (
+            "ollama_down",
+            "ollama.reachable",
+            ["ollama.version", "ollama.models", "ollama.memory"],
+            "degraded",
+        ),
+        ("ollama_version", "ollama.version", [], None),
+        ("model_missing", "ollama.model.llama3.1", [], None),
+        ("worker", "jobs.worker", [], "degraded"),
+    ],
+)
+def test_each_simulated_fault_explains_cause_and_fix(
+    runtime, fault, check_id, skipped, health_status
+):
+    with _client(runtime, simulate_faults=fault) as client:
+        checks = _checks(client)
+        health = client.get("/api/health")
+
+    report = checks.pop("_report")
+    failed = checks[check_id]
+    assert failed["status"] == "fail" and report["status"] == "fail"
+    assert failed["cause"] and failed["fix"], failed
+    assert "simulated" in failed["detail"]
+    assert all(checks[s]["status"] == "skip" for s in skipped)
+    assert report["simulated"] == [fault]
+    assert health.json()["simulated"] == [fault]
+    if health_status:
+        assert health.json()["status"] == health_status
+
+
+def test_missing_model_offers_to_download_it(runtime):
+    with _client(runtime, chat_model="qwen2.5:3b") as client:
+        checks = _checks(client)
+    missing = checks["ollama.model.qwen2.5:3b"]
+    assert missing["status"] == "fail"
+    assert missing["action"] == {
+        "kind": "pull_model",
+        "label": "Download qwen2.5:3b",
+        "target": "qwen2.5:3b",
+    }
+    assert "ollama pull qwen2.5:3b" in missing["commands"]
+
+
+def test_chat_model_used_for_embeddings_is_flagged(runtime):
+    with _client(runtime) as client:
+        client.post("/api/collections", json={"name": "oops", "embedding_model": "llama3.1"})
+        checks = _checks(client)
+    wrong = checks["ollama.model.llama3.1"]
+    assert wrong["status"] == "fail" and "chat model" in wrong["detail"]
+
+
+def test_search_index_out_of_step_offers_a_reindex(runtime):
+    with _client(runtime) as client:
+        client.post(
+            "/api/documents", files=[("files", ("a.txt", b"alpha beta gamma", "text/plain"))]
+        )
+        client.app_state.worker.run_until_idle()
+        [shelf] = client.get("/api/collections").json()
+        runtime.vector_store._collections[shelf["chroma_collection"]].clear()  # vectors lost
+        checks = _checks(client)
+    out_of_step = checks[f"vector.shelf.{shelf['id']}"]
+    assert (
+        out_of_step["status"] == "warn"
+        and "0 passages in the search index" in out_of_step["detail"]
+    )
+    assert out_of_step["action"]["kind"] == "reindex_collection"
+    assert out_of_step["action"]["target"] == str(shelf["id"])
+
+
+def test_failed_jobs_and_an_old_schema_are_reported(runtime):
+    with runtime.session_factory() as db:
+        db.add(IngestJob(job_type="ingest", payload="{}", status="failed", error="boom"))
+        db.execute(text("UPDATE alembic_version SET version_num = '0001_old'"))
+        db.commit()
+    with _client(runtime) as client:
+        checks = _checks(client)
+    assert checks["jobs.failed"]["status"] == "warn"
+    assert checks["jobs.failed"]["action"]["kind"] == "open_queue"
+    schema = checks["sqlite.schema"]
+    assert schema["status"] == "fail" and "0001_old" in schema["detail"]
+
+
+def test_unknown_fault_names_are_ignored(runtime):
+    with _client(runtime, simulate_faults="nonsense, sqlite") as client:
+        assert client.get("/api/diagnostics").json()["simulated"] == ["sqlite"]

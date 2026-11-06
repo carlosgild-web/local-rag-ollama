@@ -5,14 +5,25 @@ from pathlib import Path
 
 from alembic import command
 from alembic.config import Config
+from alembic.script import ScriptDirectory
 
 BACKEND_DIR = Path(__file__).resolve().parents[2]
 
 
-def upgrade_to_head(db_path: Path) -> None:
-    db_path.parent.mkdir(parents=True, exist_ok=True)
+def _config() -> Config:
     config = Config(str(BACKEND_DIR / "alembic.ini"))
     config.set_main_option("script_location", str(BACKEND_DIR / "migrations"))
+    return config
+
+
+def head_revision() -> str:
+    """The schema revision this version of the app expects."""
+    return ScriptDirectory.from_config(_config()).get_current_head()
+
+
+def upgrade_to_head(db_path: Path) -> None:
+    db_path.parent.mkdir(parents=True, exist_ok=True)
+    config = _config()
     config.attributes["db_path"] = str(db_path)
     config.attributes["configure_logging"] = False
     command.upgrade(config, "head")

@@ -294,8 +294,34 @@ class ComponentHealth(BaseModel):
     detail: str | None = None
 
 
+class DiagnosticAction(BaseModel):
+    kind: str  # pull_model | reindex_collection | open_queue | open_collections
+    label: str
+    target: str | None = None
+
+
+class DiagnosticCheck(BaseModel):
+    id: str
+    component: str  # ollama | sqlite | vector_store | jobs
+    title: str
+    status: str  # ok | warn | fail | skip
+    detail: str
+    cause: str | None = None
+    fix: str | None = None
+    commands: list[str] = []
+    action: DiagnosticAction | None = None
+
+
+class DiagnosticsOut(BaseModel):
+    status: str  # ok | warn | fail
+    checks: list[DiagnosticCheck]
+    simulated: list[str]  # SIMULATE_FAULTS in effect (developer setting)
+    ran_at: UtcDatetime
+
+
 class HealthOut(BaseModel):
     status: str  # "ok" | "degraded" | "down"
+    simulated: list[str] = []
     ollama: ComponentHealth
     sqlite: ComponentHealth
     vector_store: ComponentHealth

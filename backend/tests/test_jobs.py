@@ -223,3 +223,17 @@ def test_stage_upload_rejects_unsupported_types_and_strips_directories(runtime):
         _stage(runtime, "evil.exe", b"x")
     assert safe_filename("..\\..\\secret\\notes.txt") == "notes.txt"
     assert safe_filename("../../etc/notes.md") == "notes.md"
+
+
+def test_upload_with_no_text_fails_once_with_a_clear_reason(runtime, setup):
+    """Regression (end-to-end test 2026-11-06): an empty file became a
+    document with 0 chunks that could never answer."""
+    db, collection, worker = setup
+    job, _ = _enqueue_ingest(db, runtime, collection, filename="blank.txt", content=b"  \n\n \t ")
+
+    worker.run_until_idle()
+
+    job = queue.get_job(db, job.id)
+    assert job.status == "failed" and job.retries == 0
+    assert "no text could be read from 'blank.txt'" in job.error
+    assert db.query(Document).count() == 0

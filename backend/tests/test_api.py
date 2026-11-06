@@ -408,3 +408,10 @@ def test_retired_collection_copy_is_refused_and_sessions_follow_the_rebuild(clie
 def test_models_report_whether_they_embed_or_chat(client):
     models = {m["name"]: m["capabilities"] for m in client.get("/api/models").json()}
     assert models == {"llama3.1:latest": ["completion", "tools"], "bge-m3:latest": ["embedding"]}
+
+
+def test_empty_upload_is_refused(client):
+    response = client.post("/api/documents", files=[("files", ("empty.txt", b"", "text/plain"))])
+    assert response.status_code == 422
+    assert "'empty.txt' is empty" in response.json()["detail"]
+    assert client.get("/api/jobs").json() == []

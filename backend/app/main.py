@@ -15,7 +15,7 @@ from app.api.static import find_static_dir, mount_frontend
 from app.core.config import get_settings
 from app.core.logging import RequestIdMiddleware, configure_logging
 from app.core.runtime import Runtime, build_runtime
-from app.ingest.uploads import UnsupportedUploadError, UploadTooLargeError
+from app.ingest.uploads import EmptyUploadError, UnsupportedUploadError, UploadTooLargeError
 from app.jobs.worker import JobWorker
 from app.versioning.profiles import InvalidProfileError
 from app.versioning.service import ConflictError, NotFoundError
@@ -27,6 +27,7 @@ _ERROR_STATUS = {
     ConflictError: 409,
     InvalidProfileError: 422,
     UploadTooLargeError: 413,
+    EmptyUploadError: 422,
     UnsupportedUploadError: 415,
 }
 

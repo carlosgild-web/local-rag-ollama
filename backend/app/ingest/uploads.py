@@ -17,6 +17,10 @@ class UnsupportedUploadError(ValueError):
     pass
 
 
+class EmptyUploadError(ValueError):
+    pass
+
+
 class UploadTooLargeError(ValueError):
     pass
 
@@ -48,6 +52,9 @@ def stage_upload(stream: BinaryIO, filename: str, uploads_dir: Path, *, max_byte
                 shutil.rmtree(staging_dir, ignore_errors=True)
                 raise UploadTooLargeError(f"{name!r} exceeds {max_bytes // (1024 * 1024)} MB")
             out.write(chunk)
+    if written == 0:
+        shutil.rmtree(staging_dir, ignore_errors=True)
+        raise EmptyUploadError(f"{name!r} is empty")
     return target
 
 

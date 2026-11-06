@@ -19,6 +19,7 @@ from app.ingest.uploads import discard_staged
 from app.jobs import queue
 from app.jobs.handlers import HANDLERS
 from app.jobs.queue import JobCancelled
+from app.versioning.service import NoTextError
 
 logger = logging.getLogger(__name__)
 
@@ -92,11 +93,13 @@ class JobWorker:
             logger.info("job cancelled", extra=log_extra)
         except Exception as exc:
             db.rollback()
+            # Retrying cannot give an empty file text, so fail it at once.
+            permanent = isinstance(exc, NoTextError)
             queue.fail(
                 db,
                 job,
                 f"{type(exc).__name__}: {exc}",
-                max_retries=self._runtime.settings.job_max_retries,
+                max_retries=0 if permanent else self._runtime.settings.job_max_retries,
             )
             logger.exception("job failed", extra={**log_extra, "status": job.status})
         else:

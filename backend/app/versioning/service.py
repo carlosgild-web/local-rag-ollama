@@ -49,6 +49,10 @@ class NotFoundError(ValueError):
     pass
 
 
+class NoTextError(ValueError):
+    """The file parsed to no text at all (empty, or a scan OCR could not read)."""
+
+
 class ConflictError(ValueError):
     pass
 
@@ -465,6 +469,12 @@ def ingest_document(
             version_id=existing_version.id,
         )
 
+    # Parse before storing anything: a file with no text would become a
+    # document that can never answer (end-to-end test 2026-11-06).
+    parsed = _parse(source_path, settings)
+    if not parsed.full_text.strip():
+        raise NoTextError(f"no text could be read from {filename!r}; it is empty or a blank scan")
+
     _, stored_path = file_store.store_file(source_path, settings.files_dir)
 
     document = db.execute(
@@ -481,7 +491,6 @@ def ingest_document(
     if tags is not None:
         document.tags = tags
 
-    parsed = _parse(source_path, settings)
     version = DocumentVersion(
         document_id=document.id,
         version_number=_next_version_number(db, document.id),

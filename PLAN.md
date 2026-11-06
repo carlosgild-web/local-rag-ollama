@@ -166,11 +166,11 @@ Total is about 30 working days; the MVP (through phase 4) is about 15.
 
 ### Phase 4 — UI MVP and Docker (about 6 d)
 
-- [ ] Vite + React + TypeScript + Tailwind + shadcn/ui; TanStack Query
-- [ ] Dashboard, Library, Collections, Queue, Chat with citations
-- [ ] FastAPI serves the built frontend
-- [ ] `Dockerfile` and `compose.yaml` (appendix A), healthchecks, named volumes
-- [ ] GitHub Actions: ruff, pytest, frontend build, `docker build` on every push
+- [x] Vite + React + TypeScript + Tailwind + shadcn/ui; TanStack Query
+- [x] Dashboard, Library, Collections, Queue, Chat with citations
+- [x] FastAPI serves the built frontend
+- [x] `Dockerfile` and `compose.yaml` (appendix A), healthchecks, named volumes
+- [ ] GitHub Actions: ruff, pytest, frontend build, `docker build` on every push (workflow written; first run after push)
 
 **Done when:** uploading a PDF in the browser indexes it and you can ask about it, and `docker compose up` gives the same result.
 

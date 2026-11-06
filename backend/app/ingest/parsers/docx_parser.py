@@ -7,7 +7,9 @@ import docx
 from app.ingest.parsers.base import Block, ParsedDocument
 
 
-def _heading_level(style_name: str) -> int:
+def _heading_level(style_name: str | None) -> int:
+    if not style_name:
+        return 0
     if style_name == "Title":
         return 1
     if style_name.startswith("Heading "):
@@ -24,5 +26,7 @@ def parse_docx(path: Path) -> ParsedDocument:
         text = paragraph.text.strip()
         if not text:
             continue
-        blocks.append(Block(text=text, level=_heading_level(paragraph.style.name)))
+        # Files without a default paragraph style give style None: plain text.
+        style = paragraph.style
+        blocks.append(Block(text=text, level=_heading_level(style.name if style else None)))
     return ParsedDocument(blocks=blocks)

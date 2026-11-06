@@ -56,6 +56,28 @@ def test_parse_docx_extracts_headings_and_paragraphs():
     assert any("router" in b.text.lower() for b in doc.blocks if b.level == 0)
 
 
+def test_parse_docx_without_default_paragraph_style(tmp_path):
+    """Some tools write .docx files with no default paragraph style, so
+    unstyled paragraphs report style None. They are plain body text."""
+    import docx
+    from docx.oxml.ns import qn
+
+    document = docx.Document()
+    document.add_heading("Agreement", 1)
+    document.add_paragraph("Payment is due in 30 days.")
+    for style in document.styles.element.findall(qn("w:style")):
+        if style.get(qn("w:type")) == "paragraph" and style.get(qn("w:default")) == "1":
+            style.getparent().remove(style)
+    path = tmp_path / "no-default-style.docx"
+    document.save(path)
+
+    doc = parse_file(path)
+    assert [(b.text, b.level) for b in doc.blocks] == [
+        ("Agreement", 1),
+        ("Payment is due in 30 days.", 0),
+    ]
+
+
 def test_parse_pdf_extracts_text_without_ocr():
     doc = parse_file(CORPUS / "energy-saving-tips.pdf")
     assert not any(b.needs_ocr for b in doc.blocks)

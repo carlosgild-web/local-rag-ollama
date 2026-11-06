@@ -1,9 +1,18 @@
 """Request and response models for the HTTP API."""
 
 import datetime as dt
-from typing import Any
+from typing import Annotated, Any
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import AfterValidator, BaseModel, ConfigDict, Field
+
+
+def _as_utc(value: dt.datetime) -> dt.datetime:
+    return value.replace(tzinfo=dt.UTC) if value.tzinfo is None else value
+
+
+# SQLite drops the timezone, but every stored time is UTC (models.utcnow).
+# Marking it keeps clients from reading the times as local.
+UtcDatetime = Annotated[dt.datetime, AfterValidator(_as_utc)]
 
 
 class ORMModel(BaseModel):
@@ -30,8 +39,8 @@ class DocumentOut(BaseModel):
     active_version_id: int | None
     active_version_number: int | None
     version_count: int
-    trashed_at: dt.datetime | None
-    created_at: dt.datetime
+    trashed_at: UtcDatetime | None
+    created_at: UtcDatetime
 
 
 class VersionOut(BaseModel):
@@ -42,7 +51,7 @@ class VersionOut(BaseModel):
     note: str | None
     is_active: bool
     chunk_count: int
-    created_at: dt.datetime
+    created_at: UtcDatetime
 
 
 class DiffOut(BaseModel):
@@ -86,7 +95,7 @@ class CollectionOut(ORMModel):
     chunk_size_tokens: int
     chunk_overlap_pct: float
     is_active: bool
-    created_at: dt.datetime
+    created_at: UtcDatetime
     document_count: int = 0
 
 
@@ -110,8 +119,8 @@ class JobOut(BaseModel):
     cancel_requested: bool
     document_id: int | None
     payload: dict[str, Any]
-    created_at: dt.datetime
-    updated_at: dt.datetime
+    created_at: UtcDatetime
+    updated_at: UtcDatetime
 
 
 # --- Retrieval and chat -------------------------------------------------------
@@ -158,7 +167,7 @@ class ChatIn(BaseModel):
 class SessionSummary(BaseModel):
     id: int
     title: str
-    created_at: dt.datetime
+    created_at: UtcDatetime
     message_count: int
 
 
@@ -181,7 +190,7 @@ class FeedbackOut(ORMModel):
     message_id: int
     thumbs_up: bool
     comment: str | None
-    created_at: dt.datetime
+    created_at: UtcDatetime
 
 
 class MessageOut(BaseModel):
@@ -189,7 +198,7 @@ class MessageOut(BaseModel):
     role: str
     content: str
     rag_profile_id: int | None
-    created_at: dt.datetime
+    created_at: UtcDatetime
     sources: list[SourceOut]
     feedback: FeedbackOut | None
 
@@ -197,7 +206,7 @@ class MessageOut(BaseModel):
 class SessionOut(BaseModel):
     id: int
     title: str
-    created_at: dt.datetime
+    created_at: UtcDatetime
     messages: list[MessageOut]
 
 
@@ -243,7 +252,7 @@ class ProfileOut(ORMModel):
     temperature: float
     system_prompt: str
     is_active: bool
-    created_at: dt.datetime
+    created_at: UtcDatetime
 
 
 # --- Ops ----------------------------------------------------------------------
@@ -255,7 +264,7 @@ class AuditOut(ORMModel):
     entity_type: str
     entity_id: int | None
     detail: str
-    created_at: dt.datetime
+    created_at: UtcDatetime
 
 
 class ComponentHealth(BaseModel):

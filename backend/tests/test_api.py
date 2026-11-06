@@ -334,3 +334,10 @@ def test_upload_treats_empty_form_fields_as_unset(runtime):
             files=[("files", ("a.txt", b"alpha", "text/plain"))],
         )
     assert response.status_code == 202, response.text
+
+
+def test_timestamps_are_marked_utc(runtime):
+    with TestClient(create_app(runtime, start_worker=False)) as client:
+        client.post("/api/documents", files=[("files", ("a.txt", b"alpha", "text/plain"))])
+        [job] = client.get("/api/jobs").json()
+    assert job["created_at"].endswith("Z") or job["created_at"].endswith("+00:00")

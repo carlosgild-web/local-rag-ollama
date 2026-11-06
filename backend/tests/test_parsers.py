@@ -78,6 +78,32 @@ def test_parse_docx_without_default_paragraph_style(tmp_path):
     ]
 
 
+def test_parse_docx_keeps_tables_in_document_order(tmp_path):
+    """Key facts often sit in tables (an agreement number, a price list)."""
+    import docx
+
+    document = docx.Document()
+    document.add_heading("Supplier Agreement", 1)
+    table = document.add_table(rows=2, cols=2)
+    table.cell(0, 0).text, table.cell(0, 1).text = "Field", "Detail"
+    table.cell(1, 0).text, table.cell(1, 1).text = "Agreement number", "XA-2026-014"
+    document.add_paragraph("Payment is due in 30 days.")
+    merged = document.add_table(rows=1, cols=3)
+    merged.cell(0, 0).merge(merged.cell(0, 1)).text = "Merged title"
+    merged.cell(0, 2).text = "Other"
+    path = tmp_path / "with-tables.docx"
+    document.save(path)
+
+    texts = [b.text for b in parse_file(path).blocks]
+    assert texts == [
+        "Supplier Agreement",
+        "Field | Detail",
+        "Agreement number | XA-2026-014",
+        "Payment is due in 30 days.",
+        "Merged title | Other",
+    ]
+
+
 def test_parse_pdf_extracts_text_without_ocr():
     doc = parse_file(CORPUS / "energy-saving-tips.pdf")
     assert not any(b.needs_ocr for b in doc.blocks)

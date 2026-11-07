@@ -4,7 +4,37 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Ver
 
 ## [Unreleased]
 
-UI improvements, on the `feature/ui-improvements` branch.
+## [0.5.0] - unreleased
+
+UI improvements for non-technical users, from the `feature/ui-improvements` branch. Some items came forward from later phases ([decision 0008](docs/decisions/0008-ui-improvements-scope.md)).
+
+### Added
+
+- **Suggested shelves and tags** ([decision 0009](docs/decisions/0009-suggested-shelves-and-tags.md)):
+  - Drop files or a folder and the app analyses each document. For each file it suggests an existing shelf, or a new one with a name, plus tags: department, kind, quarter and year, folder.
+  - You review, rename, move, retag or leave files out, then confirm.
+  - Nothing is indexed before you confirm.
+  - New endpoints: `POST /api/intake`, `GET`, `POST …/confirm` and `DELETE /api/intake/{id}`; new job type `analyze_intake`.
+- **Review before processing:** `POST /api/documents/check` and `GET /api/documents/upload-rules`. Each file shows whether it is new, a new version (v1 → v2), already in the library, in the trash, or unreadable.
+- **Troubleshooter:**
+  - `GET /api/diagnostics` runs checks on Ollama (reachable, version, models installed and in the right role, free memory), SQLite (integrity, migrations, FTS, disk), the vector store (in step with the database) and the job worker. Each check gives a cause, a fix and action buttons.
+  - `SIMULATE_FAULTS` reproduces each failure, for developers.
+- **A broken system is impossible to miss:**
+  - a status bar and status pill on every page, plus a warning bar for problems such as low memory
+  - controls that can't work are paused, with the reason
+  - toasts when the status changes, the state in the tab title, and opt-in desktop notifications
+- **Simulated L2 support ticket:** a ServiceNow-style incident draft with environment details, failed checks, priority and the user's notes. Submitting saves a numbered INC record under `DATA_DIR/support/`; nothing is sent. `SUPPORT_COMPUTER_NAME` and `SUPPORT_USER_NAME` show a demo identity instead of the real one.
+- **Restore from trash:** `POST /api/documents/{id}/restore`. It is refused if the name was reused on that shelf.
+- **Citation passage viewer:** `GET /api/chunks/{id}`. Clicking a source or a `[n]` chip shows the exact passage.
+- **Queue:** jobs show what they are about (file or shelf), and why a file was skipped.
+- **Collections in plain language:** tooltips, presets (Short facts / Balanced / Long text), a guide for unusual values, and a confirmation before Create, Rebuild and Reindex.
+- **Showcase:** a README with screenshots and an architecture diagram, plus a slide deck in `docs/showcase/`.
+- **End-to-end kit:** a `ui_endpoints` phase, and a restore check.
+
+### Changed
+
+- The Library no longer asks for a shelf and tags before upload; the suggestions replace them.
+- Error boundaries keep one broken panel from blanking the whole page.
 
 ## [0.4.0] - 2026-11-06
 

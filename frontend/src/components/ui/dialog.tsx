@@ -23,13 +23,18 @@ export function Dialog({
   className?: string;
 }) {
   const panel = useRef<HTMLDivElement>(null);
+  // Callers usually pass a new onClose on every render. Keep the latest in a
+  // ref so the effect below runs only when the dialog opens: re-running it
+  // moved focus to the panel after each keystroke in the dialog's fields.
+  const closeRef = useRef(onClose);
+  closeRef.current = onClose;
   useEffect(() => {
     if (!open) return;
-    const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
+    const onKey = (e: KeyboardEvent) => e.key === "Escape" && closeRef.current();
     document.addEventListener("keydown", onKey);
     panel.current?.focus();
     return () => document.removeEventListener("keydown", onKey);
-  }, [open, onClose]);
+  }, [open]);
   if (!open) return null;
   return createPortal(
     <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/40 p-4 sm:p-10">

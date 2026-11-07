@@ -196,7 +196,7 @@ export function SuggestionsReview({
                       className={cn("h-8 w-56 font-mono", problem && "border-destructive")}
                     />
                     {shelf.namedBy === "keywords" && (
-                      <span className="text-xs text-muted-foreground">named from keywords (the model didn't answer)</span>
+                      <span className="text-xs text-muted-foreground">named from the documents' tags</span>
                     )}
                   </div>
                   {shelf.description && <p className="text-xs text-muted-foreground">{shelf.description}</p>}

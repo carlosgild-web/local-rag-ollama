@@ -55,10 +55,10 @@ NUMBER_START = 10001
 
 def _environment(request: Request, runtime: Runtime) -> dict:
     settings = runtime.settings
-    computer = socket.gethostname()
+    computer = settings.support_computer_name or socket.gethostname()
     return {
         "computer_name": computer,
-        "user_name": _user_name(),
+        "user_name": settings.support_user_name or _user_name(),
         "os": platform.platform(),
         "app_version": request.app.version,
         "python": sys.version.split()[0],

@@ -147,6 +147,16 @@ def test_support_draft_is_prefilled_from_the_checks(runtime):
     assert draft["simulated_faults"] == ["sqlite"]
 
 
+def test_support_draft_can_show_a_demo_identity_instead_of_the_real_one(runtime):
+    with _client(
+        runtime, support_computer_name="DEMO-LAPTOP", support_user_name="demo.user"
+    ) as client:
+        env = client.get("/api/support/draft").json()["environment"]
+    assert env["computer_name"] == "DEMO-LAPTOP"
+    assert env["user_name"] == "demo.user"
+    assert env["configuration_item"] == "Local RAG on DEMO-LAPTOP"
+
+
 def test_support_ticket_is_filed_locally_as_a_numbered_incident(runtime):
     """Submitting is simulated: nothing leaves the machine; the incident a
     real integration would send is saved instead, with an INC number."""

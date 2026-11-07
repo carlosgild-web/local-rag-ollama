@@ -183,7 +183,11 @@ function StatusBar({ status, onTroubleshoot }: { status: SystemStatus; onTrouble
       <div className="sticky top-0 z-30 flex flex-wrap items-center gap-3 border-b bg-muted px-6 py-2 text-sm">
         <AlertTriangle className="size-4 shrink-0 text-warning" />
         <span className="flex-1">
-          {warnings.length} warning{warnings.length === 1 ? "" : "s"}: {warnings[0].title.toLowerCase()} — {warnings[0].detail}
+          <span className="font-medium">
+            {warnings.length === 1 ? "Warning" : `${warnings.length} warnings`}:
+          </span>{" "}
+          {warnings[0].detail}
+          {warnings.length > 1 && ` (and ${warnings.length - 1} more)`}
         </span>
         <Button size="sm" variant="outline" onClick={onTroubleshoot}>
           Details

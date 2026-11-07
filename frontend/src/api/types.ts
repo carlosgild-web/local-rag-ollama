@@ -95,6 +95,33 @@ export interface SupportTicket {
   };
 }
 
+export interface UploadRules {
+  extensions: string[];
+  max_upload_mb: number;
+}
+
+export type UploadCheckStatus =
+  | "new"
+  | "new_version"
+  | "duplicate"
+  | "name_in_trash"
+  | "unsupported"
+  | "empty"
+  | "too_large";
+
+/** What would happen to one file if uploaded now (POST /api/documents/check). */
+export interface UploadCheckResult {
+  name: string;
+  status: UploadCheckStatus;
+  message: string;
+  document_id: number | null;
+  existing_filename: string | null;
+  existing_shelf: string | null;
+  existing_version: number | null;
+  next_version: number | null;
+  existing_since: string | null;
+}
+
 export interface QueuedUpload {
   job_id: number;
   filename: string;

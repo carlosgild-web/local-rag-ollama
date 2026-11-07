@@ -521,14 +521,18 @@ def check_uploads(
         if version is not None:
             document = db.get(Document, version.document_id)
             shelf = shelves.get(document.collection_id, f"#{document.collection_id}")
-            where = " (in the trash)" if document.trashed_at else ""
             label = "" if document.filename == item.name else f" as '{document.filename}'"
+            then = (
+                " It's in the trash: restore it there instead (Library → Trash → Restore)."
+                if document.trashed_at
+                else " It will be skipped."
+            )
             results.append(
                 UploadCheck(
                     item.name,
                     "duplicate",
                     f"Already in the library{label}: version {version.version_number} on shelf "
-                    f"'{shelf}'{where}. It will be skipped.",
+                    f"'{shelf}'.{then}",
                     document_id=document.id,
                     existing_filename=document.filename,
                     existing_shelf=shelf,

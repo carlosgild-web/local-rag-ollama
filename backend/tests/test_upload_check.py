@@ -99,3 +99,14 @@ def test_too_large_and_retired_shelf_are_refused(client, runtime):
     client.drain()
     retired = client.post("/api/documents/check", json={"collection_id": shelf["id"], "files": []})
     assert retired.status_code == 409
+
+
+def test_a_duplicate_in_the_trash_points_to_restore(client):
+    _upload(client, "notes.txt", b"kept in the trash")
+    [doc] = client.get("/api/documents").json()
+    client.delete(f"/api/documents/{doc['id']}")
+
+    result = _check(client, [_candidate("notes.txt", b"kept in the trash")])["notes.txt"]
+
+    assert result["status"] == "duplicate"
+    assert "It's in the trash" in result["message"] and "Restore" in result["message"]

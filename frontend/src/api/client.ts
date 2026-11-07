@@ -15,7 +15,9 @@ import type {
   Profile,
   Session,
   SessionSummary,
+  UploadCheckResult,
   UploadResponse,
+  UploadRules,
 } from "./types";
 
 export const API_BASE = "/api";
@@ -97,6 +99,9 @@ export const api = {
     if (options.tags) form.append("tags", options.tags);
     return request<UploadResponse>("/documents", { method: "POST", body: form });
   },
+  uploadRules: () => request<UploadRules>("/documents/upload-rules"),
+  checkUploads: (collectionId: number | undefined, files: { name: string; sha256: string; size: number }[]) =>
+    request<UploadCheckResult[]>("/documents/check", json("POST", { collection_id: collectionId ?? null, files })),
   deleteDocument: (id: number) => request<void>(`/documents/${id}`, { method: "DELETE" }),
   restoreDocument: (id: number) => request<Document>(`/documents/${id}/restore`, json("POST")),
   chunk: (id: number) => request<ChunkDetail>(`/chunks/${id}`),

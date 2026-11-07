@@ -1,14 +1,13 @@
 import { useQuery } from "@tanstack/react-query";
-import { FileText, FolderOpen, Loader2, Play, Trash2, Upload } from "lucide-react";
-import { useRef, useState } from "react";
+import { FileText, FolderOpen, Loader2, Sparkles, Trash2, Upload } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
 import { api } from "@/api/client";
-import type { UploadCheckResult } from "@/api/types";
 import { ErrorNote } from "@/components/common";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { useCollections } from "@/hooks/queries";
+import { Progress } from "@/components/ui/progress";
+import { useCollections, useJobs } from "@/hooks/queries";
 import { cn, formatBytes } from "@/lib/utils";
-import { ReviewDialog } from "./ReviewDialog";
+import { SuggestionsReview } from "./SuggestionsReview";
 
 /** One file picked for upload, before anything is sent. */
 export interface PickedFile {
@@ -21,35 +20,48 @@ export interface PickedFile {
   problem: string | null;
   /** Another picked file has the same name (it would become a version of it). */
   sameNameAs: string | null;
-  /** Tag from the first folder below the chosen one, e.g. "HR". */
-  folderTag: string | null;
 }
 
-const LAST_SHELF = "library.lastShelf";
+// The batch being analyzed or reviewed survives a page reload in this tab.
+const BATCH_KEY = "library.intakeBatch";
 
-/** Review-before-processing upload: pick files or a folder, unselect what
- * you don't want, review what will happen to each file, then process. */
+function storedBatch(): { batchId: string; jobId: number } | null {
+  try {
+    return JSON.parse(sessionStorage.getItem(BATCH_KEY) ?? "null");
+  } catch {
+    return null;
+  }
+}
+
+/** Upload with suggestions: pick files or a folder, unselect what you don't
+ * want, let the app analyze them and suggest a shelf and tags for each, then
+ * review, change anything and confirm. */
 export function UploadFlow({ onQueued }: { onQueued: (jobIds: number[]) => void }) {
   const rules = useQuery({ queryKey: ["upload-rules"], queryFn: api.uploadRules, staleTime: Number.POSITIVE_INFINITY });
   const collections = useCollections();
-  const shelves = collections.data ?? [];
+  const jobs = useJobs();
   const [items, setItems] = useState<PickedFile[]>([]);
-  const [tags, setTags] = useState("");
-  const [tagFolders, setTagFolders] = useState(false);
-  const [shelf, setShelf] = useState<number | undefined>(() => {
-    const stored = Number(localStorage.getItem(LAST_SHELF));
-    return Number.isFinite(stored) && stored > 0 ? stored : undefined;
-  });
   const [dragging, setDragging] = useState(false);
-  const [hashing, setHashing] = useState<{ done: number; total: number } | null>(null);
-  const [review, setReview] = useState<{ files: PickedFile[]; results: UploadCheckResult[] } | null>(null);
+  const [sending, setSending] = useState(false);
+  const [batch, setBatch] = useState(storedBatch);
   const [error, setError] = useState<unknown>(null);
   const filesInput = useRef<HTMLInputElement>(null);
   const folderInput = useRef<HTMLInputElement>(null);
 
-  const shelfId = shelves.some((c) => c.id === shelf) ? shelf : shelves.length === 1 ? shelves[0].id : undefined;
-  const needsShelf = shelves.length > 1 && shelfId === undefined;
   const selected = items.filter((i) => i.selected);
+  const job = batch ? jobs.data?.find((j) => j.id === batch.jobId) : undefined;
+  const intake = useQuery({
+    queryKey: ["intake", batch?.batchId],
+    queryFn: () => api.intake(batch?.batchId ?? ""),
+    enabled: !!batch,
+    retry: false,
+    refetchInterval: (q) => (q.state.data?.state === "ready" ? false : 1_500),
+  });
+
+  useEffect(() => {
+    if (batch) sessionStorage.setItem(BATCH_KEY, JSON.stringify(batch));
+    else sessionStorage.removeItem(BATCH_KEY);
+  }, [batch]);
 
   const add = (incoming: { file: File; path: string }[]) => {
     if (!rules.data) return;
@@ -60,26 +72,54 @@ export function UploadFlow({ onQueued }: { onQueued: (jobIds: number[]) => void 
     setItems((list) => list.map((i) => (i.key === key && !i.problem ? { ...i, selected: !i.selected } : i)));
   const selectAll = (value: boolean) => setItems((list) => list.map((i) => ({ ...i, selected: value && !i.problem })));
 
-  const process = async () => {
+  const analyze = async () => {
     setError(null);
+    setSending(true);
     try {
-      setHashing({ done: 0, total: selected.length });
-      const hashes: Record<string, string> = {};
-      for (const [index, item] of selected.entries()) {
-        hashes[item.key] = await sha256(item.file);
-        setHashing({ done: index + 1, total: selected.length });
-      }
-      const results = await api.checkUploads(
-        shelfId,
-        selected.map((i) => ({ name: i.file.name, sha256: hashes[i.key], size: i.file.size })),
-      );
-      setReview({ files: selected, results });
+      const started = await api.startIntake(selected.map((i) => ({ file: i.file, path: i.path })));
+      const sent = new Set(selected.map((i) => i.key));
+      setItems((list) => list.filter((i) => !sent.has(i.key)));
+      setBatch({ batchId: started.batch_id, jobId: started.job_id });
     } catch (e) {
       setError(e);
     } finally {
-      setHashing(null);
+      setSending(false);
     }
   };
+
+  const reset = () => setBatch(null);
+  const discard = async () => {
+    if (batch) await api.cancelIntake(batch.batchId).catch(() => undefined);
+    reset();
+  };
+
+  if (batch) {
+    if (intake.error) {
+      // Expired or already processed (e.g. in another tab).
+      return (
+        <div className="space-y-2">
+          <ErrorNote error={intake.error} />
+          <Button variant="outline" onClick={reset}>
+            Start over
+          </Button>
+        </div>
+      );
+    }
+    if (intake.data?.state === "ready") {
+      return (
+        <SuggestionsReview
+          batch={intake.data}
+          existing={(collections.data ?? []).filter((c) => c.is_active)}
+          onCancel={reset}
+          onConfirmed={(jobIds) => {
+            reset();
+            onQueued(jobIds);
+          }}
+        />
+      );
+    }
+    return <Analyzing job={job} files={intake.data?.files.length} onCancel={discard} />;
+  }
 
   return (
     <div className="space-y-3">
@@ -111,7 +151,7 @@ export function UploadFlow({ onQueued }: { onQueued: (jobIds: number[]) => void 
         </div>
         <p className="text-xs text-muted-foreground">
           {rules.data
-            ? `${rules.data.extensions.map((e) => e.slice(1).toUpperCase()).join(", ")} · up to ${rules.data.max_upload_mb} MB each · nothing is processed until you confirm`
+            ? `${rules.data.extensions.map((e) => e.slice(1).toUpperCase()).join(", ")} · up to ${rules.data.max_upload_mb} MB each · the app suggests a shelf and tags for each file, and nothing is processed until you confirm`
             : "Loading the upload rules…"}
         </p>
         <input
@@ -139,75 +179,61 @@ export function UploadFlow({ onQueued }: { onQueued: (jobIds: number[]) => void 
       </div>
 
       {items.length > 0 && (
-        <SelectionList
-          items={items}
-          onToggle={toggle}
-          onSelectAll={selectAll}
-          onClear={() => setItems([])}
-          tagFolders={tagFolders}
-        />
+        <SelectionList items={items} onToggle={toggle} onSelectAll={selectAll} onClear={() => setItems([])} />
       )}
 
       {items.length > 0 && (
-        <div className="flex flex-wrap items-center gap-3">
-          {shelves.length > 0 && (
-            <label className={cn("flex items-center gap-1.5 text-sm", needsShelf && "text-warning")}>
-              {needsShelf ? "Choose a shelf:" : "Shelf:"}
-              <select
-                className="h-9 rounded-md border border-input bg-background px-2 text-foreground"
-                value={shelfId ?? ""}
-                onChange={(e) => {
-                  setShelf(Number(e.target.value));
-                  localStorage.setItem(LAST_SHELF, e.target.value);
-                }}
-              >
-                {shelfId === undefined && <option value="">—</option>}
-                {shelves.map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {c.name}
-                  </option>
-                ))}
-              </select>
-            </label>
-          )}
-          <Input
-            placeholder="Tags for these files (comma-separated)"
-            value={tags}
-            onChange={(e) => setTags(e.target.value)}
-            className="max-w-xs"
-          />
-          <label className="flex items-center gap-1.5 text-sm" title="e.g. files in the HR folder get the tag HR">
-            <input type="checkbox" checked={tagFolders} onChange={(e) => setTagFolders(e.target.checked)} />
-            Tag each file with its folder name
-          </label>
-          <Button className="ml-auto" onClick={process} disabled={selected.length === 0 || needsShelf || !!hashing}>
-            {hashing ? <Loader2 className="animate-spin" /> : <Play />}
-            {hashing ? `Checking ${hashing.done} of ${hashing.total}…` : `Process documents (${selected.length})`}
+        <div className="flex justify-end">
+          <Button onClick={analyze} disabled={selected.length === 0 || sending}>
+            {sending ? <Loader2 className="animate-spin" /> : <Sparkles />}
+            {sending
+              ? `Sending ${selected.length} file${selected.length === 1 ? "" : "s"} for analysis…`
+              : `Analyze ${selected.length} document${selected.length === 1 ? "" : "s"}`}
           </Button>
         </div>
       )}
       <ErrorNote error={error} />
+    </div>
+  );
+}
 
-      {review && (
-        <ReviewDialog
-          files={review.files}
-          results={review.results}
-          shelfId={shelfId}
-          shelfName={shelves.find((c) => c.id === shelfId)?.name ?? "default"}
-          tags={tags}
-          tagFolders={tagFolders}
-          onCancel={() => setReview(null)}
-          onQueued={(jobIds, processedKeys, complete) => {
-            // When everything chosen was sent, all reviewed files leave the list
-            // (including duplicates and unticked ones). If an upload failed
-            // part-way, only the sent files leave, so the rest can be retried.
-            const gone = new Set(complete ? review.files.map((f) => f.key) : processedKeys);
-            setReview(null);
-            setItems((list) => list.filter((i) => !gone.has(i.key)));
-            onQueued(jobIds);
-          }}
-        />
+function Analyzing({
+  job,
+  files,
+  onCancel,
+}: {
+  job: { status: string; progress: number; error: string | null } | undefined;
+  files: number | undefined;
+  onCancel: () => void;
+}) {
+  const failed = job?.status === "failed" || job?.status === "cancelled";
+  const progress = job?.progress ?? 0;
+  const step = job?.status === "pending"
+    ? "Waiting for the job worker (other jobs may be running)…"
+    : progress >= 0.8
+      ? "Naming the suggested shelves (up to a minute)…"
+      : progress >= 0.3
+        ? "Comparing the documents with each other and with your shelves…"
+        : files
+          ? `Reading document ${Math.min(files, Math.floor((progress / 0.3) * files) + 1)} of ${files}…`
+          : "Reading the documents…";
+  return (
+    <div className="space-y-3 rounded-lg border bg-card p-4 text-sm">
+      <div className="flex items-center gap-2">
+        {failed ? null : <Loader2 className="size-4 animate-spin text-primary" />}
+        <span className="font-medium">{failed ? "The analysis didn't finish" : "Analyzing your documents"}</span>
+      </div>
+      {failed ? (
+        <ErrorNote error={job?.error ?? "The analysis job stopped."} />
+      ) : (
+        <>
+          <Progress value={progress} />
+          <p className="text-muted-foreground">{step}</p>
+        </>
       )}
+      <Button variant="outline" size="sm" onClick={onCancel}>
+        {failed ? "Discard and start over" : "Cancel"}
+      </Button>
     </div>
   );
 }
@@ -217,13 +243,11 @@ function SelectionList({
   onToggle,
   onSelectAll,
   onClear,
-  tagFolders,
 }: {
   items: PickedFile[];
   onToggle: (key: string) => void;
   onSelectAll: (value: boolean) => void;
   onClear: () => void;
-  tagFolders: boolean;
 }) {
   const selectable = items.filter((i) => !i.problem);
   const selectedCount = items.filter((i) => i.selected).length;
@@ -262,13 +286,10 @@ function SelectionList({
                   <td className="py-2 pr-3">
                     <span className="text-muted-foreground">{folder}</span>
                     <span className="font-medium">{item.file.name}</span>
-                    {tagFolders && item.folderTag && (
-                      <span className="ml-2 rounded-full bg-secondary px-2 py-0.5 text-xs">{item.folderTag}</span>
-                    )}
                     {item.problem && <div className="text-xs text-destructive">{item.problem}</div>}
                     {!item.problem && item.sameNameAs && (
                       <div className="text-xs text-warning">
-                        Same name as {item.sameNameAs}: on one shelf it would become a new version of it.
+                        Same name as {item.sameNameAs}: on the same shelf it would become a new version of it.
                         {item.selected ? "" : " Unselected; tick it if that's what you want."}
                       </div>
                     )}
@@ -305,7 +326,6 @@ function mergeFiles(
         : file.size > maxMb * 1024 * 1024
           ? `Larger than the ${maxMb} MB limit.`
           : null;
-    const parts = path.split("/");
     added.push({
       key: `${path}:${file.size}:${file.lastModified}`,
       file,
@@ -313,7 +333,6 @@ function mergeFiles(
       selected: !problem,
       problem,
       sameNameAs: null,
-      folderTag: parts.length > 2 ? parts[1] : null, // root/<folder>/…/file
     });
   }
   return [...current, ...added];
@@ -334,11 +353,6 @@ function markSameNames(items: PickedFile[]): PickedFile[] {
     const flaggedBefore = item.sameNameAs !== null;
     return { ...item, sameNameAs: earlier.path, selected: flaggedBefore ? item.selected : false };
   });
-}
-
-async function sha256(file: File): Promise<string> {
-  const digest = await crypto.subtle.digest("SHA-256", await file.arrayBuffer());
-  return Array.from(new Uint8Array(digest), (b) => b.toString(16).padStart(2, "0")).join("");
 }
 
 /** Files from a drop, including whole folders (walked recursively). */

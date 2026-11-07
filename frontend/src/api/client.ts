@@ -11,6 +11,10 @@ import type {
   Health,
   Job,
   JobQueued,
+  Intake,
+  IntakeConfirm,
+  IntakeConfirmed,
+  IntakeStarted,
   Model,
   Profile,
   Session,
@@ -102,6 +106,18 @@ export const api = {
   uploadRules: () => request<UploadRules>("/documents/upload-rules"),
   checkUploads: (collectionId: number | undefined, files: { name: string; sha256: string; size: number }[]) =>
     request<UploadCheckResult[]>("/documents/check", json("POST", { collection_id: collectionId ?? null, files })),
+  startIntake: (files: { file: File; path: string }[]) => {
+    const form = new FormData();
+    for (const { file, path } of files) {
+      form.append("files", file);
+      form.append("paths", path);
+    }
+    return request<IntakeStarted>("/intake", { method: "POST", body: form });
+  },
+  intake: (batchId: string) => request<Intake>(`/intake/${batchId}`),
+  confirmIntake: (batchId: string, body: IntakeConfirm) =>
+    request<IntakeConfirmed>(`/intake/${batchId}/confirm`, json("POST", body)),
+  cancelIntake: (batchId: string) => request<void>(`/intake/${batchId}`, { method: "DELETE" }),
   deleteDocument: (id: number) => request<void>(`/documents/${id}`, { method: "DELETE" }),
   restoreDocument: (id: number) => request<Document>(`/documents/${id}/restore`, json("POST")),
   chunk: (id: number) => request<ChunkDetail>(`/chunks/${id}`),

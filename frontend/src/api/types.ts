@@ -109,6 +109,58 @@ export type UploadCheckStatus =
   | "empty"
   | "too_large";
 
+export type IntakeStatus = UploadCheckStatus | "unreadable" | "pending";
+
+/** One dropped file with the app's suggestions (GET /api/intake/{id}). */
+export interface IntakeFile {
+  key: string;
+  name: string;
+  path: string;
+  size: number;
+  status: IntakeStatus;
+  message: string;
+  /** false: can't or needn't be processed (duplicate, unreadable…). */
+  include: boolean;
+  /** "existing:<collection id>" or "new:<group>". */
+  shelf: string | null;
+  confidence: "high" | "low";
+  reason: string;
+  tags: string[];
+  alternatives: string[];
+}
+
+export interface IntakeShelf {
+  ref: string;
+  name: string;
+  description: string;
+  existing: boolean;
+  named_by: "model" | "keywords" | "existing" | "";
+}
+
+export interface Intake {
+  batch_id: string;
+  /** "staged" while the analysis runs, then "ready". */
+  state: "staged" | "ready";
+  files: IntakeFile[];
+  shelves: IntakeShelf[];
+}
+
+export interface IntakeStarted {
+  batch_id: string;
+  job_id: number;
+  files: number;
+}
+
+export interface IntakeConfirm {
+  new_shelves: Record<string, string>;
+  files: { key: string; include: boolean; shelf: string; tags: string[] }[];
+}
+
+export interface IntakeConfirmed {
+  job_ids: number[];
+  created_shelves: { ref: string; id: number; name: string }[];
+}
+
 /** What would happen to one file if uploaded now (POST /api/documents/check). */
 export interface UploadCheckResult {
   name: string;

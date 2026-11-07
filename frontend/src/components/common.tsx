@@ -58,4 +58,5 @@ export const JOB_LABEL: Record<string, string> = {
   reindex_document: "Reindex document",
   reindex_collection: "Reindex collection",
   rebuild_collection: "Rebuild collection",
+  analyze_intake: "Suggest shelves",
 };

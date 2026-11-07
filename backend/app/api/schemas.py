@@ -31,6 +31,61 @@ class UploadResponse(BaseModel):
     jobs: list[QueuedUpload]
 
 
+class IntakeStarted(BaseModel):
+    batch_id: str
+    job_id: int
+    files: int
+
+
+class IntakeFileOut(BaseModel):
+    key: str
+    name: str
+    path: str
+    size: int
+    # new | new_version | duplicate | name_in_trash | unsupported | empty
+    # | too_large | unreadable | pending
+    status: str
+    message: str
+    include: bool
+    shelf: str | None  # "existing:<id>" or "new:<key>"
+    confidence: str  # high | low
+    reason: str
+    tags: list[str]
+    alternatives: list[str]
+
+
+class IntakeShelfOut(BaseModel):
+    ref: str
+    name: str
+    description: str
+    existing: bool
+    named_by: str  # model | keywords | existing
+
+
+class IntakeOut(BaseModel):
+    batch_id: str
+    state: str  # staged (analysis running) | ready
+    files: list[IntakeFileOut]
+    shelves: list[IntakeShelfOut]
+
+
+class IntakeDecisionIn(BaseModel):
+    key: str
+    include: bool
+    shelf: str = Field(min_length=1, max_length=40)
+    tags: list[str] = Field(default_factory=list, max_length=10)
+
+
+class IntakeConfirmIn(BaseModel):
+    new_shelves: dict[str, str] = Field(default_factory=dict)  # "new:<key>" -> name
+    files: list[IntakeDecisionIn]
+
+
+class IntakeConfirmed(BaseModel):
+    job_ids: list[int]
+    created_shelves: list[dict[str, Any]]
+
+
 class UploadRules(BaseModel):
     extensions: list[str]
     max_upload_mb: int

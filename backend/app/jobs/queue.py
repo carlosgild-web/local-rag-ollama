@@ -19,7 +19,13 @@ from sqlalchemy.orm import Session
 from app.db.models import IngestJob, utcnow
 from app.versioning.service import ConflictError, NotFoundError, record_audit
 
-JOB_TYPES = {"ingest", "reindex_document", "reindex_collection", "rebuild_collection"}
+JOB_TYPES = {
+    "ingest",
+    "reindex_document",
+    "reindex_collection",
+    "rebuild_collection",
+    "analyze_intake",
+}
 TERMINAL = {"completed", "failed", "cancelled"}
 
 

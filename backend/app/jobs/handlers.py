@@ -8,6 +8,7 @@ from pathlib import Path
 from sqlalchemy.orm import Session
 
 from app.core.runtime import Runtime
+from app.ingest import intake
 from app.ingest.uploads import discard_staged
 from app.versioning import service
 from app.versioning.service import ProgressCallback
@@ -96,8 +97,16 @@ def handle_rebuild_collection(
     return {"active_collection_id": target.id, "chunk_count": chunk_count}
 
 
+def handle_analyze_intake(
+    db: Session, payload: dict, runtime: Runtime, progress: ProgressCallback
+) -> dict:
+    """Suggest a shelf and tags for each staged file (nothing is indexed)."""
+    return intake.analyze_batch(db, runtime, payload["batch_id"], progress)
+
+
 HANDLERS: dict[str, Handler] = {
     "ingest": handle_ingest,
+    "analyze_intake": handle_analyze_intake,
     "reindex_document": handle_reindex_document,
     "reindex_collection": handle_reindex_collection,
     "rebuild_collection": handle_rebuild_collection,

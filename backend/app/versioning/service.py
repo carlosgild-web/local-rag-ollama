@@ -454,6 +454,142 @@ def _clear_chunks(
     db.flush()
 
 
+# --- Upload review (read-only) -----------------------------------------------
+
+
+@dataclass
+class UploadCandidate:
+    name: str
+    sha256: str
+    size: int
+
+
+@dataclass
+class UploadCheck:
+    """What would happen to one file if it were uploaded now."""
+
+    name: str
+    status: str  # new | new_version | duplicate | name_in_trash | unsupported | empty | too_large
+    message: str
+    document_id: int | None = None
+    existing_filename: str | None = None
+    existing_shelf: str | None = None
+    existing_version: int | None = None
+    next_version: int | None = None
+    existing_since: dt.datetime | None = None
+
+
+def check_uploads(
+    db: Session,
+    collection: Collection | None,
+    candidates: list[UploadCandidate],
+    *,
+    max_bytes: int,
+    supported_extensions: set[str],
+) -> list[UploadCheck]:
+    """Predicts, without writing anything, how ingest_document would treat
+    each file: the same rules (global content hash first, then the same
+    filename on the shelf), so the user can review before processing.
+    `collection` None means the default shelf, which may not exist yet."""
+    shelves = {c.id: c.name for c in db.execute(select(Collection)).scalars()}
+    results = []
+    for item in candidates:
+        suffix = Path(item.name).suffix.lower()
+        if suffix not in supported_extensions:
+            kinds = ", ".join(sorted(supported_extensions))
+            results.append(
+                UploadCheck(
+                    item.name, "unsupported", f"This file type can't be read (supported: {kinds})."
+                )
+            )
+            continue
+        if item.size == 0:
+            results.append(UploadCheck(item.name, "empty", "The file is empty."))
+            continue
+        if item.size > max_bytes:
+            limit = max_bytes // (1024 * 1024)
+            results.append(
+                UploadCheck(
+                    item.name, "too_large", f"The file is larger than the {limit} MB limit."
+                )
+            )
+            continue
+
+        version = db.execute(
+            select(DocumentVersion).where(DocumentVersion.sha256 == item.sha256)
+        ).scalar_one_or_none()
+        if version is not None:
+            document = db.get(Document, version.document_id)
+            shelf = shelves.get(document.collection_id, f"#{document.collection_id}")
+            where = " (in the trash)" if document.trashed_at else ""
+            label = "" if document.filename == item.name else f" as '{document.filename}'"
+            results.append(
+                UploadCheck(
+                    item.name,
+                    "duplicate",
+                    f"Already in the library{label}: version {version.version_number} on shelf "
+                    f"'{shelf}'{where}. It will be skipped.",
+                    document_id=document.id,
+                    existing_filename=document.filename,
+                    existing_shelf=shelf,
+                    existing_version=version.version_number,
+                    existing_since=version.created_at,
+                )
+            )
+            continue
+
+        if collection is None:
+            results.append(UploadCheck(item.name, "new", "New document."))
+            continue
+        same_name = (
+            db.execute(
+                select(Document)
+                .where(Document.collection_id == collection.id, Document.filename == item.name)
+                .order_by(Document.trashed_at.is_(None).desc(), Document.id.desc())
+            )
+            .scalars()
+            .first()
+        )
+        if same_name is not None and same_name.trashed_at is None:
+            active = (
+                db.get(DocumentVersion, same_name.active_version_id)
+                if same_name.active_version_id
+                else None
+            )
+            current = active.version_number if active else None
+            next_version = _next_version_number(db, same_name.id)
+            results.append(
+                UploadCheck(
+                    item.name,
+                    "new_version",
+                    f"A different version is already on this shelf (v{current}). This becomes "
+                    f"v{next_version} and the active version; the old one is kept.",
+                    document_id=same_name.id,
+                    existing_filename=same_name.filename,
+                    existing_shelf=collection.name,
+                    existing_version=current,
+                    next_version=next_version,
+                    existing_since=active.created_at if active else None,
+                )
+            )
+        elif same_name is not None:
+            results.append(
+                UploadCheck(
+                    item.name,
+                    "name_in_trash",
+                    "A document with this name is in the trash. Uploading creates a new, separate "
+                    "document; to keep its history, restore the old one first and upload again.",
+                    document_id=same_name.id,
+                    existing_filename=same_name.filename,
+                    existing_shelf=collection.name,
+                    existing_since=same_name.trashed_at,
+                )
+            )
+        else:
+            results.append(UploadCheck(item.name, "new", "New document."))
+    return results
+
+
 # --- Ingestion (invariants 2, 3) -------------------------------------------
 
 

@@ -13,10 +13,14 @@ from app.api.schemas import (
     JobQueued,
     QueuedUpload,
     RollbackIn,
+    UploadCheckIn,
+    UploadCheckOut,
     UploadResponse,
+    UploadRules,
     VersionOut,
 )
 from app.db.models import Chunk, Document, DocumentVersion
+from app.ingest.parsers import SUPPORTED_EXTENSIONS
 from app.ingest.uploads import stage_upload
 from app.jobs import queue
 from app.versioning import service
@@ -78,6 +82,34 @@ def upload_documents(
         )
         queued.append(QueuedUpload(job_id=job.id, filename=staged.name))
     return UploadResponse(jobs=queued)
+
+
+@router.get("/documents/upload-rules", response_model=UploadRules)
+def upload_rules(runtime: RuntimeDep):
+    """File types and size the server accepts, so the browser can flag files early."""
+    return UploadRules(
+        extensions=sorted(SUPPORTED_EXTENSIONS), max_upload_mb=runtime.settings.max_upload_mb
+    )
+
+
+@router.post("/documents/check", response_model=list[UploadCheckOut])
+def check_uploads(db: DbDep, runtime: RuntimeDep, body: UploadCheckIn):
+    """Review before processing: what would happen to each file (read-only).
+    The browser sends names, sizes and SHA-256 hashes, not the files."""
+    if body.collection_id is None:
+        collection = service.get_active_collection(db, service.DEFAULT_COLLECTION_NAME)
+    else:
+        collection = service.get_collection(db, body.collection_id)
+        if not collection.is_active:
+            raise service.ConflictError(f"collection {body.collection_id} is not active")
+    checks = service.check_uploads(
+        db,
+        collection,
+        [service.UploadCandidate(f.name, f.sha256, f.size) for f in body.files],
+        max_bytes=runtime.settings.max_upload_mb * 1024 * 1024,
+        supported_extensions=SUPPORTED_EXTENSIONS,
+    )
+    return [UploadCheckOut(**vars(c)) for c in checks]
 
 
 @router.get("/documents", response_model=list[DocumentOut])

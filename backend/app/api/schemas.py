@@ -31,6 +31,34 @@ class UploadResponse(BaseModel):
     jobs: list[QueuedUpload]
 
 
+class UploadRules(BaseModel):
+    extensions: list[str]
+    max_upload_mb: int
+
+
+class UploadCandidateIn(BaseModel):
+    name: str = Field(min_length=1, max_length=255)
+    sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
+    size: int = Field(ge=0)
+
+
+class UploadCheckIn(BaseModel):
+    collection_id: int | None = None  # None: the default shelf
+    files: list[UploadCandidateIn] = Field(max_length=1000)
+
+
+class UploadCheckOut(BaseModel):
+    name: str
+    status: str  # new | new_version | duplicate | name_in_trash | unsupported | empty | too_large
+    message: str
+    document_id: int | None = None
+    existing_filename: str | None = None
+    existing_shelf: str | None = None
+    existing_version: int | None = None
+    next_version: int | None = None
+    existing_since: UtcDatetime | None = None
+
+
 class DocumentOut(BaseModel):
     id: int
     collection_id: int

@@ -10,7 +10,8 @@ It checks:
 - grounding: off-topic and missing facts must give "not found in the documents"
 - shelf isolation
 - versions, rollback and diff
-- trash
+- trash and restore
+- review before upload (`/api/documents/check`), the troubleshooter checks (`/api/diagnostics`), and suggested shelves (`/api/intake`): re-dropping the corpus finds only duplicates and indexes nothing, and a new document is suggested for the right shelf
 - jobs: cancel and retry
 - reindex and blue/green rebuild
 - prompt injection

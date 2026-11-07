@@ -41,6 +41,7 @@ PHASES = [
     "preflight",
     "collections",
     "ingest",
+    "ui_endpoints",
     "questions",
     "grounding",
     "versions",
@@ -411,6 +412,107 @@ def phase_ingest(run: Run, s: dict) -> None:
     must(run, "ing-tags", "Upload tags are stored", all("e2e" in d["tags"] for d in hr), f"{[d['tags'] for d in hr]}")
 
 
+def _intake(run: Run, paths: list[tuple[Path, str]]) -> tuple[str, dict]:
+    """Stages files like the Library's folder picker (name + relative path),
+    waits for the analysis, returns (batch id, suggestions)."""
+    files = [("files", (p.name, p.read_bytes())) for p, _ in paths]
+    started = run.json("POST", "/api/intake", files=files, data={"paths": [rel for _, rel in paths]})
+    job = run.wait_job(started["job_id"])
+    if job["status"] != "completed":
+        raise RuntimeError(f"analyze_intake job {job['id']} {job['status']}: {job['error']}")
+    return started["batch_id"], run.json("GET", f"/api/intake/{started['batch_id']}")
+
+
+def phase_ui_endpoints(run: Run, s: dict) -> None:
+    """Endpoints added on the UI-improvements branch: review before upload,
+    diagnostics, and suggested shelves (intake). Nothing here changes the library."""
+    rules = run.json("GET", "/api/documents/upload-rules")
+    must(
+        run,
+        "ui-rules",
+        "Upload rules list the readable types and size limit",
+        {".pdf", ".docx", ".txt", ".md"} <= set(rules["extensions"]) and rules["max_upload_mb"] > 0,
+        json.dumps(rules),
+    )
+
+    import hashlib
+
+    stored = CORPUS / "10-wholesale-pricing-sheet.md"
+    content = stored.read_bytes()
+    checked = run.json(
+        "POST",
+        "/api/documents/check",
+        json={
+            "collection_id": None,
+            "files": [
+                {"name": "copy.md", "sha256": hashlib.sha256(content).hexdigest(), "size": len(content)},
+                {"name": "brand-new.md", "sha256": hashlib.sha256(b"new").hexdigest(), "size": 3},
+            ],
+        },
+    )
+    must(
+        run,
+        "ui-check",
+        "Review before upload: a stored file is 'duplicate', a new one 'new'",
+        [c["status"] for c in checked] == ["duplicate", "new"],
+        f"{[c['status'] for c in checked]}",
+    )
+
+    report = run.json("GET", "/api/diagnostics")
+    failing = [c["id"] for c in report["checks"] if c["status"] == "fail"]
+    must(run, "ui-diagnostics", "Troubleshooter checks report no failure", not failing, f"failing: {failing}")
+
+    before = len(run.documents())
+    corpus = [(p, f"corpus/{p.relative_to(CORPUS).as_posix()}") for p in sorted(CORPUS.rglob("*")) if p.is_file()]
+    batch_id, result = _intake(run, corpus)
+    statuses = sorted({f["status"] for f in result["files"]})
+    must(
+        run,
+        "ui-intake-duplicates",
+        "Suggested shelves: re-dropping the corpus marks every file as already in the library",
+        statuses == ["duplicate"] and not any(f["include"] for f in result["files"]),
+        f"statuses: {statuses}",
+    )
+    must(
+        run,
+        "ui-intake-nothing-indexed",
+        "Analysis indexes nothing before confirmation",
+        len(run.documents()) == before,
+        f"{before} -> {len(run.documents())} documents",
+    )
+    cancelled = run.request("DELETE", f"/api/intake/{batch_id}")
+    gone = run.request("GET", f"/api/intake/{batch_id}")
+    must(
+        run,
+        "ui-intake-cancel",
+        "Cancelling removes the staged batch",
+        cancelled.status_code == 204 and gone.status_code == 404,
+        f"DELETE {cancelled.status_code}, then GET {gone.status_code}",
+    )
+
+    built = run.state.get("variants") or variants.build(run.run_dir / "work")
+    run.state["variants"] = built
+    run.save_state()
+    expected = next(d["collection"] for d in s["new_documents"] if d["file"] == "11-travel-expense-policy.md")
+    new_doc = Path(built["new"]["11-travel-expense-policy.md"])
+    batch_id, result = _intake(run, [(new_doc, new_doc.name)])
+    [suggestion] = result["files"]
+    names = {sh["ref"]: sh["name"] for sh in result["shelves"]}
+    got = names.get(suggestion["shelf"], suggestion["shelf"])
+    run.add(
+        Result(
+            id="ui-intake-match",
+            phase=run.phase,
+            title=f"Suggested shelves: a new travel expense policy is suggested for '{expected}'",
+            level="quality",
+            passed=got == expected,
+            detail=f"suggested '{got}' ({suggestion['confidence']}): {suggestion['reason']}; tags {suggestion['tags']}",
+            expected=expected,
+        )
+    )
+    run.request("DELETE", f"/api/intake/{batch_id}")
+
+
 def phase_questions(run: Run, s: dict) -> None:
     for q in s["questions"]:
         if run.resume and any(r["id"] == q["id"] for r in run.results):
@@ -696,6 +798,18 @@ def phase_edge_cases(run: Run, s: dict) -> None:
         "03-quality-control-manual.pdf" not in cited_files(out["sources"]),
         f"sources: {cited_files(out['sources'])}",
     )
+
+    # Restore from the trash, then delete again so later phases see the same state.
+    restored = run.request("POST", f"/api/documents/{trashed['id']}/restore")
+    back = run.document("03-quality-control-manual.pdf")
+    must(
+        run,
+        "edge-trash-restore",
+        "A trashed document can be restored",
+        restored.status_code == 200 and back is not None and back["id"] == trashed["id"],
+        f"HTTP {restored.status_code}",
+    )
+    run.request("DELETE", f"/api/documents/{trashed['id']}")
 
     # Reindex a cited document and a whole collection (bug fixed on 2026-11-06).
     sup = run.document("02-supplier-agreement.docx")
@@ -1005,7 +1119,6 @@ def phase_report(run: Run, s: dict) -> None:
         "## Known limitations (recorded, not failures)",
         "",
         "- A file already on another shelf is skipped as a duplicate without telling the user.",
-        "- There is no restore-from-trash endpoint yet (Phase 5).",
         "- Each question is answered on its own; the chat does not use earlier turns.",
         (
             "- Answers come from `qwen2.5:3b` on a 7.2 GB RAM laptop (decision 0004); "

@@ -312,11 +312,20 @@ def _ask_model(runtime, prompt: str) -> str | None:
 
 
 def _name_groups(
-    runtime, groups: list[tuple[list[tuple[str, str]], list[str]]], taken: set[str]
+    runtime,
+    groups: list[tuple[list[tuple[str, str]], list[str]]],
+    taken: set[str],
+    centroids: list[np.ndarray] | None = None,
 ) -> list[tuple[str, str, str]]:
     """(name, description, named_by) for each group of (file name, opening
     text) pairs and their tags. One chat-model call names all of them; a
-    group the answer doesn't cover gets a keyword name from its tags."""
+    group the answer doesn't cover gets a keyword name from its tags.
+
+    A small model doesn't reliably keep its answers in the order asked
+    (the 2026-11-08 showcase run named the business group "employees-hr").
+    With several groups, each proposed name therefore goes to the group whose
+    average excerpt vector its "name: description" is closest to, and only
+    if that is its best group; the rest get keyword names."""
     blocks = []
     for number, (names_and_heads, _) in enumerate(groups, start=1):
         listing = "\n".join(f"  - {name}: {head[:160]!r}" for name, head in names_and_heads[:8])
@@ -337,18 +346,50 @@ def _name_groups(
             answers = data.get("shelves", []) if isinstance(data, dict) else []
         except (AttributeError, ValueError):
             answers = []
-    out = []
-    for index, (_, tags) in enumerate(groups):
-        entry = answers[index] if index < len(answers) and isinstance(answers[index], dict) else {}
+    proposals = []
+    for entry in answers:
+        if not isinstance(entry, dict):
+            continue
         name = _slug(str(entry.get("name", "")))[:40]
         if SHELF_NAME.match(name):
-            description = str(entry.get("description", "")).strip()[:200]
+            proposals.append((name, str(entry.get("description", "")).strip()[:200]))
+    assigned = _assign_names(runtime, proposals, centroids, len(groups))
+
+    out = []
+    for index, (_, tags) in enumerate(groups):
+        if index in assigned:
+            name, description = assigned[index]
             out.append((_unique(name, taken), description, "model"))
             continue
         counts = Counter(t for t in tags if t in DEPARTMENTS)
         top = [t for t, _ in counts.most_common(2)] or ["documents"]
         description = "Documents about " + " and ".join(t.replace("-", " ") for t in top) + "."
         out.append((_unique("-".join(top), taken), description, "keywords"))
+    return out
+
+
+def _assign_names(
+    runtime, proposals: list[tuple[str, str]], centroids: list[np.ndarray] | None, n_groups: int
+) -> dict[int, tuple[str, str]]:
+    """Group index -> (name, description). In order when there is one group
+    or no centroids; otherwise by content (see _name_groups)."""
+    if not proposals:
+        return {}
+    if n_groups == 1 or not centroids:
+        return dict(enumerate(proposals[:n_groups]))
+    try:
+        embedder = runtime.embedding_client_for(runtime.settings.embedding_model)
+        vectors = [_unit(v) for v in embedder.embed([f"{n}: {d}" for n, d in proposals])]
+    except Exception:  # noqa: BLE001 - no embeddings: keyword names instead
+        return {}
+    sims = np.array([[float(v @ c) for c in centroids] for v in vectors])
+    best = sims.argmax(axis=1)
+    out: dict[int, tuple[str, str]] = {}
+    # Strongest matches first; a name only ever goes to its own best group.
+    for p in sorted(range(len(proposals)), key=lambda i: -sims[i, best[i]]):
+        group = int(best[p])
+        if group not in out:
+            out[group] = proposals[p]
     return out
 
 
@@ -459,6 +500,9 @@ def analyze_batch(db: Session, runtime, batch_id: str, progress=None) -> dict:
             for members in ordered
         ],
         taken,
+        centroids=[
+            _unit(np.mean([vectors[m.key] for m in members], axis=0)) for members in ordered
+        ],
     )
     for group_no, (members, (name, description, named_by)) in enumerate(
         zip(ordered, names, strict=True), start=1

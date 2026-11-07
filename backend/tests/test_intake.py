@@ -298,3 +298,31 @@ def test_files_in_the_picked_folder_itself_get_no_folder_tag():
 def test_department_is_left_out_when_too_close_to_call():
     tags = intake.suggest_tags("x.txt", "x.txt", "text", np.array([0.7, 0.7]), _Vocab(), set())
     assert "hr" not in tags and "sales" not in tags
+
+
+def _shelf_of(result: dict, filename: str) -> str:
+    names = {s["ref"]: s for s in result["shelves"]}
+    file = next(f for f in result["files"] if f["name"] == filename)
+    return names[file["shelf"]]
+
+
+def test_model_names_go_to_the_group_they_describe_not_the_list_position(client):
+    # Asked business first, staff second; the model answers the other way round.
+    client.runtime.fake_llm._responses.append(
+        '{"shelves": [{"name": "employees", "description": "employee holiday onboarding"},'
+        ' {"name": "sales-docs", "description": "sales price catalog customer"}]}'
+    )
+    _, result = _analyze(client, [("a.txt", STAFF_A), ("c.txt", BIZ_A)])
+    assert _shelf_of(result, "a.txt")["name"] == "employees"
+    assert _shelf_of(result, "c.txt")["name"] == "sales-docs"
+
+
+def test_two_names_for_the_same_group_leave_the_other_group_a_keyword_name(client):
+    client.runtime.fake_llm._responses.append(
+        '{"shelves": [{"name": "employees", "description": "employee holiday"},'
+        ' {"name": "staff-rules", "description": "employee onboarding holiday"}]}'
+    )
+    _, result = _analyze(client, [("a.txt", STAFF_A), ("c.txt", BIZ_A)])
+    staff, business = _shelf_of(result, "a.txt"), _shelf_of(result, "c.txt")
+    assert staff["named_by"] == "model" and staff["name"] in {"employees", "staff-rules"}
+    assert business["named_by"] == "keywords"

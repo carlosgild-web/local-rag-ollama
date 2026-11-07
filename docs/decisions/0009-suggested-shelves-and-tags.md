@@ -27,6 +27,7 @@ Constraints: everything runs locally, on a 7.2 GB laptop with `qwen2.5:3b` (0004
    - The department → audience rule placed 11/11 correctly.
 4. **Shelf names.**
    - **One** chat-model call names every new shelf, given the file names and opening lines. It returns JSON `{"shelves": [{name, description}, ...]}`, in order. Each name is checked against the shelf-name rules and made unique.
+   - **Names are matched to groups by content, not by position.** On 2026-11-08 the 3B model answered in the wrong order, and the business group got the name `employees-hr`. Each proposed name and description is now embedded and goes to the group whose average excerpt vector it is closest to, and only if that group is its best match.
    - A shelf the answer doesn't cover gets a keyword name from its department tags, e.g. `hr-quality` or `sales-customer-support`. The same happens if the model is unavailable or takes longer than 60 s; the slow call is abandoned, not awaited.
    - Measured on this 7.2 GB laptop with 0.1–0.3 GB of RAM free: excerpt embeddings took about 40 s for 11 files. The naming call needed 205 s with no limit and returned valid JSON, but names no better than the keyword ones ("product-catalog" for the whole business group). So the analysis takes about 1 minute on this machine plus up to 60 s for naming, and the keyword names are what you get here.
 5. **Tags, at most 5 per file.**

@@ -19,9 +19,9 @@ Drop in PDFs, Word files, Markdown or plain text. The app reads them, suggests w
 
 | | |
 |---|---|
-| ![Suggested shelves and tags](docs/showcase/img/04-suggestions.png) **Suggested shelves and tags.** Review, rename, move and retag, then confirm. | ![Chat with citations](docs/showcase/img/07-chat-citations.png) **Grounded answers.** Numbered citations, with the sources listed under the answer. |
-| ![The passage behind a citation](docs/showcase/img/08-passage.png) **Check any citation.** The exact passage the answer came from. | ![Not found in the documents](docs/showcase/img/09-not-found.png) **No guessing.** Off-topic questions get "not found in the documents". |
-| ![Troubleshooter](docs/showcase/img/14-troubleshooter.png) **When something breaks,** the app names the cause and the fix, and pauses what can't work. | ![Collections settings](docs/showcase/img/12-collections.png) **Settings without jargon.** Tooltips, presets, and warnings for unusual values. |
+| ![Suggested shelves and tags](docs/showcase/img/04-suggestions.jpg) **Suggested shelves and tags.** Review, rename, move and retag, then confirm. | ![Chat with citations](docs/showcase/img/07-chat-citations.jpg) **Grounded answers.** Numbered citations, with the sources listed under the answer. |
+| ![The passage behind a citation](docs/showcase/img/08-passage.jpg) **Check any citation.** The exact passage the answer came from. | ![Not found in the documents](docs/showcase/img/09-not-found.jpg) **No guessing.** A question the shelf can't answer gets "not found in the documents". |
+| ![Troubleshooter](docs/showcase/img/14-troubleshooter.jpg) **When something breaks,** the app names the cause and the fix, and pauses what can't work. | ![Collections settings](docs/showcase/img/12-collections.jpg) **Settings without jargon.** Tooltips, presets, and warnings for unusual values. |
 
 ## How it works
 
@@ -73,9 +73,9 @@ flowchart LR
 
 | Check | Result |
 |---|---|
-| Unit and API tests (fakes, run in CI) | E2E_UNIT tests pass; `ruff` clean |
+| Unit and API tests (fakes, run in CI) | 164 tests pass; `ruff` clean |
 | CI (GitHub Actions) | lint, tests, frontend build and `docker build` on every push |
-| End-to-end test: real Ollama, 11 sample documents, about 60 questions | E2E_SUMMARY ([report](E2E_REPORT)) |
+| End-to-end test: real Ollama, 11 sample documents, about 60 questions | **53/53** must-pass checks · 52/57 answer checks · 31/38 citations correct · 7/7 refusals ([report](docs/test-reports/2026-11-08-e2e.md)) |
 
 The end-to-end kit in [`e2e/`](e2e/) drives the same API the UI uses. It checks:
 - ingestion of every file type, answers against expected facts, citations and grounding

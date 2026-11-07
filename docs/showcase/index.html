@@ -75,6 +75,8 @@ img { max-width: 100%; }
 .split { display: grid; grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.5fr); gap: clamp(16px, 2.6vw, 44px); align-items: center; flex: 1; min-height: 0; }
 .split.even { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
 .split > * { min-width: 0; min-height: 0; }
+.split:has(> .pair) { grid-template-columns: minmax(0, 0.62fr) minmax(0, 2fr); }
+.split.top { align-items: start; }
 .copy { display: flex; flex-direction: column; gap: 0.9em; }
 .copy ul { margin: 0; padding-left: 1.1em; display: grid; gap: 0.45em; }
 
@@ -169,8 +171,8 @@ td.num { font-variant-numeric: tabular-nums; white-space: nowrap; }
       <div class="facts"><span>runs offline</span><span>English + Spanish</span><span>7.2 GB RAM laptop</span><span>FastAPI · React · Ollama</span></div>
     </div>
     <div class="answer-card" aria-label="Example answer">
-      <p class="q">When is the workshop closed for the holidays?</p>
-      <p>The workshop closes from December 22, 2026 through January 2, 2027, and reopens on January 3 <span class="cite">[1]</span>. Until then, voluntary Saturday shifts run through December 12 <span class="cite">[1]</span>.</p>
+      <p class="q">When does the company close for the year-end holiday?</p>
+      <p>The company closes for the year-end holiday from December 22, 2026 through January 2, 2027. <span class="cite">[1]</span></p>
       <p class="muted mono" style="font-size:0.8em">[1] 05-holiday-announcement.pdf · page 1</p>
     </div>
   </div>
@@ -219,8 +221,8 @@ td.num { font-variant-numeric: tabular-nums; white-space: nowrap; }
       <p class="callout">Nothing is added to the library yet. The files wait in a staging area until you confirm, and are deleted if you cancel.</p>
     </div>
     <div class="pair">
-      <figure class="shot"><img src="img/02-library-pick.png" alt="Library with a list of picked files, one greyed out as unsupported"><figcaption>The picked files, with an unsupported one greyed out.</figcaption></figure>
-      <figure class="shot"><img src="img/03-analyzing.png" alt="Analysis in progress with a progress bar"><figcaption>Analysis runs in the background.</figcaption></figure>
+      <figure class="shot"><img src="img/02-library-pick.jpg" alt="Library with a list of picked files, one greyed out as unsupported"><figcaption>The picked files, with an unsupported one greyed out.</figcaption></figure>
+      <figure class="shot"><img src="img/03-analyzing.jpg" alt="Analysis in progress with a progress bar"><figcaption>Analysis runs in the background.</figcaption></figure>
     </div>
   </div>
 </section>
@@ -233,11 +235,11 @@ td.num { font-variant-numeric: tabular-nums; white-space: nowrap; }
       <ul>
         <li>Each file gets a shelf: an existing one when it's similar to documents there, or a <strong>new shelf</strong> with a suggested name.</li>
         <li>Tags come from the content: department, kind of document, validity like <span class="shelf">q4-2026</span>, and the folder.</li>
-        <li>A reason for every suggestion: <em>"Similar to 10-wholesale-pricing-sheet.md on business"</em>.</li>
-        <li>Rename shelves, move files, edit tags, or leave a file out. Then one button: <strong>Create 2 shelves and process 11 documents</strong>.</li>
+        <li>A reason for every suggestion: <em>"Grouped with 02-supplier-agreement.docx"</em>, or for an existing shelf <em>"Similar to 09-shipping-returns-policy.md on business"</em>.</li>
+        <li>Rename shelves (here to <span class="shelf">business</span> and <span class="shelf">staff</span>), move files, edit tags, or leave a file out. Then one button: <strong>Create 2 shelves and process 11 documents</strong>.</li>
       </ul>
     </div>
-    <figure class="shot"><img src="img/04-suggestions.png" alt="Suggestions review grouping files under two suggested new shelves with tags"><figcaption>Files grouped by suggested shelf, with editable names and tags.</figcaption></figure>
+    <figure class="shot"><img src="img/04-suggestions.jpg" alt="Suggestions review grouping files under two suggested new shelves with tags"><figcaption>Files grouped by suggested shelf, with editable names and tags.</figcaption></figure>
   </div>
 </section>
 
@@ -250,8 +252,8 @@ td.num { font-variant-numeric: tabular-nums; white-space: nowrap; }
       <p>The Library shows live progress. The Queue names each job by its file and explains anything skipped, such as <em>"Already in the library as … on shelf …"</em>.</p>
     </div>
     <div class="pair">
-      <figure class="shot"><img src="img/05-processing.png" alt="Queue with ingest jobs and progress"><figcaption>The Queue: readable job names and live progress.</figcaption></figure>
-      <figure class="shot"><img src="img/06-library.png" alt="Library list of documents with shelves and tags"><figcaption>The Library: shelves, tags, search and trash.</figcaption></figure>
+      <figure class="shot"><img src="img/05-processing.jpg" alt="Queue with ingest jobs and progress"><figcaption>The Queue: readable job names and live progress.</figcaption></figure>
+      <figure class="shot"><img src="img/06-library.jpg" alt="Library list of documents with shelves and tags"><figcaption>The Library: shelves, tags, search and trash.</figcaption></figure>
     </div>
   </div>
 </section>
@@ -264,7 +266,7 @@ td.num { font-variant-numeric: tabular-nums; white-space: nowrap; }
       <p>Pick a shelf and ask. The answer streams in with citations <span class="cite">[1]</span> <span class="cite">[2]</span>, and the sources are listed underneath with file, page and score.</p>
       <p>A citation check runs on every answer. If the model forgot to cite, or cited a number that doesn't exist, the answer is marked so you know to verify it.</p>
     </div>
-    <figure class="shot"><img src="img/07-chat-citations.png" alt="Chat answer with numbered citations and a source list"><figcaption>A grounded answer and its sources.</figcaption></figure>
+    <figure class="shot"><img src="img/07-chat-citations.jpg" alt="Chat answer with numbered citations and a source list"><figcaption>A grounded answer and its sources.</figcaption></figure>
   </div>
 </section>
 
@@ -276,7 +278,7 @@ td.num { font-variant-numeric: tabular-nums; white-space: nowrap; }
       <p>Clicking a citation opens the exact passage the model was given: the text, the file, the page or section, and the version it came from.</p>
       <p>Answers are reproducible: each one stores the retrieval settings, passages and scores it used, so an old answer can be explained even after documents change.</p>
     </div>
-    <figure class="shot"><img src="img/08-passage.png" alt="Expanded citation showing the source passage"><figcaption>The passage behind <span class="cite">[1]</span>.</figcaption></figure>
+    <figure class="shot"><img src="img/08-passage.jpg" alt="Expanded citation showing the source passage"><figcaption>The passage behind <span class="cite">[1]</span>.</figcaption></figure>
   </div>
 </section>
 
@@ -284,8 +286,8 @@ td.num { font-variant-numeric: tabular-nums; white-space: nowrap; }
 <section class="slide" id="slide-9" aria-label="Grounding and Spanish">
   <div class="slide-head"><p class="eyebrow">Walkthrough · 6 of 6 · No guessing</p><h2>"Not found in the documents" is a feature</h2></div>
   <div class="pair">
-    <figure class="shot"><img src="img/09-not-found.png" alt="Chat replying not found in the documents"><figcaption>An off-topic question gets an honest refusal.</figcaption></figure>
-    <figure class="shot"><img src="img/10-spanish.png" alt="Spanish question answered from the Spanish document"><figcaption>A Spanish question, answered from the Spanish document.</figcaption></figure>
+    <figure class="shot"><img src="img/09-not-found.jpg" alt="Chat replying not found in the documents"><figcaption>A sales question asked on the staff shelf: the figure exists, but not on this shelf.</figcaption></figure>
+    <figure class="shot"><img src="img/10-spanish.jpg" alt="Spanish question answered in Spanish from an English document"><figcaption>A question in Spanish, answered in Spanish from an English policy.</figcaption></figure>
   </div>
 </section>
 
@@ -301,8 +303,8 @@ td.num { font-variant-numeric: tabular-nums; white-space: nowrap; }
       </ul>
     </div>
     <div class="pair">
-      <figure class="shot"><img src="img/11-duplicates.png" alt="Re-dropped folder: every file already in the library"><figcaption>Dropping the same folder again: all already in the library.</figcaption></figure>
-      <figure class="shot"><img src="img/16-restore.png" alt="Trash view with a Restore button"><figcaption>The trash, with Restore.</figcaption></figure>
+      <figure class="shot"><img src="img/11-duplicates.jpg" alt="Second upload showing a new version, existing-shelf matches and duplicates left out"><figcaption>A second drop: a new version, matches to existing shelves, and three files already in the library.</figcaption></figure>
+      <figure class="shot"><img src="img/16-restore.jpg" alt="Trash view with a Restore button"><figcaption>The trash, with Restore.</figcaption></figure>
     </div>
   </div>
 </section>
@@ -316,8 +318,8 @@ td.num { font-variant-numeric: tabular-nums; white-space: nowrap; }
       <p>Changing a setting rebuilds the shelf <strong>blue/green</strong>: a new copy is built in the background and swapped in when ready. The old copy keeps answering meanwhile.</p>
     </div>
     <div class="pair">
-      <figure class="shot"><img src="img/12-collections.png" alt="Collections page with a tooltip, presets and a warning"><figcaption>Tooltips, presets and a warning.</figcaption></figure>
-      <figure class="shot"><img src="img/13-rebuild-confirm.png" alt="Rebuild confirmation dialog"><figcaption>Every rebuild is confirmed with a summary.</figcaption></figure>
+      <figure class="shot"><img src="img/12-collections.jpg" alt="Collections page with a tooltip, presets and a warning"><figcaption>Tooltips, presets and a warning.</figcaption></figure>
+      <figure class="shot"><img src="img/13-rebuild-confirm.jpg" alt="Rebuild confirmation dialog"><figcaption>Every rebuild is confirmed with a summary.</figcaption></figure>
     </div>
   </div>
 </section>
@@ -331,8 +333,8 @@ td.num { font-variant-numeric: tabular-nums; white-space: nowrap; }
       <p>One click drafts a <strong>support ticket</strong> in service-desk format: environment, failed checks, impact, urgency and priority, plus the user's own notes. In this demo it is saved locally and never sent.</p>
     </div>
     <div class="pair">
-      <figure class="shot"><img src="img/14-troubleshooter.png" alt="Troubleshooter panel showing Ollama down with cause and fix"><figcaption>Ollama stopped: cause, fix, paused chat.</figcaption></figure>
-      <figure class="shot"><img src="img/15-l2-ticket.png" alt="Simulated L2 incident ticket"><figcaption>A drafted support incident.</figcaption></figure>
+      <figure class="shot"><img src="img/14-troubleshooter.jpg" alt="Troubleshooter panel showing Ollama down with cause and fix"><figcaption>Ollama stopped: cause, fix, paused chat.</figcaption></figure>
+      <figure class="shot"><img src="img/15-l2-ticket.jpg" alt="Simulated L2 incident ticket"><figcaption>A drafted support incident.</figcaption></figure>
     </div>
   </div>
 </section>
@@ -343,20 +345,19 @@ td.num { font-variant-numeric: tabular-nums; white-space: nowrap; }
   <div class="arch">
     <svg viewBox="0 0 720 360" role="img" aria-label="Browser to FastAPI; FastAPI to service layer, retrieval and job queue; these to file store, SQLite with FTS5, Chroma and Ollama">
       <defs><marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z"/></marker></defs>
-      <rect class="box" x="10" y="150" width="120" height="60" rx="10"/><text x="70" y="176" text-anchor="middle">React UI</text><text class="small" x="70" y="194" text-anchor="middle">Vite · TS · Tailwind</text>
+      <rect class="box" x="10" y="150" width="120" height="60" rx="10"/><text x="70" y="176" text-anchor="middle">React UI</text><text class="small" x="70" y="194" text-anchor="middle">Vite · TS</text>
       <rect class="box hot" x="180" y="150" width="110" height="60" rx="10"/><text x="235" y="176" text-anchor="middle">FastAPI</text><text class="small" x="235" y="194" text-anchor="middle">REST + SSE</text>
       <rect class="box" x="340" y="40" width="150" height="60" rx="10"/><text x="415" y="66" text-anchor="middle">Service layer</text><text class="small" x="415" y="84" text-anchor="middle">versioning · ingest</text>
-      <rect class="box" x="340" y="150" width="150" height="60" rx="10"/><text x="415" y="176" text-anchor="middle">Retrieval</text><text class="small" x="415" y="194" text-anchor="middle">vector + keyword · RRF</text>
-      <rect class="box" x="340" y="260" width="150" height="60" rx="10"/><text x="415" y="286" text-anchor="middle">Job queue</text><text class="small" x="415" y="304" text-anchor="middle">SQLite table · 1 worker</text>
-      <rect class="box" x="560" y="10" width="150" height="50" rx="10"/><text x="635" y="32" text-anchor="middle">File store</text><text class="small" x="635" y="48" text-anchor="middle">files/&lt;sha256&gt;.pdf</text>
-      <rect class="box" x="560" y="80" width="150" height="50" rx="10"/><text x="635" y="102" text-anchor="middle">SQLite + FTS5</text><text class="small" x="635" y="118" text-anchor="middle">versions · keywords · audit</text>
+      <rect class="box" x="340" y="150" width="150" height="60" rx="10"/><text x="415" y="176" text-anchor="middle">Retrieval</text><text class="small" x="415" y="194" text-anchor="middle">vector + FTS · RRF</text>
+      <rect class="box" x="340" y="260" width="150" height="60" rx="10"/><text x="415" y="286" text-anchor="middle">Job queue</text><text class="small" x="415" y="304" text-anchor="middle">ingest · 1 worker</text>
+      <rect class="box" x="560" y="10" width="150" height="50" rx="10"/><text x="635" y="32" text-anchor="middle">File store</text><text class="small" x="635" y="48" text-anchor="middle">&lt;sha256&gt;.pdf</text>
+      <rect class="box" x="560" y="80" width="150" height="50" rx="10"/><text x="635" y="102" text-anchor="middle">SQLite + FTS5</text><text class="small" x="635" y="118" text-anchor="middle">keywords · audit</text>
       <rect class="box" x="560" y="150" width="150" height="50" rx="10"/><text x="635" y="172" text-anchor="middle">Chroma</text><text class="small" x="635" y="188" text-anchor="middle">vectors per shelf</text>
-      <rect class="box hot" x="560" y="250" width="150" height="70" rx="10"/><text x="635" y="276" text-anchor="middle">Ollama (local)</text><text class="small" x="635" y="294" text-anchor="middle">bge-m3 embeddings</text><text class="small" x="635" y="309" text-anchor="middle">qwen2.5 / llama3.1 chat</text>
+      <rect class="box hot" x="560" y="250" width="150" height="70" rx="10"/><text x="635" y="276" text-anchor="middle">Ollama (local)</text><text class="small" x="635" y="294" text-anchor="middle">bge-m3 (embed)</text><text class="small" x="635" y="309" text-anchor="middle">qwen2.5 (chat)</text>
       <path class="edge q" d="M130 180 H176"/>
       <path class="edge" d="M290 170 C315 170 310 70 336 70"/>
       <path class="edge q" d="M290 180 H336"/>
       <path class="edge" d="M290 190 C315 190 310 290 336 290"/>
-      <path class="edge" d="M415 260 V104"/>
       <path class="edge" d="M490 62 C525 62 525 35 556 35"/>
       <path class="edge" d="M490 74 C525 74 525 105 556 105"/>
       <path class="edge" d="M490 86 C530 86 525 175 556 175"/>
@@ -395,7 +396,7 @@ td.num { font-variant-numeric: tabular-nums; white-space: nowrap; }
         <tbody>
           <tr><td>How to make a 3B model cite?</td><td class="num">one-line hint 6/6 vs long reminder 2/6</td><td class="mono">0007</td></tr>
           <tr><td>How to group new files into shelves?</td><td class="num">department tags 11/11 vs clustering 5–19/30</td><td class="mono">0009</td></tr>
-          <tr><td>Which chat model fits 7.2 GB RAM?</td><td class="num">qwen2.5:3b; 8B ran out of memory</td><td class="mono">0004</td></tr>
+          <tr><td>Which chat model fits 7.2 GB RAM?</td><td class="num">qwen2.5:3b; an 8B model swapped to disk and gave no answer in 5 min</td><td class="mono">0004</td></tr>
         </tbody>
       </table>
     </div>
@@ -406,17 +407,17 @@ td.num { font-variant-numeric: tabular-nums; white-space: nowrap; }
 <section class="slide" id="slide-15" aria-label="Testing">
   <div class="slide-head"><p class="eyebrow">Quality</p><h2>Tested with fakes in CI, and end to end with the real model</h2></div>
   <div class="stats">
-    <div class="stat"><b>E2E_UNIT</b><span>unit and API tests, no model needed</span></div>
-    <div class="stat"><b>E2E_MUST</b><span>must-pass end-to-end checks</span></div>
-    <div class="stat"><b>E2E_QUALITY</b><span>answer quality checks passed</span></div>
-    <div class="stat"><b>E2E_CITE</b><span>answers citing correctly</span></div>
+    <div class="stat"><b>164</b><span>unit and API tests, no model needed</span></div>
+    <div class="stat"><b>53/53</b><span>must-pass end-to-end checks</span></div>
+    <div class="stat"><b>52/57</b><span>answer quality checks passed</span></div>
+    <div class="stat"><b>82%</b><span>answers citing the right source (31/38)</span></div>
   </div>
-  <div class="split even">
+  <div class="split even top">
     <div class="copy">
       <p>The end-to-end kit drives the same API as the UI with 11 fictional business documents in English and Spanish and about 60 questions. It checks ingestion of every file type, answers against expected facts, citations, refusals, versions and rollback, trash and restore, cancel and retry, rebuilds, suggested shelves, prompt injection, and recovery after a restart.</p>
     </div>
     <div class="copy">
-      <p>Every failure is classified as a <em>retrieval miss</em>, an <em>answer miss</em> or an <em>app error</em>, and each run gets a written report. The first run found citations right only 64% of the time; a measured prompt fix and a citation check raised it.</p>
+      <p>Every failure is classified as a <em>retrieval miss</em>, an <em>answer miss</em> or an <em>app error</em>, and each run gets a written report. The first run, graded by a reviewer, found citations right only 64% of the time; a measured prompt fix and a citation check raised that to 81%. The five answer misses in the latest run are all the small model leaving out a fact it was given.</p>
       <p class="muted" style="font-size:0.85em">CI: ruff, pytest, the frontend build and a Docker build on every push.</p>
     </div>
   </div>

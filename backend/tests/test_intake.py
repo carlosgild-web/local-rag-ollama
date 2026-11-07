@@ -102,11 +102,11 @@ def _upload(client, name: str, content: bytes, collection_id: int) -> None:
 
 
 def test_new_files_are_grouped_by_audience_and_nothing_is_indexed_before_confirm(client):
-    client.runtime.fake_llm._responses.extend(
-        [
-            '{"name": "business-docs", "description": "Sales and customers."}',
-            'Sure! {"name": "Employees HR", "description": "For staff."}',
-        ]
+    # One call names every new shelf (business before staff); chatter
+    # around the JSON and a name needing a slug are tolerated.
+    client.runtime.fake_llm._responses.append(
+        'Sure! {"shelves": [{"name": "business-docs", "description": "Sales and customers."},'
+        ' {"name": "Employees HR", "description": "For staff."}]}'
     )
     batch_id, result = _analyze(
         client,
@@ -196,6 +196,25 @@ def test_shelf_names_fall_back_to_keywords_when_the_model_gives_no_usable_answer
     assert shelf["named_by"] == "keywords"
     assert shelf["name"] == "hr"
     assert intake.SHELF_NAME.match(shelf["name"])
+
+
+def test_a_partial_answer_names_what_it_can_and_keywords_name_the_rest(client):
+    client.runtime.fake_llm._responses.append('{"shelves": [{"name": "Not valid!!"}]}')
+    _, result = _analyze(client, [("a.txt", STAFF_A), ("c.txt", BIZ_A)])
+    named = {s["name"]: s["named_by"] for s in result["shelves"] if not s["existing"]}
+    assert named == {"not-valid": "model", "hr": "keywords"}
+    assert len(client.runtime.fake_llm.calls) == 1
+
+
+def test_a_slow_model_is_abandoned_after_the_timeout(runtime, monkeypatch):
+    import threading
+
+    release = threading.Event()
+    monkeypatch.setattr(intake, "NAMING_TIMEOUT_S", 0.2)
+    monkeypatch.setattr(runtime.fake_llm, "generate", lambda *a, **k: release.wait(5) or "{}")
+    [(name, _, named_by)] = intake._name_groups(runtime, [([("a.txt", "x")], ["hr"])], set())
+    release.set()
+    assert (name, named_by) == ("hr", "keywords")
 
 
 def test_unusable_files_are_left_out_with_a_reason(client):

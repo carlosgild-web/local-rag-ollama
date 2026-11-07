@@ -39,6 +39,7 @@ from app.ingest.uploads import safe_filename
 from app.versioning import service
 
 EXCERPT_CHARS = 2000
+EMBED_BATCH = 16
 # Matching an existing shelf: best score must reach this, and beat the next
 # shelf by MARGIN to be "high" confidence (else "low": please check).
 SHELF_MATCH_MIN = 0.60
@@ -292,39 +293,63 @@ def _audience(tags: list[str], vector: np.ndarray, vocab: _Vocabulary) -> str:
     return AUDIENCE[department]
 
 
-def _name_group(
-    runtime, names_and_heads: list[tuple[str, str]], tags: list[str], taken: set[str]
-) -> tuple[str, str, str]:
-    """(name, description, named_by): the chat model names the shelf; on a
-    slow or unusable answer, a keyword name from the group's tags."""
-    listing = "\n".join(f"- {name}: {head[:200]!r}" for name, head in names_and_heads[:12])
-    prompt = (
-        "You organise one company's documents into shelves (collections). Suggest a short "
-        "name and a one-sentence description for a shelf holding these documents.\n"
-        'Reply with JSON only, like {"name": "employees-hr", "description": "..."}. The name '
-        "is 1 to 3 lowercase English words joined with hyphens, letters and digits only.\n\n"
-        f"Documents:\n{listing}\n"
-    )
+def _ask_model(runtime, prompt: str) -> str | None:
+    """The chat model's answer, or None if it fails or takes longer than
+    NAMING_TIMEOUT_S (e.g. low memory). The slow call is abandoned, not
+    awaited: its thread finishes on its own."""
+    pool = ThreadPoolExecutor(max_workers=1)
     try:
         llm = runtime.llm_client_for(runtime.settings.chat_model)
-        with ThreadPoolExecutor(max_workers=1) as pool:
-            answer = pool.submit(llm.generate, prompt, temperature=0.1, num_ctx=4096).result(
-                timeout=NAMING_TIMEOUT_S
-            )
-        data = json.loads(re.search(r"\{.*\}", answer, re.S).group(0))
-        name = _slug(str(data.get("name", "")))[:40]
-        description = str(data.get("description", "")).strip()[:200]
-        if SHELF_NAME.match(name):
-            return _unique(name, taken), description, "model"
+        return pool.submit(llm.generate, prompt, temperature=0.1, num_ctx=4096).result(
+            timeout=NAMING_TIMEOUT_S
+        )
     except FutureTimeout:
-        pass  # too slow (e.g. low memory): fall back to a keyword name
-    except Exception:  # noqa: BLE001 - no model, bad JSON...: fall back to a keyword name
-        pass
-    counts = Counter(t for t in tags if t in DEPARTMENTS)
-    top = [t for t, _ in counts.most_common(2)] or ["documents"]
-    name = "-".join(top)
-    description = "Documents about " + " and ".join(t.replace("-", " ") for t in top) + "."
-    return _unique(name, taken), description, "keywords"
+        return None
+    except Exception:  # noqa: BLE001 - no model, Ollama down...: keyword names instead
+        return None
+    finally:
+        pool.shutdown(wait=False, cancel_futures=True)
+
+
+def _name_groups(
+    runtime, groups: list[tuple[list[tuple[str, str]], list[str]]], taken: set[str]
+) -> list[tuple[str, str, str]]:
+    """(name, description, named_by) for each group of (file name, opening
+    text) pairs and their tags. One chat-model call names all of them; a
+    group the answer doesn't cover gets a keyword name from its tags."""
+    blocks = []
+    for number, (names_and_heads, _) in enumerate(groups, start=1):
+        listing = "\n".join(f"  - {name}: {head[:160]!r}" for name, head in names_and_heads[:8])
+        blocks.append(f"Shelf {number}:\n{listing}")
+    prompt = (
+        "You organise one company's documents into shelves (collections). For each shelf "
+        "below, suggest a short name and a one-sentence description of what it holds.\n"
+        "Each name is 1 to 3 lowercase English words joined with hyphens (letters and digits "
+        "only), and every name is different.\n"
+        'Reply with JSON only: {"shelves": [{"name": "employees-hr", "description": "..."}, ...]} '
+        f"with exactly {len(groups)} entries, in order.\n\n" + "\n\n".join(blocks) + "\n"
+    )
+    answers: list = []
+    answer = _ask_model(runtime, prompt)
+    if answer:
+        try:
+            data = json.loads(re.search(r"\{.*\}", answer, re.S).group(0))
+            answers = data.get("shelves", []) if isinstance(data, dict) else []
+        except (AttributeError, ValueError):
+            answers = []
+    out = []
+    for index, (_, tags) in enumerate(groups):
+        entry = answers[index] if index < len(answers) and isinstance(answers[index], dict) else {}
+        name = _slug(str(entry.get("name", "")))[:40]
+        if SHELF_NAME.match(name):
+            description = str(entry.get("description", "")).strip()[:200]
+            out.append((_unique(name, taken), description, "model"))
+            continue
+        counts = Counter(t for t in tags if t in DEPARTMENTS)
+        top = [t for t, _ in counts.most_common(2)] or ["documents"]
+        description = "Documents about " + " and ".join(t.replace("-", " ") for t in top) + "."
+        out.append((_unique("-".join(top), taken), description, "keywords"))
+    return out
 
 
 def _unique(name: str, taken: set[str]) -> str:
@@ -352,9 +377,9 @@ def analyze_batch(db: Session, runtime, batch_id: str, progress=None) -> dict:
     texts: dict[str, str] = {}
     vectors: dict[str, np.ndarray] = {}
     max_bytes = settings.max_upload_mb * 1024 * 1024
-    for i, item in enumerate(files):
+    for i, item in enumerate(files):  # check and parse; embed afterwards in batches
         if progress:
-            progress(0.7 * i / max(len(files), 1))
+            progress(0.3 * i / max(len(files), 1))
         stored = folder / item.stored
         item.sha256 = file_store.hash_file(stored)
         check = service.check_uploads(
@@ -385,8 +410,21 @@ def analyze_batch(db: Session, runtime, batch_id: str, progress=None) -> dict:
             )
             continue
         texts[item.key] = text
-        vectors[item.key] = _unit(embedder.embed([text[:EXCERPT_CHARS]])[0])
-        item.tags = suggest_tags(item.name, item.path, text, vectors[item.key], vocab, known_tags)
+
+    keys = list(texts)
+    for start in range(0, len(keys), EMBED_BATCH):
+        batch = keys[start : start + EMBED_BATCH]
+        for key, vector in zip(
+            batch, embedder.embed([texts[k][:EXCERPT_CHARS] for k in batch]), strict=True
+        ):
+            vectors[key] = _unit(vector)
+        if progress:
+            progress(0.3 + 0.4 * (start + len(batch)) / len(keys))
+    for item in files:
+        if item.key in vectors:
+            item.tags = suggest_tags(
+                item.name, item.path, texts[item.key], vectors[item.key], vocab, known_tags
+            )
 
     suggested: list[SuggestedShelf] = [
         SuggestedShelf(ref=f"existing:{c.id}", name=c.name, existing=True, named_by="existing")
@@ -413,13 +451,18 @@ def analyze_batch(db: Session, runtime, batch_id: str, progress=None) -> dict:
     for key in unassigned:
         groups.setdefault(audience[key], []).append(by_key[key])
     taken = {c.name for c in db.execute(select(Collection)).scalars()}
-    for group_no, (_, members) in enumerate(sorted(groups.items()), start=1):
-        name, description, named_by = _name_group(
-            runtime,
-            [(m.name, texts[m.key][:300]) for m in members],
-            [t for m in members for t in m.tags],
-            taken,
-        )
+    ordered = [members for _, members in sorted(groups.items())]
+    names = _name_groups(
+        runtime,
+        [
+            ([(m.name, texts[m.key][:300]) for m in members], [t for m in members for t in m.tags])
+            for members in ordered
+        ],
+        taken,
+    )
+    for group_no, (members, (name, description, named_by)) in enumerate(
+        zip(ordered, names, strict=True), start=1
+    ):
         ref = f"new:g{group_no}"
         suggested.append(
             SuggestedShelf(ref=ref, name=name, description=description, named_by=named_by)
@@ -430,8 +473,6 @@ def analyze_batch(db: Session, runtime, batch_id: str, progress=None) -> dict:
             m.reason = (
                 "Grouped with " + ", ".join(others) if others else "No existing shelf matches it"
             )
-        if progress:
-            progress(0.8 + 0.2 * group_no / len(groups))
 
     manifest["files"] = [asdict(f) for f in files]
     manifest["shelves"] = [asdict(s) for s in suggested]

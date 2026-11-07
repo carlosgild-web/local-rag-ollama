@@ -26,8 +26,9 @@ Constraints: everything runs locally, on a 7.2 GB laptop with `qwen2.5:3b` (0004
    - **Why not clustering by similarity.** Average-linkage clustering of the excerpt vectors was tried first. The two groups overlap: the lowest within-group similarity was 0.57 and the highest cross-group one 0.74. On random subsets of the sample, a median-based cut split the groups correctly in only 5–19 of 30 trials, and split an all-staff batch every time.
    - The department → audience rule placed 11/11 correctly.
 4. **Shelf names.**
-   - One chat-model call per new shelf, given the file names and opening lines. It returns JSON `{name, description}`; the name is checked against the shelf-name rules and made unique.
-   - If the model is unavailable, too slow (60 s) or returns anything unusable, a keyword name from the group's department tags is used instead, e.g. `hr` or `sales-customer-support`.
+   - **One** chat-model call names every new shelf, given the file names and opening lines. It returns JSON `{"shelves": [{name, description}, ...]}`, in order. Each name is checked against the shelf-name rules and made unique.
+   - A shelf the answer doesn't cover gets a keyword name from its department tags, e.g. `hr-quality` or `sales-customer-support`. The same happens if the model is unavailable or takes longer than 60 s; the slow call is abandoned, not awaited.
+   - Measured on this 7.2 GB laptop with 0.1–0.3 GB of RAM free: excerpt embeddings took about 40 s for 11 files. The naming call needed 205 s with no limit and returned valid JSON, but names no better than the keyword ones ("product-catalog" for the whole business group). So the analysis takes about 1 minute on this machine plus up to 60 s for naming, and the keyword names are what you get here.
 5. **Tags, at most 5 per file.**
    - **Folder:** the subfolder below the one picked.
    - **Department:** by embedding, only with a 0.02 lead over the next; 11/11 on the sample.

@@ -71,6 +71,63 @@ def test_portal_searches_every_shelf_with_its_own_model(client):
     assert _source_files(events) == {"vacation.txt", "kiln.txt"}
 
 
+def test_shelves_sharing_a_model_are_ranked_together(runtime, monkeypatch):
+    """Same-model shelves give ONE vector list ordered by similarity, and FTS
+    runs once; only lists that can't be compared are fused by rank. Fusing
+    per shelf would give a one-document shelf a top slot for every question."""
+    from app.retrieval import retrieve as retrieve_module
+
+    seen: list[list[list[int]]] = []
+    real_fuse = retrieve_module.fuse_rrf_scored
+    monkeypatch.setattr(
+        retrieve_module,
+        "fuse_rrf_scored",
+        lambda lists: seen.append(lists) or real_fuse(lists),
+    )
+    question = "Employees get sixteen vacation days in year three."
+
+    def shelf(db, name, model, files):
+        collection = service.create_collection(
+            db, runtime.vector_store, name=name, embedding_model=model
+        )
+        for filename, body in files.items():
+            path = runtime.settings.data_dir / filename
+            path.write_text(body)
+            service.ingest_document(
+                db,
+                collection=collection,
+                source_path=path,
+                settings=runtime.settings,
+                embedding_client=runtime.embedding_client_for(model),
+                vector_store=runtime.vector_store,
+            )
+        return collection
+
+    with runtime.session_factory() as db:
+        hr = shelf(db, "hr", "m1", {"vacation.txt": question, "sick.txt": "Six sick days."})
+        notes = shelf(db, "notes", "m1", {"q3.txt": "Revenue grew in Q3."})
+        other = shelf(db, "other", "m2", {"kiln.txt": "Glasses at the kiln."})
+
+        def run(shelves):
+            seen.clear()
+            return retrieve_module.retrieve_many(
+                db,
+                question,
+                collections=shelves,
+                settings=runtime.settings,
+                embedding_client_for=runtime.embedding_client_for,
+                vector_store=runtime.vector_store,
+            )
+
+        results = run([hr, notes])
+        [lists] = seen
+        assert len(lists) == 2  # one vector list for model m1, one FTS list
+        assert results[0].filename == "vacation.txt"  # exact match, top of both lists
+
+        run([hr, notes, other])
+        assert len(seen[0]) == 3  # m1 vectors, m2 vectors, FTS
+
+
 def test_hidden_shelf_is_not_searched_and_the_toggle_is_audited(client):
     shelves = _two_shelves(client)
     patched = client.patch(f"/api/collections/{shelves['ops']}", json={"portal_visible": False})

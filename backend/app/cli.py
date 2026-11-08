@@ -3,6 +3,7 @@
 Usage:
     python -m app.cli ingest <path>
     python -m app.cli ask "<question>"
+    python -m app.cli seed-demo [path]
 """
 
 import argparse
@@ -14,6 +15,7 @@ from app.core.runtime import build_runtime
 from app.retrieval.prompt import NOT_FOUND_PHRASE, format_sources
 from app.retrieval.qa import prepare_context
 from app.versioning import service
+from app.versioning.demo import DEMO_DIR, seed_demo
 
 
 def cmd_ingest(args: argparse.Namespace) -> int:
@@ -76,6 +78,28 @@ def cmd_ask(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_seed_demo(args: argparse.Namespace) -> int:
+    """Loads the fictional Hilda & Luna Beadworks corpus, one shelf per folder."""
+    runtime = build_runtime(get_settings())
+    with runtime.session_factory() as db:
+        results = seed_demo(
+            db,
+            settings=runtime.settings,
+            embedding_client_for=runtime.embedding_client_for,
+            vector_store=runtime.vector_store,
+            root=Path(args.path) if args.path else DEMO_DIR,
+        )
+    for item in results:
+        if item.status == "ingested":
+            print(f"ingested  {item.shelf:<18} {item.path.name}  ({item.chunk_count} chunks)")
+        else:
+            print(f"skipped   {item.shelf:<18} {item.path.name}  (already stored)")
+    ingested = sum(item.status == "ingested" for item in results)
+    print(f"\n{ingested} ingested, {len(results) - ingested} skipped")
+    print("Open the employee portal at /intranet and ask Luna.")
+    return 0
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="app.cli")
     subparsers = parser.add_subparsers(dest="command", required=True)
@@ -87,6 +111,12 @@ def main(argv: list[str] | None = None) -> int:
     ask_parser = subparsers.add_parser("ask", help="Ask a question against the ingested documents")
     ask_parser.add_argument("question", nargs="+", help="The question to ask")
     ask_parser.set_defaults(func=cmd_ask)
+
+    seed_parser = subparsers.add_parser(
+        "seed-demo", help="Load the fictional Hilda & Luna Beadworks demo documents"
+    )
+    seed_parser.add_argument("path", nargs="?", help="Demo folder (default: demo/hilda-luna)")
+    seed_parser.set_defaults(func=cmd_seed_demo)
 
     args = parser.parse_args(argv)
     return args.func(args)

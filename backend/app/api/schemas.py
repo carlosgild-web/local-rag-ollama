@@ -1,7 +1,7 @@
 """Request and response models for the HTTP API."""
 
 import datetime as dt
-from typing import Annotated, Any
+from typing import Annotated, Any, Literal
 
 from pydantic import AfterValidator, BaseModel, ConfigDict, Field
 
@@ -13,6 +13,9 @@ def _as_utc(value: dt.datetime) -> dt.datetime:
 # SQLite drops the timezone, but every stored time is UTC (models.utcnow).
 # Marking it keeps clients from reading the times as local.
 UtcDatetime = Annotated[dt.datetime, AfterValidator(_as_utc)]
+
+# Where a chat came from: the RAG console or the employee portal.
+Channel = Literal["admin", "intranet"]
 
 
 class ORMModel(BaseModel):
@@ -178,8 +181,13 @@ class CollectionOut(ORMModel):
     chunk_size_tokens: int
     chunk_overlap_pct: float
     is_active: bool
+    portal_visible: bool = True
     created_at: UtcDatetime
     document_count: int = 0
+
+
+class CollectionPatch(BaseModel):
+    portal_visible: bool
 
 
 class JobQueued(BaseModel):
@@ -247,6 +255,10 @@ class ChatIn(BaseModel):
     session_id: int | None = None
     collection_id: int | None = None
     profile: str | None = None  # profile name; defaults to "default"
+    # "intranet": the employee portal. Searches every portal-visible shelf
+    # and ignores collection_id (decision 0010).
+    channel: Channel = "admin"
+    answer_language: Literal["en", "es"] | None = None
 
 
 class ChunkDetail(BaseModel):
@@ -270,6 +282,7 @@ class SessionSummary(BaseModel):
     created_at: UtcDatetime
     message_count: int
     collection_id: int | None = None
+    channel: Channel = "admin"
 
 
 class SourceOut(BaseModel):
@@ -311,6 +324,7 @@ class SessionOut(BaseModel):
     title: str
     created_at: UtcDatetime
     collection_id: int | None = None
+    channel: Channel = "admin"
     messages: list[MessageOut]
 
 

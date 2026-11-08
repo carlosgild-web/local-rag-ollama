@@ -7,7 +7,13 @@ from fastapi import APIRouter, Body, status
 from sqlalchemy import func, select
 
 from app.api.deps import DbDep, RuntimeDep
-from app.api.schemas import CollectionIn, CollectionOut, CollectionReindexIn, JobQueued
+from app.api.schemas import (
+    CollectionIn,
+    CollectionOut,
+    CollectionPatch,
+    CollectionReindexIn,
+    JobQueued,
+)
 from app.db.models import Collection, Document
 from app.jobs import queue
 from app.versioning import service
@@ -52,6 +58,18 @@ def create_collection(db: DbDep, runtime: RuntimeDep, body: CollectionIn):
         ),
     )
     return _out(collection, 0)
+
+
+@router.patch("/collections/{collection_id}", response_model=CollectionOut)
+def update_collection(db: DbDep, collection_id: int, body: CollectionPatch):
+    """Shows or hides the shelf in the employee portal (decision 0010)."""
+    collection = service.set_portal_visible(db, collection_id, body.portal_visible)
+    document_count = db.execute(
+        select(func.count(Document.id)).where(
+            Document.collection_id == collection.id, Document.trashed_at.is_(None)
+        )
+    ).scalar_one()
+    return _out(collection, document_count)
 
 
 @router.post(

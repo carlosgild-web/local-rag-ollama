@@ -45,6 +45,20 @@ def build_prompt(
     )
 
 
+ANSWER_LANGUAGES = {"en": "English", "es": "Spanish"}
+
+
+def with_answer_language(system_instructions: str | None, language: str | None) -> str | None:
+    """Adds one rule asking for the answer in the reader's language (the
+    employee portal's ES/EN switch). The documents may be in either language.
+    One short line, after the others: decision 0007 found that longer rule
+    lists confuse the small model."""
+    if language is None:
+        return system_instructions
+    base = system_instructions or SYSTEM_INSTRUCTIONS
+    return f"{base}\n4. Write the answer in {ANSWER_LANGUAGES[language]}."
+
+
 def citation_reminder(source_count: int) -> str:
     """A one-line hint right before "Answer:", where a small model attends
     most. Part of the prompt code, not the profile, so it applies to existing

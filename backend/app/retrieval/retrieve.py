@@ -5,8 +5,14 @@ fused, of which `top_k` are sent to the LLM. Only chunks of each
 document's *active* version, in the given collection, of non-trashed
 documents are eligible: older versions stay indexed (invariant 3) but are
 filtered out here.
+
+`retrieve_many` searches several shelves at once (the employee portal,
+decision 0010). Each shelf is searched with its own embedding model, so
+vectors from different models are never compared (invariant 4); the
+per-shelf candidate lists are fused by rank, which RRF needs anyway.
 """
 
+from collections.abc import Callable
 from dataclasses import dataclass
 
 from sqlalchemy import select, text
@@ -46,15 +52,45 @@ def retrieve(
     vector_store: VectorStore,
     top_k: int | None = None,
 ) -> list[RetrievedChunk]:
+    return retrieve_many(
+        db,
+        question,
+        collections=[collection],
+        settings=settings,
+        embedding_client_for=lambda _model: embedding_client,
+        vector_store=vector_store,
+        top_k=top_k,
+    )
+
+
+def retrieve_many(
+    db: Session,
+    question: str,
+    *,
+    collections: list[Collection],
+    settings: Settings,
+    embedding_client_for: Callable[[str], EmbeddingClient],
+    vector_store: VectorStore,
+    top_k: int | None = None,
+) -> list[RetrievedChunk]:
+    """Hybrid retrieval over one or more shelves. With one shelf this is
+    exactly the single-shelf search: its vector and FTS lists, fused."""
     top_k = top_k or settings.retrieval_top_k
     candidates = settings.retrieval_candidates
 
-    vector_ids = _vector_candidate_ids(
-        db, question, collection, embedding_client, vector_store, candidates
-    )
-    fts_ids = _fts_candidate_ids(db, question, collection, candidates)
+    embeddings: dict[str, list[float]] = {}  # the question, once per model
 
-    fused = fuse_rrf_scored([vector_ids, fts_ids])[:top_k]
+    def embed(model: str) -> list[float]:
+        if model not in embeddings:
+            [embeddings[model]] = embedding_client_for(model).embed([question])
+        return embeddings[model]
+
+    ranked_lists: list[list[int]] = []
+    for collection in collections:
+        ranked_lists.append(_vector_candidate_ids(db, collection, embed, vector_store, candidates))
+        ranked_lists.append(_fts_candidate_ids(db, question, collection, candidates))
+
+    fused = fuse_rrf_scored(ranked_lists)[:top_k]
     if not fused:
         return []
 
@@ -91,15 +127,14 @@ def _eligible(collection: Collection):
 
 def _vector_candidate_ids(
     db: Session,
-    question: str,
     collection: Collection,
-    embedding_client: EmbeddingClient,
+    embed: Callable[[str], list[float]],
     vector_store: VectorStore,
     candidates: int,
 ) -> list[int]:
     if vector_store.count(collection.chroma_collection) == 0:
         return []
-    [embedding] = embedding_client.embed([question])
+    embedding = embed(collection.embedding_model)
     matches = vector_store.query(
         collection.chroma_collection, embedding, candidates * VECTOR_OVERFETCH
     )

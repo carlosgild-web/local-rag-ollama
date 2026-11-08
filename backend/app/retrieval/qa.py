@@ -4,6 +4,7 @@ The single service layer for `ask` — the CLI and the chat API call into
 this module rather than wiring retrieval + prompting themselves.
 """
 
+from collections.abc import Callable
 from dataclasses import dataclass
 
 from sqlalchemy.orm import Session
@@ -13,7 +14,7 @@ from app.db.models import Collection
 from app.llm.base import EmbeddingClient, LLMClient
 from app.retrieval.prompt import NOT_FOUND_PHRASE, build_prompt, format_sources
 from app.retrieval.reranker import NoOpReranker, Reranker
-from app.retrieval.retrieve import RetrievedChunk, retrieve
+from app.retrieval.retrieve import RetrievedChunk, retrieve, retrieve_many
 from app.retrieval.vector_store import VectorStore
 
 
@@ -45,6 +46,41 @@ def prepare_context(
         vector_store=vector_store,
         top_k=top_k,
     )
+    return _context(question, chunks, settings, system_instructions, reranker)
+
+
+def prepare_context_many(
+    db: Session,
+    question: str,
+    *,
+    collections: list[Collection],
+    settings: Settings,
+    embedding_client_for: Callable[[str], EmbeddingClient],
+    vector_store: VectorStore,
+    top_k: int | None = None,
+    system_instructions: str | None = None,
+    reranker: Reranker | None = None,
+) -> AnswerContext | None:
+    """Like `prepare_context`, searching several shelves (the employee portal)."""
+    chunks = retrieve_many(
+        db,
+        question,
+        collections=collections,
+        settings=settings,
+        embedding_client_for=embedding_client_for,
+        vector_store=vector_store,
+        top_k=top_k,
+    )
+    return _context(question, chunks, settings, system_instructions, reranker)
+
+
+def _context(
+    question: str,
+    chunks: list[RetrievedChunk],
+    settings: Settings,
+    system_instructions: str | None,
+    reranker: Reranker | None,
+) -> AnswerContext | None:
     if not chunks:
         return None
 

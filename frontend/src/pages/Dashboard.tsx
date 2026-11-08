@@ -1,4 +1,4 @@
-import { CheckCircle2, MessageSquare, Upload, Wrench, XCircle } from "lucide-react";
+import { Building2, CheckCircle2, ExternalLink, MessageSquare, Upload, Wrench, XCircle } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useTroubleshooter } from "@/components/TroubleshooterContext";
 import type { ComponentHealth } from "@/api/types";
@@ -11,6 +11,7 @@ import {
   useDocuments,
   useHealth,
   useJobs,
+  usePortalSessions,
   useProfiles,
   useSessions,
 } from "@/hooks/queries";
@@ -47,6 +48,11 @@ export default function Dashboard() {
         description="Everything runs locally: Ollama for models, SQLite and Chroma for storage."
         actions={
           <>
+            <Button variant="outline" asChild>
+              <a href="/intranet" target="_blank" rel="noreferrer" title="Opens the Hilda & Luna employee portal in a new tab">
+                <Building2 /> Employee portal <ExternalLink className="size-3.5" />
+              </a>
+            </Button>
             <Button variant="outline" asChild>
               <Link to="/library">
                 <Upload /> Upload
@@ -126,6 +132,8 @@ export default function Dashboard() {
           </Card>
         </section>
 
+        <EmployeeQuestions />
+
         <Card>
           <CardHeader className="flex-row items-center justify-between">
             <CardTitle>Recent jobs</CardTitle>
@@ -156,6 +164,48 @@ export default function Dashboard() {
         </Card>
       </div>
     </>
+  );
+}
+
+/** What employees asked Luna in the portal: shows what the documents need to cover. */
+function EmployeeQuestions() {
+  const sessions = usePortalSessions();
+  const list = sessions.data ?? [];
+  return (
+    <Card>
+      <CardHeader className="flex-row items-start justify-between">
+        <div className="space-y-1">
+          <CardTitle>Employee questions</CardTitle>
+          <CardDescription>
+            Asked to Luna in the employee portal. {list.length > 0 && `${list.length} conversation${list.length === 1 ? "" : "s"}.`}
+          </CardDescription>
+        </div>
+        <Button variant="ghost" size="sm" asChild>
+          <a href="/intranet/luna" target="_blank" rel="noreferrer">
+            Try Luna <ExternalLink className="size-3.5" />
+          </a>
+        </Button>
+      </CardHeader>
+      <CardContent>
+        {list.length ? (
+          <ul className="divide-y text-sm">
+            {list.slice(0, 5).map((s) => (
+              <li key={s.id} className="flex items-center gap-3 py-2">
+                <MessageSquare className="size-4 shrink-0 text-muted-foreground" />
+                <span className="truncate">{s.title}</span>
+                <span className="ml-auto shrink-0 text-xs text-muted-foreground">
+                  {Math.ceil(s.message_count / 2)} question{s.message_count > 2 ? "s" : ""} · {formatDate(s.created_at)}
+                </span>
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p className="text-sm text-muted-foreground">
+            No questions yet. Open the employee portal and ask Luna something about the documents.
+          </p>
+        )}
+      </CardContent>
+    </Card>
   );
 }
 

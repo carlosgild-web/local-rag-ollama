@@ -1,4 +1,5 @@
 import type {
+  Channel,
   Collection,
   CollectionCreate,
   CollectionReindex,
@@ -126,6 +127,8 @@ export const api = {
   collections: (includeInactive = false) =>
     request<Collection[]>(`/collections${query({ include_inactive: includeInactive })}`),
   createCollection: (body: CollectionCreate) => request<Collection>("/collections", json("POST", body)),
+  setPortalVisible: (id: number, visible: boolean) =>
+    request<Collection>(`/collections/${id}`, json("PATCH", { portal_visible: visible })),
   reindexCollection: (id: number, body: CollectionReindex = {}) =>
     request<JobQueued>(`/collections/${id}/reindex`, json("POST", body)),
 
@@ -133,7 +136,8 @@ export const api = {
   retryJob: (id: number) => request<Job>(`/jobs/${id}/retry`, json("POST")),
   cancelJob: (id: number) => request<Job>(`/jobs/${id}/cancel`, json("POST")),
 
-  sessions: () => request<SessionSummary[]>(`/sessions${query({ limit: 100 })}`),
+  sessions: (channel: Channel = "admin") =>
+    request<SessionSummary[]>(`/sessions${query({ limit: 100, channel })}`),
   session: (id: number) => request<Session>(`/sessions/${id}`),
   feedback: (messageId: number, thumbsUp: boolean) =>
     request<unknown>(`/messages/${messageId}/feedback`, json("POST", { thumbs_up: thumbsUp })),

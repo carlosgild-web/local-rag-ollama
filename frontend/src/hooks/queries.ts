@@ -9,6 +9,7 @@ export const keys = {
   collections: (includeInactive: boolean) => ["collections", includeInactive] as const,
   jobs: ["jobs"] as const,
   sessions: ["sessions"] as const,
+  portalSessions: ["sessions", "intranet"] as const,
   session: (id: number) => ["session", id] as const,
   models: ["models"] as const,
   profiles: ["profiles"] as const,
@@ -69,7 +70,12 @@ export function useCollections(includeInactive = false) {
 }
 
 export function useSessions() {
-  return useQuery({ queryKey: keys.sessions, queryFn: api.sessions });
+  return useQuery({ queryKey: keys.sessions, queryFn: () => api.sessions() });
+}
+
+/** Questions asked in the employee portal, for the dashboard. */
+export function usePortalSessions() {
+  return useQuery({ queryKey: keys.portalSessions, queryFn: () => api.sessions("intranet") });
 }
 
 export function useSession(id: number | null) {
@@ -138,6 +144,14 @@ export function useCreateCollection() {
   const invalidate = useInvalidate();
   return useMutation({
     mutationFn: (body: CollectionCreate) => api.createCollection(body),
+    onSuccess: () => invalidate("collections"),
+  });
+}
+
+export function useSetPortalVisible() {
+  const invalidate = useInvalidate();
+  return useMutation({
+    mutationFn: (args: { id: number; visible: boolean }) => api.setPortalVisible(args.id, args.visible),
     onSuccess: () => invalidate("collections"),
   });
 }

@@ -23,6 +23,26 @@
   --radius-md: 0.45rem;
   --radius-sm: 0.3rem;
   --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+
+  /* Employee portal (src/portal): Hilda & Luna Beadworks, a fictional company.
+     Glass-bead colors on a cool moonstone neutral; the fonts are bundled
+     with the portal's own chunk (portal.css), never fetched from the web. */
+  --color-hl-night: #121735;
+  --color-hl-night-2: #1b2150;
+  --color-hl-ink: #18204a;
+  --color-hl-muted: #5d6585;
+  --color-hl-paper: #f3f5f8;
+  --color-hl-card: #ffffff;
+  --color-hl-line: #dde1ea;
+  --color-hl-cobalt: #2f45b5;
+  --color-hl-cobalt-soft: #e6eafb;
+  --color-hl-amber: #e39a2d;
+  --color-hl-amber-ink: #8a5208;
+  --color-hl-opal: #e7a3a6;
+  --color-hl-sea: #5fae9c;
+  --color-hl-moon: #eef0f8;
+  --font-display: "Fraunces Variable", Georgia, "Times New Roman", serif;
+  --font-body: "Figtree Variable", "Segoe UI", system-ui, sans-serif;
 }
 
 html,

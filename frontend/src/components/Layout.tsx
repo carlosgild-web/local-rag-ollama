@@ -1,6 +1,8 @@
 import {
   AlertTriangle,
+  Building2,
   Database,
+  ExternalLink,
   FolderOpen,
   LayoutDashboard,
   ListTodo,
@@ -129,6 +131,17 @@ function Shell() {
             );
           })}
         </nav>
+        <a
+          href="/intranet"
+          target="_blank"
+          rel="noreferrer"
+          title="The Hilda & Luna employee portal, where Luna answers from the shared shelves"
+          className="mx-3 mb-4 flex items-center gap-3 rounded-md border border-dashed px-3 py-2 text-sm text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
+        >
+          <Building2 className="size-4" />
+          <span className="flex-1">Employee portal</span>
+          <ExternalLink className="size-3.5" />
+        </a>
       </aside>
       <main className="flex min-w-0 flex-1 flex-col overflow-y-auto">
         <StatusBar status={status} onTroubleshoot={troubleshooter.open} />

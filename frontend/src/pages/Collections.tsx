@@ -1,4 +1,4 @@
-import { AlertTriangle, HelpCircle, Plus, RefreshCw, Shuffle, XCircle } from "lucide-react";
+import { AlertTriangle, ExternalLink, HelpCircle, Plus, RefreshCw, Shuffle, XCircle } from "lucide-react";
 import { type ReactNode, useState } from "react";
 import { Link } from "react-router-dom";
 import type { Collection, CollectionReindex, Model } from "@/api/types";
@@ -9,7 +9,13 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Dialog } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { InfoTip } from "@/components/ui/tooltip";
-import { useCollections, useCreateCollection, useModels, useReindexCollection } from "@/hooks/queries";
+import {
+  useCollections,
+  useCreateCollection,
+  useModels,
+  useReindexCollection,
+  useSetPortalVisible,
+} from "@/hooks/queries";
 import { useSystemStatus } from "@/hooks/useSystemStatus";
 import { type Advice, adviseSettings, PRESETS } from "@/lib/chunking";
 import { cn, formatDate } from "@/lib/utils";
@@ -36,7 +42,7 @@ export default function Collections() {
     <>
       <PageHeader
         title="Collections"
-        description="Separate shelves for your documents. A question is answered from one shelf only."
+        description="Separate shelves for your documents. Chat answers from one shelf; Luna, in the employee portal, searches every shelf shared with it."
         actions={
           <Button
             onClick={() => setCreating((v) => !v)}
@@ -227,6 +233,7 @@ function CollectionCard({
           </dt>
           <dd>{Math.round(c.chunk_overlap_pct * 100)}%</dd>
         </dl>
+        {c.is_active && <PortalSwitch collection={c} />}
         {editing && (
           <SettingsForm
             initial={c}
@@ -264,6 +271,49 @@ function CollectionCard({
         )}
       </CardContent>
     </Card>
+  );
+}
+
+/** Whether Luna, the employee portal assistant, searches this shelf. */
+function PortalSwitch({ collection: c }: { collection: Collection }) {
+  const setVisible = useSetPortalVisible();
+  const id = `portal-visible-${c.id}`;
+  return (
+    <div className="flex items-start justify-between gap-4 rounded-md border bg-muted/30 px-3 py-2.5">
+      <div className="text-sm">
+        <label htmlFor={id} className="font-medium">
+          Visible in the employee portal
+        </label>
+        <p className="text-xs text-muted-foreground">
+          {c.portal_visible
+            ? "Luna, the portal assistant, searches this shelf."
+            : "Hidden: Luna never answers from this shelf."}{" "}
+          <a href="/intranet" target="_blank" rel="noreferrer" className="inline-flex items-center gap-0.5 underline">
+            Open the portal <ExternalLink className="size-3" />
+          </a>
+        </p>
+        <ErrorNote error={setVisible.error} />
+      </div>
+      <button
+        id={id}
+        type="button"
+        role="switch"
+        aria-checked={c.portal_visible}
+        disabled={setVisible.isPending}
+        onClick={() => setVisible.mutate({ id: c.id, visible: !c.portal_visible })}
+        className={cn(
+          "relative mt-0.5 inline-flex h-5 w-9 shrink-0 items-center rounded-full transition-colors disabled:opacity-60",
+          c.portal_visible ? "bg-primary" : "bg-muted-foreground/40",
+        )}
+      >
+        <span
+          className={cn(
+            "inline-block size-4 rounded-full bg-white shadow transition-transform",
+            c.portal_visible ? "translate-x-4.5" : "translate-x-0.5",
+          )}
+        />
+      </button>
+    </div>
   );
 }
 

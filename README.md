@@ -16,12 +16,36 @@ Drop in PDFs, Word files, Markdown or plain text. The app reads them, suggests w
 - **Keeps versions.** The same file twice is skipped. A changed file becomes v2 and the old version stays available. Deletes go to a 30-day trash you can restore from.
 - **Explains problems in plain words.** A troubleshooter checks Ollama, the database, the search index and the background worker, and gives the cause and the fix. It can draft a (simulated) support ticket for the next support level.
 - **Works in English and Spanish**, with search that combines meaning (vectors) and exact words (keywords).
+- **Comes with an employee portal.** The intranet of *Hilda & Luna Beadworks*, a fictional bead maker, at `/intranet`. Employees ask **Luna**, an assistant that searches every shelf the admin shares with the portal, in a floating chat or full screen, in Spanish or English. See [Employee portal](#employee-portal).
 
 | | |
 |---|---|
 | ![Suggested shelves and tags](docs/showcase/img/04-suggestions.jpg) **Suggested shelves and tags.** Review, rename, move and retag, then confirm. | ![Chat with citations](docs/showcase/img/07-chat-citations.jpg) **Grounded answers.** Numbered citations, with the sources listed under the answer. |
 | ![The passage behind a citation](docs/showcase/img/08-passage.jpg) **Check any citation.** The exact passage the answer came from. | ![Not found in the documents](docs/showcase/img/09-not-found.jpg) **No guessing.** A question the shelf can't answer gets "not found in the documents". |
 | ![Troubleshooter](docs/showcase/img/14-troubleshooter.jpg) **When something breaks,** the app names the cause and the fix, and pauses what can't work. | ![Collections settings](docs/showcase/img/12-collections.jpg) **Settings without jargon.** Tooltips, presets, and warnings for unusual values. |
+
+## Employee portal
+
+The console above is for the person who manages the documents. The portal shows the other side: the people who need answers from them.
+
+| | |
+|---|---|
+| ![The Hilda & Luna Beadworks intranet](docs/showcase/img/20-portal-home.jpg) **The company intranet.** Season dates, handbook highlights and news, with Luna one click away. | ![Luna answering in Spanish with sources](docs/showcase/img/21-portal-luna.jpg) **Luna, full screen.** A Spanish answer from an English manual, with the cited passage open. |
+
+- **A company intranet** for *Hilda & Luna Beadworks*, a fictional bead and charm maker in Monterrey. It has a season timeline, handbook highlights, department hours and news, all written from the demo documents.
+- **Luna**, in a floating chat bubble on every page or full screen at `/intranet/luna`. Luna searches **every shelf marked "Visible in the employee portal"** (a switch on each shelf in Collections). Each shelf is searched with its own embedding model, and the results are merged by rank ([decision 0010](docs/decisions/0010-employee-portal.md)).
+- **Same rules as the console:** answers only from the documents, numbered citations with the exact passage, and a clear "I couldn't find this" when the documents don't say.
+- **ES / EN switch.** The interface changes language and Luna is asked to answer in it, whatever language the documents are in.
+- **Kept apart, still visible.** Employee chats don't appear in the console's chat history; the dashboard lists them under *Employee questions*, with their 👍/👎 feedback stored like any other answer.
+- **Simulated internal access:** there is no sign-in. The footer says so.
+
+Load the demo company's 11 fictional documents with one command (Ollama must be running):
+
+```bash
+cd backend && .venv/Scripts/python -m app.cli seed-demo     # one shelf per folder in backend/demo/hilda-luna/
+```
+
+Then open http://localhost:8000/intranet, or use **Employee portal** on the dashboard.
 
 ## How it works
 
@@ -141,6 +165,8 @@ To run the end-to-end test against a running server, see [e2e/README.md](e2e/REA
 backend/app/        FastAPI app: api/, core/, ingest/, retrieval/, llm/, versioning/, jobs/, db/
 backend/tests/      pytest suite (fakes only)        backend/migrations/  Alembic
 frontend/src/       React + Vite + TypeScript + Tailwind: pages/, components/, api/, hooks/
+frontend/src/portal/  The employee portal and Luna (lazy-loaded, own fonts)
+backend/demo/       Fictional Hilda & Luna Beadworks documents for `seed-demo`
 e2e/                End-to-end test kit and a fictional sample corpus
 docs/decisions/     Why things are the way they are   docs/test-reports/  End-to-end reports
 docs/showcase/      Slide deck and screenshots
@@ -150,5 +176,5 @@ Your documents, the database, vectors and backups live in `backend/data/`, which
 
 ## Status
 
-- **Done:** Phases 0–4 of [PLAN.md](PLAN.md), plus the UI improvements in v0.5.0 ([CHANGELOG](CHANGELOG.md), [decision 0008](docs/decisions/0008-ui-improvements-scope.md)).
+- **Done:** Phases 0–4 of [PLAN.md](PLAN.md), plus the UI improvements in v0.5.0 ([CHANGELOG](CHANGELOG.md), [decision 0008](docs/decisions/0008-ui-improvements-scope.md)) and the employee portal in v0.6.0 ([decision 0010](docs/decisions/0010-employee-portal.md)).
 - **Next:** a versions UI, a control panel, an evaluation set, hardening, and polish.

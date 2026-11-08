@@ -13,7 +13,11 @@ The app only showed the admin side: uploading files, versions, the queue, chat f
 **Luna searches every shelf the admin shares.**
 - `collections.portal_visible` defaults to true, and the Collections page has a switch for it. `PATCH /api/collections/{id}` goes through `service.set_portal_visible`, which writes the audit entry `collection_portal_visibility` (invariant 7).
 - A blue/green swap copies the flag at swap time, so a toggle made during a rebuild is kept.
-- `retrieve_many` runs the usual vector and FTS5 searches **per shelf, each with its own embedding model**, then fuses all of those ranked lists with RRF. Vectors from different models are never compared (invariant 4); RRF only uses ranks, so the shelves' scores don't need to be comparable.
+- `retrieve_many` compares scores only where they mean the same thing:
+  - shelves that share an embedding model give **one** vector list, ordered by cosine similarity;
+  - FTS5 runs **once** over all the shelves;
+  - RRF fuses those lists by rank, so vectors from different models are never compared (invariant 4).
+- **Not per shelf.** The first version fused each shelf's own lists. In the real run, the one-document `meetings` shelf was ranked first for every question, because its best chunk was always #1 in its own list. With the lists merged, the kiln-safety question got 4 of its top 5 chunks from the safety manual instead of 1.
 - With one shelf the result is exactly the old `retrieve`, which now just calls `retrieve_many`.
 
 **A channel on each chat.**
@@ -32,7 +36,11 @@ The app only showed the admin side: uploading files, versions, the queue, chat f
 - `python -m app.cli seed-demo` ingests them through the normal service, one shelf per folder, tagged `demo,<shelf>`. Re-running it skips every file as a duplicate.
 - Each document is marked as fictional, and `backend/demo/README.md` says so too.
 
-**Fonts are bundled, not fetched.** At runtime the app must make no cloud calls, so Google Fonts is out. Two `@fontsource-variable` packages (Fraunces for display, Inter for body text) are bundled by Vite; this is the only new dependency.
+**Fonts are bundled, not fetched.** At runtime the app must make no cloud calls, so Google Fonts is out. Two `@fontsource-variable` packages (Fraunces for display, Figtree for body text) are bundled by Vite and load only with the portal's lazy chunk; they are the only new dependency. The plan said Inter for body text; Figtree was used instead because it is friendlier, and the console already has Inter's neutral look.
+
+**Logo.** An original bead-moon mark: graduated glass beads on one thread form a crescent, with an amber star charm. It is drawn from geometry in `src/portal/Logo.tsx`, and `public/hl-mark.svg` and `public/hl-logo.svg` are generated from the same numbers. Two alternative concepts were shown to the user.
+
+**Static content.** The home page text (dates, handbook figures, news) is written once in `src/portal/content.ts` from the demo documents. It doesn't update when the documents change; Luna's answers always come from the indexed documents.
 
 ## Consequences
 

@@ -4,6 +4,22 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Ver
 
 ## [Unreleased]
 
+## [0.6.0] - unreleased
+
+The employee portal, from the `feature/employee-portal` branch ([decision 0010](docs/decisions/0010-employee-portal.md)).
+
+### Added
+
+- **Employee portal** at `/intranet`: the intranet of *Hilda & Luna Beadworks*, a fictional company, with its own bead-moon logo, self-hosted fonts and an ES/EN switch.
+  - Home page with a dated season timeline, handbook highlights, department hours, a company snapshot and news, written from the demo documents. Every card can ask Luna about it.
+  - **Luna**, the assistant, as a floating chat bubble on every portal page and full screen at `/intranet/luna`, sharing one conversation and one stream. It has suggested questions, citations with the exact passage, 👍/👎 feedback, a friendly "not found" message, and recent conversations kept in the browser.
+- **Multi-shelf retrieval:** `retrieve_many` searches several shelves. Shelves that share an embedding model are ranked together by similarity, keyword search runs once over all of them, and RRF fuses the lists. Models are never mixed. The single-shelf `retrieve` now calls it with one shelf, with the same results as before.
+- **Portal visibility per shelf:** `collections.portal_visible` (default on), a switch on each shelf in Collections, and `PATCH /api/collections/{id}`. Audited as `collection_portal_visibility`; a blue/green swap keeps the setting.
+- **Chat channels:** `chat_sessions.channel` (`admin` or `intranet`). `POST /api/chat` takes `channel` and `answer_language` (`en` or `es`, which adds one prompt rule). `GET /api/sessions?channel=` defaults to `admin`.
+- **Dashboard:** an *Employee portal* button, an *Employee questions* card, and a sidebar link.
+- **`python -m app.cli seed-demo`** loads the 11 fictional documents in `backend/demo/hilda-luna/`, one shelf per folder. Running it again skips every file.
+- Migration `0005_portal`.
+
 ## [0.5.0] - 2026-11-09
 
 UI improvements for non-technical users, from the `feature/ui-improvements` branch. Some items came forward from later phases ([decision 0008](docs/decisions/0008-ui-improvements-scope.md)).

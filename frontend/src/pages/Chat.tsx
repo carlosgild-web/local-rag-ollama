@@ -7,7 +7,7 @@ import { ErrorNote } from "@/components/common";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/input";
 import { useCollections, useFeedback, useSession, useSessions } from "@/hooks/queries";
-import { useChatStream } from "@/hooks/useChatStream";
+import { endsWithQuestion, useChatStream } from "@/hooks/useChatStream";
 import { useSystemStatus } from "@/hooks/useSystemStatus";
 import { Paused } from "@/components/Paused";
 import { cn, formatDate } from "@/lib/utils";
@@ -197,11 +197,6 @@ export default function Chat() {
 }
 
 const LAST_SHELF_KEY = "chat.lastShelf";
-
-function endsWithQuestion(messages: Message[], question: string) {
-  const last = messages.at(-1);
-  return last?.role === "user" && last.content === question;
-}
 
 function Welcome() {
   return (

@@ -61,8 +61,8 @@ export function useDemoGuide(): [Mode, (mode: Mode) => void] {
 const GUIDE = {
   tag: { es: "Demo de portafolio · no es parte del diseño de la empresa", en: "Portfolio demo · not part of the company design" },
   strip: {
-    es: "Este sitio es de una empresa ficticia, creada para demostrar un sistema RAG local. Empieza aquí:",
-    en: "This website belongs to a fictional company, made to demo a local RAG system. Start here:",
+    es: "Empresa ficticia para demostrar un sistema RAG local. Empieza aquí:",
+    en: "A fictional company, made to demo a local RAG system. Start here:",
   },
   path: { es: "Acceso empleados → intranet → consola RAG", en: "Employee login → intranet → RAG console" },
   banner: {
@@ -105,8 +105,8 @@ const GUIDE = {
       {
         title: { es: "Consola de administración RAG", en: "RAG admin console" },
         body: {
-          es: "Donde se suben, versionan e indexan los documentos: estantes, historial de versiones y reversión, la cola de trabajos y el diagnóstico.",
-          en: "Where documents are uploaded, versioned and indexed: shelves, version history and rollback, the job queue and the troubleshooter.",
+          es: "Donde se suben, versionan e indexan los documentos: estantes, versiones automáticas, la papelera, la cola de trabajos y el diagnóstico.",
+          en: "Where documents are uploaded, versioned and indexed: shelves, automatic versions, the trash, the job queue and the troubleshooter.",
         },
       },
     ] as { title: Bi; body: Bi }[],
@@ -121,8 +121,8 @@ const GUIDE = {
         en: "Ask something the documents don't cover: Luna says so instead of guessing.",
       },
       {
-        es: "En la consola, sube una versión modificada de un documento, vuelve a preguntar y luego revierte la versión.",
-        en: "In the console, upload a changed version of a document, ask again, then roll the version back.",
+        es: "En la consola, sube una versión modificada de un documento con el mismo nombre: se vuelve la versión 2. Luego pregúntale de nuevo a Luna.",
+        en: "In the console, upload a changed copy of a document under the same name: it becomes version 2. Then ask Luna again.",
       },
       {
         es: "Apaga el interruptor «Visible in the employee portal» de un estante y mira cómo Luna deja de usarlo.",
@@ -192,7 +192,7 @@ export function DemoGuide({ where }: { where: "site" | "intranet" }) {
     <>
       {mode === "open" && where === "site" && (
         <div role="region" aria-label={t(GUIDE.pill)} className={cn(FRAME, "border-b")}>
-          <div className="mx-auto flex max-w-6xl flex-wrap items-center gap-x-3 gap-y-1 px-4 py-2 text-xs sm:px-6">
+          <div className="mx-auto flex max-w-7xl flex-wrap items-center gap-x-3 gap-y-1 px-4 py-2 text-xs sm:px-6">
             <Tag />
             <p className="text-zinc-200">
               {t(GUIDE.strip)}{" "}

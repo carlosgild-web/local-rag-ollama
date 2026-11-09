@@ -2,7 +2,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { api } from "@/api/client";
 import { postEventStream } from "@/api/sse";
-import type { Source } from "@/api/types";
+import type { Message, Source } from "@/api/types";
 import { keys } from "./queries";
 
 export interface PendingAnswer {
@@ -108,4 +108,14 @@ export function useChatStream(onSession: (id: number) => void) {
   }, []);
 
   return { pending, ask, stop, reset, isStreaming: pending?.status === "streaming" };
+}
+
+/**
+ * True when the saved conversation already ends with this question. The server
+ * stores the question as soon as the answer starts, so once the session is
+ * loaded the pending question must not be shown a second time.
+ */
+export function endsWithQuestion(messages: Message[], question: string) {
+  const last = messages.at(-1);
+  return last?.role === "user" && last.content === question;
 }

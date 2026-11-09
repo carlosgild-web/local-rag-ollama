@@ -39,7 +39,15 @@ Internal facts stay on the intranet: sales figures, the foundry delay, HR policy
 - There is no username or password field, so the page can't suggest security that isn't there.
 - `/intranet` is still reachable directly, as 0010 says. Real authentication would sit in front of `/intranet` and the admin API.
 
-**Drawn art, no photos.** Beads (round, faceted, swirl, lentil), charms, findings and the collection strands are SVG drawn from geometry in `src/site/art.tsx`, reusing the logo's `Bead`. They are original, need no license and ship in the bundle. Runtime cloud calls are not allowed, so nothing is hotlinked.
+**Images: Blender renders plus a few AI scenes (hybrid).** First the site used only SVG drawings; the user then asked for realistic images. The laptop has integrated graphics and 7 GB of RAM, too little to run an image model locally next to Ollama, so:
+- **Product renders.** Every bead, charm and finding, the starter set and the hero necklace are rendered by Blender from `scripts/render_site_art.py`, with geometry and shaders only:
+  - lampwork glass with dots, swirls, facets and a bored hole
+  - pewter charms cut from the same outlines as the SVG drawings, in gold, rhodium or antique bronze
+  - warm paper underneath and a macro-lens depth of field
+
+  The images are original, match the catalog exactly, and can be rendered again in about 10 minutes. Blender is a build-time tool only.
+- **Scene photos.** The two collection banners and the workshop photo are generated once with an AI image tool, using the prompts in `docs/site-images.md`, and prepared by `scripts/prepare_site_photos.py` (Pillow, already a backend requirement). The README credits them as AI-generated.
+- Images are WebP in `src/site/img/`, picked up with `import.meta.glob`. Any missing image falls back to the SVG drawing (`src/site/art.tsx`), so the site works before the AI photos exist. Nothing is fetched at runtime.
 
 **Demo forms.** The newsletter, wholesale application and contact forms check required fields, then clear and say "Demo site: nothing was sent and nothing was stored". No request is made.
 
@@ -49,5 +57,5 @@ Internal facts stay on the intranet: sales figures, the foundry delay, HR policy
 
 ## Consequences
 
-- No new dependencies and no backend changes. The site is its own set of lazy chunks (about 25 kB gzipped with its content), loaded only on `/site`.
+- No new app dependencies and no backend changes; Blender is only needed to re-render the images. The site is its own set of lazy chunks (about 25 kB gzipped with its content), loaded only on `/site`.
 - Prices and policies on the site are copies. If a demo document changes, `content.ts` must be updated by hand.

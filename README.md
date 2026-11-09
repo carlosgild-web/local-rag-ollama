@@ -38,7 +38,7 @@ The console above is for the person who manages the documents. The portal shows 
 - **ES / EN switch.** The interface changes language and Luna is asked to answer in it, whatever language the documents are in.
 - **Kept apart, still visible.** Employee chats don't appear in the console's chat history; the dashboard lists them under *Employee questions*, with their 👍/👎 feedback stored like any other answer.
 - **Simulated internal access:** there is no real sign-in. The footer says so.
-- **A public website** at `/site`, the company's outside face. It's modeled on real bead and charm makers: a home page with collections and the workshop's story, a catalog, a wholesale page, and help on shipping, returns and FAQ. All of it is written from the customer-facing demo documents, and every bead and charm is drawn in SVG. Its forms are demos that send nothing. **Employee login** opens a simulated staff sign-in, with one button into the intranet ([decision 0011](docs/decisions/0011-public-site.md)).
+- **A public website** at `/site`, the company's outside face. It's modeled on real bead and charm makers: a home page with collections and the workshop's story, a catalog, a wholesale page, and help on shipping, returns and FAQ. All of it is written from the customer-facing demo documents. The product photos are 3D renders made in Blender by a script in the repo, and the collection and workshop scenes are AI-generated ([how the images are made](docs/site-images.md)). Its forms are demos that send nothing. **Employee login** opens a simulated staff sign-in, with one button into the intranet ([decision 0011](docs/decisions/0011-public-site.md)).
 
 Load the demo company's 11 fictional documents with one command (Ollama must be running):
 

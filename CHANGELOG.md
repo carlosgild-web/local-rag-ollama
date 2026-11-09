@@ -23,6 +23,7 @@ The employee portal, from the `feature/employee-portal` branch ([decision 0010](
   - Home: collection banners (Amber Hollow, Coastal Garden), shop-by tiles, customer favorites, the workshop's story, a wholesale band and a newsletter.
   - Catalog (glass beads, charms, findings, with retail prices and nickel notes), Wholesale (tiers, how to apply, custom colors, starter sets) and Help (shipping, returns, damaged items, FAQ, contact).
   - Written only from the customer-facing demo documents. Beads, charms and findings are drawn in SVG, and the forms are demos that send and store nothing.
+  - **Product photos rendered in Blender** by `scripts/render_site_art.py` (beads, charms, findings, starter set, hero necklace), and slots for three AI-generated scene photos prepared by `scripts/prepare_site_photos.py` ([docs/site-images.md](docs/site-images.md)). Any missing image falls back to its SVG drawing.
   - **Employee login** opens `/site/staff`, a simulated staff sign-in with one *Enter as demo employee* button into `/intranet`.
   - Links between the site, the intranet and the console: a *Company site* button on the dashboard and a sidebar link.
 

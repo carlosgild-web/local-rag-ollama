@@ -2,7 +2,7 @@
 
 Blender is a build-time tool here; the app never needs it. Run from the repo root:
 
-    blender -b --factory-startup -P scripts/render_site_art.py -- --out frontend/src/site/img
+    blender -b --factory-startup -P scripts/render_site_art.py -- --out art/blender
     blender -b --factory-startup -P scripts/render_site_art.py -- --only GB-1014 --samples 32
 
 Every picture is built from geometry and shaders in this file, so it is original,
@@ -965,7 +965,7 @@ def jobs(samples):
 def main():
     argv = sys.argv[sys.argv.index("--") + 1 :] if "--" in sys.argv else []
     parser = argparse.ArgumentParser(prog="render_site_art")
-    parser.add_argument("--out", default="frontend/src/site/img")
+    parser.add_argument("--out", default="art/blender")
     parser.add_argument("--only", nargs="*", help="names to render, e.g. GB-1014 hero-strand")
     parser.add_argument("--samples", type=int, default=96)
     args = parser.parse_args(argv)

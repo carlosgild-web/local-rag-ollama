@@ -1,0 +1,27 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1"><title>Gemini prompts</title>
+<style>
+body{margin:0;background:#f7f7f5;color:#18181b;font:15px/1.5 system-ui,sans-serif}
+main{max-width:900px;margin:0 auto;padding:24px 16px}
+h1{font-size:26px;margin:0 0 6px}ol.steps{background:#fff;border:1px solid #e4e4e7;border-radius:10px;padding:14px 18px 14px 36px}
+section{background:#fff;border:1px solid #e4e4e7;border-radius:12px;padding:16px 18px;margin:14px 0}
+section.done{opacity:.55}h2{font-size:17px;margin:0 0 6px}
+textarea{width:100%;min-height:120px;font:13px/1.5 ui-monospace,Consolas,monospace;border:1px solid #d4d4d8;border-radius:8px;padding:8px}
+button{margin-top:8px;border:0;background:#0f766e;color:#fff;border-radius:8px;padding:7px 14px;font-weight:600;cursor:pointer}
+figure{margin:8px 0}figure img{max-width:320px;width:100%;border-radius:8px;border:1px solid #e4e4e7}
+figcaption{font-size:13px;color:#5b5b66}code{background:#eef2f1;padding:1px 5px;border-radius:4px}
+</style></head><body><main>
+<h1>Images for the demo site: {{count}} Gemini prompts</h1>
+<ol class="steps">
+<li>Open <a href="https://gemini.google.com" target="_blank" rel="noreferrer">gemini.google.com</a> and start a new chat for each image.</li>
+<li>If the card shows a reference image, drag it into the chat first.</li>
+<li>Click <b>Copy prompt</b>, paste, send. If the result is good, download it.</li>
+<li>Save it in the project as <code>data/gemini/raw/&lt;name&gt;.png</code> (.jpg is fine too).</li>
+<li>Reload this page: finished cards are greyed out. Stop whenever the daily limit is reached.</li>
+</ol>
+{{cards}}
+</main><script>
+document.querySelectorAll("section button").forEach(b=>b.addEventListener("click",async()=>{
+const t=b.parentElement.querySelector("textarea");try{await navigator.clipboard.writeText(t.value);b.textContent="Copied"}
+catch{t.select();document.execCommand("copy");b.textContent="Copied"}setTimeout(()=>b.textContent="Copy prompt",1500)}));
+</script></body></html>

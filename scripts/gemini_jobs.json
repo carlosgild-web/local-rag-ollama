@@ -1,0 +1,68 @@
+{
+  "_about": "Images for the demo company's website, made with Google Gemini by scripts/gemini_images.py. Jobs run in this order; finished ones are skipped. 'reference' is sent with the prompt so the result keeps the object's exact colors and shape. Hilda & Luna Beadworks is fictional.",
+  "style": "Photorealistic product photography, natural soft studio light, shallow depth of field, warm slightly muted colors, fine film grain. No text, no letters, no logos, no watermark, no people's faces.",
+  "product_style": "Turn this 3D render into a photorealistic macro product photo of the same object: keep exactly the same colors, shape, pattern, number of pieces and their arrangement. Handmade lampwork glass or cast pewter, with real material detail (tiny bubbles and glossy reflections in glass, fine casting texture in metal). Lying on warm off-white paper, soft studio light from the upper left, gentle shadows, shallow depth of field. Same camera angle and framing as the render.",
+  "jobs": [
+    {
+      "name": "hero-strand",
+      "aspect": "4:3",
+      "reference": "art/blender/hero-strand.webp",
+      "prompt": "Turn this 3D render into a photorealistic flat-lay photo of the same handmade necklace: the same glass beads in the same order and colors, strung on a waxed linen cord, with the gold crescent-moon-and-star charm hanging at the bottom. On warm natural linen, soft window light from the left, editorial jewelry photography."
+    },
+    {
+      "name": "collection-amber-hollow",
+      "aspect": "16:9",
+      "prompt": "Three-quarter overhead view of handmade lampwork glass beads in warm amber, rust orange and deep forest green, scattered on a dark walnut table, with a few small antique-bronze pewter charms shaped like acorns, mushrooms and a crescent moon, and two dry oak leaves. Low late-afternoon window light from the left. Keep the top third darker and uncluttered."
+    },
+    {
+      "name": "collection-coastal-garden",
+      "aspect": "16:9",
+      "prompt": "Three-quarter overhead view of handmade lampwork glass beads in blush pink, seafoam mint, pale butter yellow and periwinkle, scattered on pale natural linen, with a few small polished silver charms shaped like scallop shells and leaves, and a sprig of sea lavender. Bright, airy morning light. Keep the top third soft and uncluttered."
+    },
+    {
+      "name": "story-workshop",
+      "aspect": "21:9",
+      "prompt": "Close-up of an artisan's hands at a lampworking torch, winding a glowing molten orange glass bead onto a steel mandrel. Jars of colored glass rods on a small workbench, a dark background, warm light from the flame. Documentary style; hands and forearms only."
+    },
+    {
+      "name": "social-background",
+      "aspect": "16:9",
+      "prompt": "Wide flat-lay of handmade lampwork glass beads (deep blue with teal dots, opal swirl, terracotta, forest green lentils, faceted sand-colored) and small gold and silver charms (a crescent moon with a star, a bee, a lotus) on warm cream linen. All objects are on the right half; the left half is empty, softly lit linen for a title. Editorial product photography."
+    },
+    {"name": "GB-1001", "aspect": "4:3", "reference": "art/blender/GB-1001.webp", "product": "three 8 mm round lampwork glass beads, deep midnight blue with raised teal dots"},
+    {"name": "GB-1002", "aspect": "4:3", "reference": "art/blender/GB-1002.webp", "product": "three 10 mm faceted glass beads, translucent warm desert-sand color"},
+    {"name": "GB-1014", "aspect": "4:3", "reference": "art/blender/GB-1014.webp", "product": "three 12 mm round lampwork glass beads, milky opal white with soft periwinkle swirls"},
+    {"name": "GB-1027", "aspect": "4:3", "reference": "art/blender/GB-1027.webp", "product": "three 8 mm round lampwork glass beads, terracotta orange with raised amber dots"},
+    {"name": "GB-1033", "aspect": "4:3", "reference": "art/blender/GB-1033.webp", "product": "three 14 mm lentil-shaped lampwork glass beads, deep forest green with a light green ring on the face"},
+    {"name": "CH-2004", "aspect": "4:3", "reference": "art/blender/CH-2004.webp", "product": "one gold-plated pewter charm: a crescent moon with a star, on a small jump ring"},
+    {"name": "CH-2011", "aspect": "4:3", "reference": "art/blender/CH-2011.webp", "product": "one antique-bronze pewter charm: a small honeybee with engraved wings and a striped body, on a jump ring"},
+    {"name": "CH-2019", "aspect": "4:3", "reference": "art/blender/CH-2019.webp", "product": "one polished rhodium (silver-colored) pewter charm: a lotus flower with five petals, on a jump ring"},
+    {"name": "CH-2026", "aspect": "4:3", "reference": "art/blender/CH-2026.webp", "product": "one gold-plated pewter charm: a desert cactus, on a jump ring"},
+    {"name": "CH-2033", "aspect": "4:3", "reference": "art/blender/CH-2033.webp", "product": "one gold-plated pewter round disc charm with an engraved script letter A, on a jump ring"},
+    {"name": "finding-rings", "aspect": "4:3", "reference": "art/blender/finding-rings.webp", "product": "three open jump rings of different sizes: silver, gold and base metal"},
+    {"name": "finding-clasp", "aspect": "4:3", "reference": "art/blender/finding-clasp.webp", "product": "one gold-plated lobster claw clasp with its spring gate and a small end ring"},
+    {"name": "finding-wire", "aspect": "4:3", "reference": "art/blender/finding-wire.webp", "product": "a small dark plastic spool of silver nylon-coated beading wire, with a loose end"},
+    {"name": "finding-memory", "aspect": "4:3", "reference": "art/blender/finding-memory.webp", "product": "a coil of oxidized steel bracelet memory wire, four turns, with small end caps"},
+    {"name": "starter-set", "aspect": "4:3", "reference": "art/blender/starter-set.webp", "product": "a loose arrangement of mixed lampwork glass beads and four small charms (cactus, bee, lotus, crescent moon), as if tipped out of a starter-set box"},
+    {
+      "name": "logo-1",
+      "aspect": "1:1",
+      "prompt": "Logo concept for 'Hilda & Luna Beadworks', a small handmade glass-bead workshop: a crescent moon formed by graduated round glass beads on a thread, with a small amber star charm hanging inside the curve. Flat vector style, few colors (cobalt blue, sea green, opal pink, amber) on white, centered, no text."
+    },
+    {
+      "name": "logo-2",
+      "aspect": "1:1",
+      "prompt": "Logo concept for 'Hilda & Luna Beadworks', a handmade bead and charm maker: a minimal monogram of the letters H and L joined by a single beaded thread, with one round glass bead as an accent. Flat vector style, deep navy and amber on cream, centered."
+    },
+    {
+      "name": "logo-3",
+      "aspect": "1:1",
+      "prompt": "Logo concept for 'Hilda & Luna Beadworks': a round emblem showing a lampwork glass bead with a crescent moon reflected in it, simple line art with two accent colors (cobalt and amber) on white, friendly and craft-like, centered, no text."
+    },
+    {
+      "name": "logo-4",
+      "aspect": "1:1",
+      "prompt": "Logo concept for 'Hilda & Luna Beadworks': a necklace of five graduated beads hanging in a gentle U-shape with a tiny star charm in the middle, geometric flat vector style, warm palette (rust, amber, forest green, cream), centered, no text."
+    }
+  ]
+}

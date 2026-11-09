@@ -3,6 +3,7 @@ import { type FormEvent, type KeyboardEvent, type ReactNode, useEffect, useRef, 
 import type { Message, Source } from "@/api/types";
 import { CitedAnswer } from "@/components/CitedAnswer";
 import { useChunk, useFeedback } from "@/hooks/queries";
+import { endsWithQuestion } from "@/hooks/useChatStream";
 import { cn } from "@/lib/utils";
 import { SUGGESTIONS } from "./content";
 import { UI, useT } from "./i18n";
@@ -45,7 +46,7 @@ export function LunaChat({ variant, autoFocus = false }: { variant: Variant; aut
           )}
           {pending && (
             <>
-              <Question text={pending.question} />
+              {!endsWithQuestion(messages, pending.question) && <Question text={pending.question} />}
               <Answer
                 content={pending.answer}
                 sources={pending.sources}

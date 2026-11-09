@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Local RAG with Ollama</title>
+<meta name="description" content="A fully local RAG app: grounded, cited answers over versioned documents, plus a demo company website, intranet and assistant.">
+<meta property="og:title" content="Local RAG with Ollama">
+<meta property="og:description" content="Ask your own documents, fully offline. Grounded answers with citations, versioned documents, hybrid search.">
+<meta property="og:image" content="https://carlosgild-web.github.io/local-rag-ollama/showcase/social-preview.jpg">
+<style>
+  :root { --bg: #f7f7f5; --card: #fff; --ink: #18181b; --muted: #5b5b66; --line: #e4e4e7; --accent: #0f766e; }
+  @media (prefers-color-scheme: dark) { :root { --bg: #121214; --card: #1c1c20; --ink: #ececf1; --muted: #a1a1aa; --line: #2e2e35; --accent: #2dd4bf; } }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink); font: 17px/1.6 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+  main { max-width: 960px; margin: 0 auto; padding: 48px 16px; }
+  .eyebrow { color: var(--accent); font-weight: 600; letter-spacing: .08em; text-transform: uppercase; font-size: 13px; margin: 0; }
+  h1 { font-size: clamp(32px, 6vw, 52px); line-height: 1.05; margin: 8px 0 12px; }
+  .lede { color: var(--muted); font-size: 19px; max-width: 680px; margin: 0 0 28px; }
+  .hero { width: 100%; height: auto; border-radius: 14px; border: 1px solid var(--line); display: block; margin-bottom: 28px; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 14px; }
+  a.card { display: block; background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 18px 20px; color: var(--ink); text-decoration: none; }
+  a.card:hover, a.card:focus-visible { border-color: var(--accent); outline: none; }
+  a.card b { display: block; font-size: 18px; margin-bottom: 4px; color: var(--accent); }
+  a.card span { color: var(--muted); font-size: 15px; }
+  .stack { margin-top: 28px; color: var(--muted); font-size: 14px; }
+  footer { color: var(--muted); font-size: 14px; margin-top: 36px; }
+</style>
+</head>
+<body>
+<main>
+  <p class="eyebrow">Portfolio project · open source</p>
+  <h1>Local RAG with Ollama</h1>
+  <p class="lede">Ask questions about your own documents, fully offline. Every answer cites its sources, and when the answer isn't in your files, the app says so. It comes with a fictional company, a website, an intranet and an assistant, to try it on.</p>
+  <img class="hero" src="showcase/img/22-site-home.jpg" alt="The demo company's website, served by the app">
+  <div class="grid">
+    <a class="card" href="getting-started.html"><b>Getting started →</b><span>Install with Docker or without, load the demo, take the tour, run the tests.</span></a>
+    <a class="card" href="https://github.com/carlosgild-web/local-rag-ollama/blob/main/docs/walkthrough.md"><b>Reviewer walkthrough →</b><span>A 10-minute tour with screenshots: website, intranet, Luna, admin console.</span></a>
+    <a class="card" href="showcase/"><b>Slide deck →</b><span>What it does, how it works, and how it was tested.</span></a>
+    <a class="card" href="https://github.com/carlosgild-web/local-rag-ollama"><b>Source on GitHub →</b><span>Code, decision records, test reports. MIT licensed.</span></a>
+  </div>
+  <p class="stack">Python · FastAPI · SQLite FTS5 · ChromaDB · Ollama · React + TypeScript · Docker</p>
+  <footer>Hilda &amp; Luna Beadworks, its people and its documents are fictional.</footer>
+</main>
+</body>
+</html>

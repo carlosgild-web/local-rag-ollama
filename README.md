@@ -115,7 +115,7 @@ flowchart LR
 
 | Check | Result |
 |---|---|
-| Unit and API tests (fakes, run in CI) | 176 tests pass; `ruff` clean |
+| Unit and API tests (fakes, run in CI) | 179 tests pass; `ruff` clean |
 | CI (GitHub Actions) | lint, tests, frontend build and `docker build` on every push |
 | End-to-end test: real Ollama, 11 sample documents, about 60 questions | **53/53** must-pass checks · 52/57 answer checks · 31/38 citations correct · 7/7 refusals ([report](docs/test-reports/2026-11-08-e2e.md)) |
 

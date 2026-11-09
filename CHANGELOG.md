@@ -27,10 +27,11 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Ver
 ### Changed
 
 - README: CI and license badges, a stack line, and the slide deck linked on GitHub Pages.
-- Slide deck: v0.6.0, two new slides (the demo company, and Luna), and 176 tests.
+- Slide deck: v0.6.0, two new slides (the demo company, and Luna), and 179 tests.
 
 ### Fixed
 
+- **Reads right after a large write could fail.** Chroma 1.5.x sometimes failed reads of a collection with "Error creating hnsw segment reader: Nothing found on disk" until its index was flushed. The end-to-end run on 2026-11-09 hit it while analysing a dropped folder right after an upload. The Chroma store now retries vector reads (search and `get_vectors`) on that error only, for up to about 15 seconds, with tests.
 - Luna showed the question twice while answering. The admin chat's check now lives in `useChatStream` and both use it.
 - The demo guide promised a version-rollback screen that the console doesn't have yet. Rollback is in the API; the guide now suggests uploading a new version instead.
 - The demo guide's strip on the site fits on one line.

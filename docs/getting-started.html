@@ -182,7 +182,7 @@ cd backend &amp;&amp; .venv/Scripts/python -m app.cli seed-demo         <span cl
   <h2><span class="n">6</span>Run the tests</h2>
   <div class="code"><pre><code>cd backend
 .venv/Scripts/pip install -r requirements-dev.txt
-.venv/Scripts/python -m pytest -q                       <span class="c"># 176 tests, with fakes: no Ollama needed</span>
+.venv/Scripts/python -m pytest -q                       <span class="c"># 179 tests, with fakes: no Ollama needed</span>
 .venv/Scripts/ruff check . &amp;&amp; .venv/Scripts/ruff format --check .
 cd ../frontend &amp;&amp; npm run build                         <span class="c"># type check and build</span></code></pre></div>
   <p>The <b>end-to-end test</b> drives the running app with the real model: about 60 questions and every app mechanic. It takes 1–3 hours on a laptop CPU; see <a href="https://github.com/carlosgild-web/local-rag-ollama/blob/main/e2e/README.md"><code>e2e/README.md</code></a>. CI runs the unit tests, the linters, the frontend build and a Docker build on every push.</p>

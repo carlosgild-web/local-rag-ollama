@@ -116,7 +116,7 @@ The [reviewer walkthrough](docs/walkthrough.md) goes through the same tour in mo
 ```bash
 cd backend
 .venv/Scripts/pip install -r requirements-dev.txt
-.venv/Scripts/python -m pytest -q                        # 176 tests, with fakes: no Ollama needed
+.venv/Scripts/python -m pytest -q                        # 179 tests, with fakes: no Ollama needed
 .venv/Scripts/ruff check . && .venv/Scripts/ruff format --check .
 cd ../frontend && npm run build                          # type check and build
 ```

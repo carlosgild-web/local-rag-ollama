@@ -46,7 +46,7 @@ Internal facts stay on the intranet: sales figures, the foundry delay, HR policy
   - warm paper underneath and a macro-lens depth of field
 
   The images are original, match the catalog exactly, and can be rendered again in about 10 minutes. Blender is a build-time tool only.
-- **Scene photos.** The two collection banners and the workshop photo are generated once with an AI image tool, using the prompts in `docs/site-images.md`, and prepared by `scripts/prepare_site_photos.py` (Pillow, already a backend requirement). The README credits them as AI-generated.
+- **Scene photos (not added yet).** The two collection banners and the workshop photo are to be generated once with an AI image tool, using the prompts in `docs/site-images.md`, and prepared by `scripts/prepare_site_photos.py` (Pillow, already a backend requirement). Until they exist, those slots show the drawings; when they're added, the README credits them as AI-generated.
 - Images are WebP in `src/site/img/`, picked up with `import.meta.glob`. Any missing image falls back to the SVG drawing (`src/site/art.tsx`), so the site works before the AI photos exist. Nothing is fetched at runtime.
 
 **Demo forms.** The newsletter, wholesale application and contact forms check required fields, then clear and say "Demo site: nothing was sent and nothing was stored". No request is made.

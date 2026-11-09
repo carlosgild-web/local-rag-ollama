@@ -9,6 +9,18 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Ver
 - **[Reviewer walkthrough](docs/walkthrough.md):** a 10-minute tour from the company's website through the intranet and Luna to the admin console, with screenshots.
 - New showcase screenshots of the public site, staff sign-in, demo guide, Luna's sources, the dashboard and the portal switch, plus a contact sheet of the product renders and a GitHub social preview image (`docs/showcase/social-preview.jpg`).
 
+### Security
+
+- `SECURITY.md`: the project's scope (a local demo with no authentication by design), how the code protects itself, and private vulnerability reporting.
+- CI runs with read-only permissions (`permissions: contents: read`), and `.github/dependabot.yml` proposes weekly grouped updates for pip, npm and GitHub Actions.
+- Chroma's anonymized telemetry is turned off explicitly, with a test, so no future Chroma version can make a network call. It was already a no-op in chromadb 1.5.9.
+- `pip-audit` flags chromadb 1.5.9 for four advisories, all in Chroma's HTTP server, which this app never starts. See `SECURITY.md`.
+
+### Changed
+
+- README: CI and license badges, a stack line, and the slide deck linked on GitHub Pages.
+- Slide deck: v0.6.0, two new slides (the demo company, and Luna), and 176 tests.
+
 ### Fixed
 
 - Luna showed the question twice while answering. The admin chat's check now lives in `useChatStream` and both use it.

@@ -117,7 +117,7 @@ flowchart LR
 |---|---|
 | Unit and API tests (fakes, run in CI) | 179 tests pass; `ruff` clean |
 | CI (GitHub Actions) | lint, tests, frontend build and `docker build` on every push |
-| End-to-end test: real Ollama, 11 sample documents, about 60 questions | **53/53** must-pass checks · 52/57 answer checks · 31/38 citations correct · 7/7 refusals ([report](docs/test-reports/2026-11-08-e2e.md)) |
+| End-to-end test: real Ollama, 11 sample documents, about 60 questions, plus Luna through the portal | **53/53** must-pass checks · 53/57 answer checks · 31/38 citations correct · 7/7 refusals · 6/6 portal questions ([report](docs/test-reports/2026-11-09-e2e.md)) |
 
 The end-to-end kit in [`e2e/`](e2e/) drives the same API the UI uses. It checks:
 - ingestion of every file type, answers against expected facts, citations and grounding

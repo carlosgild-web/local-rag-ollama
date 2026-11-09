@@ -17,6 +17,14 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Ver
 - **Reviewer walkthrough** ([docs/walkthrough.md](docs/walkthrough.md)): a 10-minute tour from the company's website through the intranet and Luna to the admin console, with screenshots.
 - New showcase screenshots of the public site, staff sign-in, demo guide, Luna's sources, the dashboard and the portal switch, plus a contact sheet of the product renders and a GitHub social preview image (`docs/showcase/social-preview.jpg`).
 
+### Tested
+
+- **End-to-end run on v0.6.0** ([report](docs/test-reports/2026-11-09-e2e.md)):
+  - 53/53 must-pass checks, 53/57 answer checks, 31/38 citations correct and 7/7 refusals
+  - the restart check passed
+  - a new Luna check through the employee portal passed 6/6, in English and Spanish, including a not-found
+  - it found the Chroma read bug fixed below
+
 ### Security
 
 - `SECURITY.md`: the project's scope (a local demo with no authentication by design), how the code protects itself, and private vulnerability reporting.

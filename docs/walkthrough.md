@@ -16,7 +16,7 @@ This is a 10-minute tour of what the project does, in the order a visitor meets 
    This creates four shelves (customer-support, hr, meetings, operations) from `backend/demo/hilda-luna/`.
 3. Open **http://localhost:8000/site**.
 
-Answers take a while on a laptop CPU: the median was about 40 seconds in the [end-to-end test](test-reports/2026-11-08-e2e.md).
+Answers take a while on a laptop CPU: the median was 44–59 seconds in the end-to-end tests ([latest report](test-reports/2026-11-09-e2e.md)).
 
 ## 1. The company's website
 

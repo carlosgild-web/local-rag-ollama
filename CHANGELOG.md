@@ -4,6 +4,17 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Ver
 
 ## [Unreleased]
 
+### Added
+
+- **[Reviewer walkthrough](docs/walkthrough.md):** a 10-minute tour from the company's website through the intranet and Luna to the admin console, with screenshots.
+- New showcase screenshots of the public site, staff sign-in, demo guide, Luna's sources, the dashboard and the portal switch, plus a contact sheet of the product renders and a GitHub social preview image (`docs/showcase/social-preview.jpg`).
+
+### Fixed
+
+- Luna showed the question twice while answering. The admin chat's check now lives in `useChatStream` and both use it.
+- The demo guide promised a version-rollback screen that the console doesn't have yet. Rollback is in the API; the guide now suggests uploading a new version instead.
+- The demo guide's strip on the site fits on one line.
+
 ## [0.6.0] - 2026-11-09
 
 The employee portal, from the `feature/employee-portal` branch ([decision 0010](docs/decisions/0010-employee-portal.md)).

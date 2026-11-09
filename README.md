@@ -6,7 +6,7 @@
 
 Drop in PDFs, Word files, Markdown or plain text. The app reads them, suggests where each one belongs, and answers questions in a chat with numbered citations you can click to see the exact passage. The chat model and the embeddings run in [Ollama](https://ollama.com) on your machine, so nothing is sent anywhere.
 
-**[See the slide deck →](docs/showcase/index.html)** for a guided tour with screenshots (open it in a browser).
+**[Take the 10-minute reviewer walkthrough →](docs/walkthrough.md)**: the demo company's website, its intranet with Luna, and the admin console, with screenshots. There's also a [slide deck](docs/showcase/index.html) (open it in a browser).
 
 ## What it does
 
@@ -30,7 +30,8 @@ The console above is for the person who manages the documents. The portal shows 
 
 | | |
 |---|---|
-| ![The Hilda & Luna Beadworks intranet](docs/showcase/img/20-portal-home.jpg) **The company intranet.** Season dates, handbook highlights and news, with Luna one click away. | ![Luna answering in Spanish with sources](docs/showcase/img/21-portal-luna.jpg) **Luna, full screen.** A Spanish answer from an English manual, with the cited passage open. |
+| ![The public website of Hilda & Luna Beadworks](docs/showcase/img/22-site-home.jpg) **The company's website.** Written from its customer documents, with Blender-rendered product photos. | ![The intranet with the demo guide](docs/showcase/img/25-intranet-demo-guide.jpg) **The intranet.** Season dates, handbook highlights and news. The banner on top is the reviewer's demo guide. |
+| ![Luna's answer with the cited passage open](docs/showcase/img/27-luna-source.jpg) **Luna.** Answers only from the documents, with the cited passage one click away. | ![Luna answering in Spanish with sources](docs/showcase/img/21-portal-luna.jpg) **In Spanish too.** A Spanish answer from an English manual. |
 
 - **A company intranet** for *Hilda & Luna Beadworks*, a fictional bead and charm maker in Monterrey. It has a season timeline, handbook highlights, department hours and news, all written from the demo documents.
 - **Luna**, in a floating chat bubble on every page or full screen at `/intranet/luna`. Luna searches **every shelf marked "Visible in the employee portal"** (a switch on each shelf in Collections). Each shelf is searched with its own embedding model, and the results are merged by rank ([decision 0010](docs/decisions/0010-employee-portal.md)).
@@ -53,9 +54,9 @@ Then follow the path a visitor would:
 
 1. **http://localhost:8000/site**: the company's public website.
 2. **Employee login → Enter as demo employee**: the intranet. Ask Luna something, for example "When does the company close for the holidays?", and open a source.
-3. **Demo guide → Open the RAG admin console**: the console behind it all, with shelves, versions and rollback, the job queue and the troubleshooter.
+3. **Demo guide → Open the RAG admin console**: the console behind it all, with shelves, automatic versions, the trash, the job queue and the troubleshooter.
 
-The **demo guide** at the top of the site and the intranet is marked as outside the company design. It's there for reviewers, and its *How this demo works* panel lists things to try. The dashboard's **Company site** and **Employee portal** buttons lead back the other way.
+The **demo guide** at the top of the site and the intranet is marked as outside the company design. It's there for reviewers, and its *How this demo works* panel lists things to try. The dashboard's **Company site** and **Employee portal** buttons lead back the other way. The [walkthrough](docs/walkthrough.md) covers the same path, step by step.
 
 ## How it works
 
@@ -107,7 +108,7 @@ flowchart LR
 
 | Check | Result |
 |---|---|
-| Unit and API tests (fakes, run in CI) | 164 tests pass; `ruff` clean |
+| Unit and API tests (fakes, run in CI) | 175 tests pass; `ruff` clean |
 | CI (GitHub Actions) | lint, tests, frontend build and `docker build` on every push |
 | End-to-end test: real Ollama, 11 sample documents, about 60 questions | **53/53** must-pass checks · 52/57 answer checks · 31/38 citations correct · 7/7 refusals ([report](docs/test-reports/2026-11-08-e2e.md)) |
 

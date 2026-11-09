@@ -4,6 +4,7 @@ import {
   Database,
   ExternalLink,
   FolderOpen,
+  Globe,
   LayoutDashboard,
   ListTodo,
   Bell,
@@ -131,6 +132,17 @@ function Shell() {
             );
           })}
         </nav>
+        <a
+          href="/site"
+          target="_blank"
+          rel="noreferrer"
+          title="The Hilda & Luna public website, with the staff sign-in to the intranet"
+          className="mx-3 mb-2 flex items-center gap-3 rounded-md border border-dashed px-3 py-2 text-sm text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
+        >
+          <Globe className="size-4" />
+          <span className="flex-1">Company site</span>
+          <ExternalLink className="size-3.5" />
+        </a>
         <a
           href="/intranet"
           target="_blank"

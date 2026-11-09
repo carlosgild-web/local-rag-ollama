@@ -5,7 +5,8 @@ import { Link, NavLink, Outlet, useLocation } from "react-router-dom";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { cn } from "@/lib/utils";
 import { COMPANY } from "./content";
-import { LangProvider, UI, useLang, useT } from "./i18n";
+import { LangSwitch, useBrandTab } from "./brand";
+import { LangProvider, UI, useT } from "./i18n";
 import { Logo } from "./Logo";
 import { LunaBubble } from "./LunaBubble";
 import { LunaProvider } from "./luna";
@@ -33,7 +34,7 @@ function Shell() {
   const location = useLocation();
   const onLunaPage = location.pathname.startsWith("/intranet/luna");
   const [menuOpen, setMenuOpen] = useState(false);
-  usePortalTab(t({ es: "Intranet · Hilda & Luna", en: "Intranet · Hilda & Luna" }));
+  useBrandTab(t({ es: "Intranet · Hilda & Luna", en: "Intranet · Hilda & Luna" }));
 
   // Scroll to a section after navigating to "/intranet#handbook" and friends.
   useEffect(() => {
@@ -115,31 +116,6 @@ function Shell() {
   );
 }
 
-function LangSwitch({ className }: { className?: string }) {
-  const { lang, setLang } = useLang();
-  const t = useT();
-  return (
-    <div role="group" aria-label={t(UI.langLabel)} className={cn("flex rounded-full bg-white/10 p-0.5 text-xs font-semibold", className)}>
-      {(["es", "en"] as const).map((code) => (
-        <button
-          key={code}
-          type="button"
-          onClick={() => setLang(code)}
-          aria-pressed={lang === code}
-          lang={code}
-          title={code === "es" ? "Español" : "English"}
-          className={cn(
-            "rounded-full px-2.5 py-1.5 uppercase tracking-wider transition-colors",
-            lang === code ? "bg-hl-moon text-hl-night" : "text-hl-moon/70 hover:text-white",
-          )}
-        >
-          {code}
-        </button>
-      ))}
-    </div>
-  );
-}
-
 function Footer() {
   const t = useT();
   return (
@@ -152,24 +128,15 @@ function Footer() {
           <p>{t(UI.footer.fictional)}</p>
           <p>{t(UI.footer.local)}</p>
         </div>
-        <a href="/" className="inline-flex items-center gap-1 font-semibold text-hl-cobalt hover:underline">
-          {t(UI.footer.console)} <ArrowUpRight className="size-4" />
-        </a>
+        <div className="flex flex-wrap gap-x-5 gap-y-2">
+          <Link to="/site" className="inline-flex items-center gap-1 font-semibold text-hl-cobalt hover:underline">
+            {t(UI.footer.site)} <ArrowUpRight className="size-4" />
+          </Link>
+          <a href="/" className="inline-flex items-center gap-1 font-semibold text-hl-cobalt hover:underline">
+            {t(UI.footer.console)} <ArrowUpRight className="size-4" />
+          </a>
+        </div>
       </div>
     </footer>
   );
-}
-
-/** The portal gets its own tab title and bead-moon favicon while it is open. */
-function usePortalTab(title: string) {
-  useEffect(() => {
-    const icon = document.querySelector<HTMLLinkElement>("link[rel='icon']");
-    const previous = { title: document.title, icon: icon?.href };
-    document.title = title;
-    if (icon) icon.href = "/hl-mark.svg";
-    return () => {
-      document.title = previous.title;
-      if (icon && previous.icon) icon.href = previous.icon;
-    };
-  }, [title]);
 }

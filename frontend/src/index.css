@@ -41,6 +41,17 @@
   --color-hl-opal: #e7a3a6;
   --color-hl-sea: #5fae9c;
   --color-hl-moon: #eef0f8;
+  /* Public website (src/site): the same brand in warm Amber Hollow colors. */
+  --color-hl-cream: #fbf6ee;
+  --color-hl-sand: #f2e7d6;
+  --color-hl-clay: #e4d5bf;
+  --color-hl-bark: #2e2219;
+  --color-hl-bark-muted: #6a5646;
+  --color-hl-rust: #a8481f;
+  --color-hl-rust-soft: #f6e2d4;
+  --color-hl-forest: #2d5443;
+  --color-hl-forest-soft: #e2ece5;
+  --color-hl-amber-light: #f4c27a; /* amber text on forest (AA) */
   --font-display: "Fraunces Variable", Georgia, "Times New Roman", serif;
   --font-body: "Figtree Variable", "Segoe UI", system-ui, sans-serif;
 }

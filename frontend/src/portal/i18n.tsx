@@ -82,6 +82,7 @@ export const UI = {
       en: "Luna answers only from documents in the local RAG system. Nothing leaves this computer.",
     },
     console: { es: "Consola RAG", en: "RAG console" },
+    site: { es: "Sitio público", en: "Public website" },
   },
   luna: {
     name: "Luna",

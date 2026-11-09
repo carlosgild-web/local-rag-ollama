@@ -1,4 +1,4 @@
-import { Building2, CheckCircle2, ExternalLink, MessageSquare, Upload, Wrench, XCircle } from "lucide-react";
+import { Building2, CheckCircle2, ExternalLink, Globe, MessageSquare, Upload, Wrench, XCircle } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useTroubleshooter } from "@/components/TroubleshooterContext";
 import type { ComponentHealth } from "@/api/types";
@@ -48,6 +48,11 @@ export default function Dashboard() {
         description="Everything runs locally: Ollama for models, SQLite and Chroma for storage."
         actions={
           <>
+            <Button variant="outline" asChild>
+              <a href="/site" target="_blank" rel="noreferrer" title="Opens the Hilda & Luna public website in a new tab">
+                <Globe /> Company site <ExternalLink className="size-3.5" />
+              </a>
+            </Button>
             <Button variant="outline" asChild>
               <a href="/intranet" target="_blank" rel="noreferrer" title="Opens the Hilda & Luna employee portal in a new tab">
                 <Building2 /> Employee portal <ExternalLink className="size-3.5" />

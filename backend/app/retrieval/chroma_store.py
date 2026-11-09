@@ -13,7 +13,12 @@ class EmbeddingModelMismatchError(Exception):
 
 class ChromaVectorStore(VectorStore):
     def __init__(self, persist_dir: Path):
-        self._client = chromadb.PersistentClient(path=str(persist_dir))
+        # Embedded only: Chroma's HTTP server is never started. Telemetry is off
+        # explicitly so no future Chroma version can send anything (no cloud calls).
+        self._client = chromadb.PersistentClient(
+            path=str(persist_dir),
+            settings=chromadb.config.Settings(anonymized_telemetry=False),
+        )
 
     def get_or_create_collection(self, name: str, metadata: dict) -> None:
         full_metadata = {**metadata, "hnsw:space": "cosine"}

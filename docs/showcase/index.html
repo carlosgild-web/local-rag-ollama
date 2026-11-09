@@ -165,7 +165,7 @@ td.num { font-variant-numeric: tabular-nums; white-space: nowrap; }
 <section class="slide title" id="slide-1" aria-label="Title">
   <div class="split">
     <div class="copy">
-      <p class="eyebrow">Portfolio project · v0.5.0</p>
+      <p class="eyebrow">Portfolio project · v0.6.0</p>
       <h1>Ask your documents.<br>Privately.</h1>
       <p class="lede">A fully local assistant that answers questions from your own files, cites every source, and says so when the answer isn't there.</p>
       <div class="facts"><span>runs offline</span><span>English + Spanish</span><span>7.2 GB RAM laptop</span><span>FastAPI · React · Ollama</span></div>
@@ -339,6 +339,28 @@ td.num { font-variant-numeric: tabular-nums; white-space: nowrap; }
   </div>
 </section>
 
+<!-- 12a -->
+<section class="slide" id="slide-12a" aria-label="A demo company">
+  <div class="slide-head"><p class="eyebrow">Try it · Demo company</p><h2>A fictional company to try it on</h2></div>
+  <div class="pair">
+    <figure class="shot"><img src="img/22-site-home.jpg" alt="The public website of Hilda &amp; Luna Beadworks, a fictional bead maker"><figcaption>The company's website, written from its customer documents. The product photos are Blender renders made by a script in the repo.</figcaption></figure>
+    <figure class="shot"><img src="img/25-intranet-demo-guide.jpg" alt="The company intranet with the reviewer's demo guide banner"><figcaption>Its intranet. The dark banner is a demo guide for reviewers, marked as outside the company design.</figcaption></figure>
+  </div>
+</section>
+
+<!-- 12b -->
+<section class="slide" id="slide-12b" aria-label="Luna">
+  <div class="slide-head"><p class="eyebrow">Try it · Employee assistant</p><h2>Luna answers employees from every shared shelf</h2></div>
+  <div class="split">
+    <div class="copy">
+      <p>Employees ask <strong>Luna</strong> in a chat bubble or full screen, in Spanish or English. Luna searches every shelf the admin marks "Visible in the employee portal", with the same rules: only the documents, numbered citations, and "not found" instead of a guess.</p>
+      <p>Shelves can use different embedding models, so they are never compared by raw score: shelves that share a model are ranked together, keyword search runs once over all of them, and the lists are fused by rank.</p>
+      <p>The path for a reviewer: website → <em>Employee login</em> → intranet → <em>Open the RAG admin console</em>.</p>
+    </div>
+    <figure class="shot"><img src="img/27-luna-source.jpg" alt="Luna's answer with the cited passage open"><figcaption>An answer and the passage it came from.</figcaption></figure>
+  </div>
+</section>
+
 <!-- 13 -->
 <section class="slide" id="slide-13" aria-label="Architecture">
   <div class="slide-head"><p class="eyebrow">How it works</p><h2>Architecture</h2></div>
@@ -407,9 +429,9 @@ td.num { font-variant-numeric: tabular-nums; white-space: nowrap; }
 <section class="slide" id="slide-15" aria-label="Testing">
   <div class="slide-head"><p class="eyebrow">Quality</p><h2>Tested with fakes in CI, and end to end with the real model</h2></div>
   <div class="stats">
-    <div class="stat"><b>164</b><span>unit and API tests, no model needed</span></div>
+    <div class="stat"><b>179</b><span>unit and API tests, no model needed</span></div>
     <div class="stat"><b>53/53</b><span>must-pass end-to-end checks</span></div>
-    <div class="stat"><b>52/57</b><span>answer quality checks passed</span></div>
+    <div class="stat"><b>53/57</b><span>answer quality checks passed</span></div>
     <div class="stat"><b>82%</b><span>answers citing the right source (31/38)</span></div>
   </div>
   <div class="split even top">
@@ -417,7 +439,7 @@ td.num { font-variant-numeric: tabular-nums; white-space: nowrap; }
       <p>The end-to-end kit drives the same API as the UI with 11 fictional business documents in English and Spanish and about 60 questions. It checks ingestion of every file type, answers against expected facts, citations, refusals, versions and rollback, trash and restore, cancel and retry, rebuilds, suggested shelves, prompt injection, and recovery after a restart.</p>
     </div>
     <div class="copy">
-      <p>Every failure is classified as a <em>retrieval miss</em>, an <em>answer miss</em> or an <em>app error</em>, and each run gets a written report. The first run, graded by a reviewer, found citations right only 64% of the time; a measured prompt fix and a citation check raised that to 81%. The five answer misses in the latest run are all the small model leaving out a fact it was given.</p>
+      <p>Every failure is classified as a <em>retrieval miss</em>, an <em>answer miss</em> or an <em>app error</em>, and each run gets a written report. The first run, graded by a reviewer, found citations right only 64% of the time; a measured prompt fix and a citation check raised that to 81%. The four answer misses in the latest run (v0.6.0, 2026-11-09) are all the small model leaving out a fact it was given.</p>
       <p class="muted" style="font-size:0.85em">CI: ruff, pytest, the frontend build and a Docker build on every push.</p>
     </div>
   </div>

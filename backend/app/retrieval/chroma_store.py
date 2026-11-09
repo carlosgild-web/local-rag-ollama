@@ -1,10 +1,36 @@
 """ChromaDB-backed VectorStore (persistent, embedded)."""
 
+import logging
+import time
+from collections.abc import Callable
 from pathlib import Path
+from typing import TypeVar
 
 import chromadb
+from chromadb.errors import InternalError
 
 from app.retrieval.vector_store import VectorMatch, VectorStore
+
+log = logging.getLogger(__name__)
+T = TypeVar("T")
+
+# Right after a large write, Chroma (1.5.x, Rust core) can briefly fail reads of
+# that collection with "Error creating hnsw segment reader: Nothing found on disk"
+# until its index is flushed. Reads wait and retry for about 15 s on that error only.
+_INDEX_NOT_READY = "Nothing found on disk"
+_RETRY_DELAYS = (0.5, 1.0, 2.0, 4.0, 8.0)
+
+
+def _read_with_retry(read: Callable[[], T], *, sleep: Callable[[float], None] = time.sleep) -> T:
+    for delay in _RETRY_DELAYS:
+        try:
+            return read()
+        except InternalError as error:
+            if _INDEX_NOT_READY not in str(error):
+                raise
+            log.warning("chroma index not on disk yet; retrying read", extra={"wait_s": delay})
+            sleep(delay)
+    return read()
 
 
 class EmbeddingModelMismatchError(Exception):
@@ -13,7 +39,12 @@ class EmbeddingModelMismatchError(Exception):
 
 class ChromaVectorStore(VectorStore):
     def __init__(self, persist_dir: Path):
-        self._client = chromadb.PersistentClient(path=str(persist_dir))
+        # Embedded only: Chroma's HTTP server is never started. Telemetry is off
+        # explicitly so no future Chroma version can send anything (no cloud calls).
+        self._client = chromadb.PersistentClient(
+            path=str(persist_dir),
+            settings=chromadb.config.Settings(anonymized_telemetry=False),
+        )
 
     def get_or_create_collection(self, name: str, metadata: dict) -> None:
         full_metadata = {**metadata, "hnsw:space": "cosine"}
@@ -40,8 +71,10 @@ class ChromaVectorStore(VectorStore):
         )
 
     def query(self, collection: str, embedding: list[float], top_k: int) -> list[VectorMatch]:
-        result = self._client.get_collection(collection).query(
-            query_embeddings=[embedding], n_results=top_k
+        result = _read_with_retry(
+            lambda: self._client.get_collection(collection).query(
+                query_embeddings=[embedding], n_results=top_k
+            )
         )
         matches = []
         ids = result["ids"][0]
@@ -69,8 +102,10 @@ class ChromaVectorStore(VectorStore):
         self._client.heartbeat()
 
     def get_vectors(self, collection: str, where: dict) -> list[tuple[dict, list[float]]]:
-        result = self._client.get_collection(collection).get(
-            where=where, include=["embeddings", "metadatas"]
+        result = _read_with_retry(
+            lambda: self._client.get_collection(collection).get(
+                where=where, include=["embeddings", "metadatas"]
+            )
         )
         return [
             (metadata, list(embedding))

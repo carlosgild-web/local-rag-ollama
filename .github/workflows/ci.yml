@@ -10,6 +10,10 @@ concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: true
 
+# Least privilege: the jobs only read the code.
+permissions:
+  contents: read
+
 jobs:
   backend:
     runs-on: ubuntu-latest

@@ -1,11 +1,16 @@
 # Mode A (PLAN.md appendix A): Ollama and the app as two containers.
-#   docker compose up --build
+#   docker compose up -d
 #   docker compose exec ollama ollama pull bge-m3
 #   docker compose exec ollama ollama pull llama3.1      # or qwen2.5:3b on 8 GB RAM
-# Then open http://localhost:8000
+#   docker compose exec app python -m app.cli seed-demo  # optional demo company
+# Then open http://localhost:8000/site (demo) or http://localhost:8000 (console).
 #
 # Mode B, Ollama already running on the host:
-#   docker compose -f compose.yaml -f compose.host-ollama.yaml up --build
+#   docker compose -f compose.yaml -f compose.host-ollama.yaml up -d
+#
+# The app image is pulled from GitHub Container Registry when it's published
+# (.github/workflows/release-image.yml); otherwise, or with --build, it's built
+# from this folder.
 
 services:
   ollama:
@@ -29,8 +34,8 @@ services:
     #           capabilities: [gpu]
 
   app:
+    image: ghcr.io/carlosgild-web/local-rag-ollama:latest
     build: .
-    image: ollama-rag:latest
     environment:
       OLLAMA_BASE_URL: http://ollama:11434
       DATA_DIR: /data

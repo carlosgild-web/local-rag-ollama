@@ -1,12 +1,19 @@
 # Local RAG with Ollama
 
+[![CI](https://github.com/carlosgild-web/local-rag-ollama/actions/workflows/ci.yml/badge.svg)](https://github.com/carlosgild-web/local-rag-ollama/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+
+*Python · FastAPI · SQLite FTS5 · ChromaDB · Ollama · React + TypeScript · Docker*
+
 **Ask questions about your own documents, fully offline.** Every answer is grounded in your files and cites them. When the answer isn't in your files, the app says so.
 
 ![Adding a folder: the app suggests a shelf and tags for every file, you review and confirm](docs/showcase/img/intake-flow.gif)
 
 Drop in PDFs, Word files, Markdown or plain text. The app reads them, suggests where each one belongs, and answers questions in a chat with numbered citations you can click to see the exact passage. The chat model and the embeddings run in [Ollama](https://ollama.com) on your machine, so nothing is sent anywhere.
 
-**[Take the 10-minute reviewer walkthrough →](docs/walkthrough.md)**: the demo company's website, its intranet with Luna, and the admin console, with screenshots. There's also a [slide deck](docs/showcase/index.html) (open it in a browser).
+**[Getting started, step by step →](GETTING_STARTED.md)** ([as a web page](https://carlosgild-web.github.io/local-rag-ollama/getting-started.html)): install, load the demo company, try everything and run the tests.
+
+**[Take the 10-minute reviewer walkthrough →](docs/walkthrough.md)**: the demo company's website, its intranet with Luna, and the admin console, with screenshots. There's also a [slide deck](https://carlosgild-web.github.io/local-rag-ollama/showcase/).
 
 ## What it does
 
@@ -108,9 +115,9 @@ flowchart LR
 
 | Check | Result |
 |---|---|
-| Unit and API tests (fakes, run in CI) | 175 tests pass; `ruff` clean |
+| Unit and API tests (fakes, run in CI) | 179 tests pass; `ruff` clean |
 | CI (GitHub Actions) | lint, tests, frontend build and `docker build` on every push |
-| End-to-end test: real Ollama, 11 sample documents, about 60 questions | **53/53** must-pass checks · 52/57 answer checks · 31/38 citations correct · 7/7 refusals ([report](docs/test-reports/2026-11-08-e2e.md)) |
+| End-to-end test: real Ollama, 11 sample documents, about 60 questions, plus Luna through the portal | **53/53** must-pass checks · 53/57 answer checks · 31/38 citations correct · 7/7 refusals · 6/6 portal questions ([report](docs/test-reports/2026-11-09-e2e.md)) |
 
 The end-to-end kit in [`e2e/`](e2e/) drives the same API the UI uses. It checks:
 - ingestion of every file type, answers against expected facts, citations and grounding
@@ -138,22 +145,22 @@ ollama pull bge-m3
 ollama pull llama3.1        # or qwen2.5:3b on a machine with ~8 GB RAM
 ```
 
-**Docker:**
+**Docker:** the app image is pulled from `ghcr.io/carlosgild-web/local-rag-ollama` (add `--build` to build it from source instead).
 
 ```bash
-docker compose up --build                                            # Ollama in its own container
+docker compose up -d                                                 # Ollama in its own container
 docker compose exec ollama ollama pull bge-m3
 docker compose exec ollama ollama pull llama3.1                      # or qwen2.5:3b with CHAT_MODEL=qwen2.5:3b
-docker compose -f compose.yaml -f compose.host-ollama.yaml up --build   # or use the Ollama on your machine
+docker compose -f compose.yaml -f compose.host-ollama.yaml up -d     # or use the Ollama on your machine
 ```
 
 **Local (Windows / macOS / Linux):**
 
 ```bash
-cd backend
+cd frontend && npm ci && npm run build                                    # build the UI first: FastAPI serves it
+cd ../backend
 python -m venv .venv && .venv/Scripts/pip install -r requirements.txt   # macOS/Linux: .venv/bin/pip
 .venv/Scripts/python -m uvicorn app.main:app --port 8000                  # migrations run on start
-cd ../frontend && npm ci && npm run build                                 # FastAPI serves the built UI
 ```
 
 Open http://localhost:8000. For UI work, run `npm run dev` in `frontend/`: it serves http://localhost:5173 and forwards `/api` to port 8000. Settings are environment variables; see [`backend/.env.example`](backend/.env.example).

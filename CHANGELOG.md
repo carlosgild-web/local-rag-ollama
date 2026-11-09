@@ -6,11 +6,40 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Ver
 
 ### Added
 
-- **[Reviewer walkthrough](docs/walkthrough.md):** a 10-minute tour from the company's website through the intranet and Luna to the admin console, with screenshots.
+- **[Getting started](GETTING_STARTED.md):** a step-by-step guide covering three ways to start, the demo, a tour with screenshots, the tests and troubleshooting. It's also a web page for GitHub Pages (`docs/getting-started.html`), next to a landing page (`docs/index.html`).
+- **Ready-made Docker image:** `.github/workflows/release-image.yml` publishes `ghcr.io/carlosgild-web/local-rag-ollama` on version tags. `compose.yaml` pulls it, and builds from source with `--build` or when no image is published yet. Checked by hand on 2026-11-09:
+  - the fallback build, the health check and the non-root user
+  - `seed-demo` in the container
+  - data kept across a restart
+  - `CHAT_MODEL`
+  - all pages
+  - Luna answering in English and Spanish with citations
+- **Reviewer walkthrough** ([docs/walkthrough.md](docs/walkthrough.md)): a 10-minute tour from the company's website through the intranet and Luna to the admin console, with screenshots.
 - New showcase screenshots of the public site, staff sign-in, demo guide, Luna's sources, the dashboard and the portal switch, plus a contact sheet of the product renders and a GitHub social preview image (`docs/showcase/social-preview.jpg`).
+
+### Tested
+
+- **End-to-end run on v0.6.0** ([report](docs/test-reports/2026-11-09-e2e.md)):
+  - 53/53 must-pass checks, 53/57 answer checks, 31/38 citations correct and 7/7 refusals
+  - the restart check passed
+  - a new Luna check through the employee portal passed 6/6, in English and Spanish, including a not-found
+  - it found the Chroma read bug fixed below
+
+### Security
+
+- `SECURITY.md`: the project's scope (a local demo with no authentication by design), how the code protects itself, and private vulnerability reporting.
+- CI runs with read-only permissions (`permissions: contents: read`), and `.github/dependabot.yml` proposes weekly grouped updates for pip, npm and GitHub Actions.
+- Chroma's anonymized telemetry is turned off explicitly, with a test, so no future Chroma version can make a network call. It was already a no-op in chromadb 1.5.9.
+- `pip-audit` flags chromadb 1.5.9 for four advisories, all in Chroma's HTTP server, which this app never starts. See `SECURITY.md`.
+
+### Changed
+
+- README: CI and license badges, a stack line, and the slide deck linked on GitHub Pages.
+- Slide deck: v0.6.0, two new slides (the demo company, and Luna), and 179 tests.
 
 ### Fixed
 
+- **Reads right after a large write could fail.** Chroma 1.5.x sometimes failed reads of a collection with "Error creating hnsw segment reader: Nothing found on disk" until its index was flushed. The end-to-end run on 2026-11-09 hit it while analysing a dropped folder right after an upload. The Chroma store now retries vector reads (search and `get_vectors`) on that error only, for up to about 15 seconds, with tests.
 - Luna showed the question twice while answering. The admin chat's check now lives in `useChatStream` and both use it.
 - The demo guide promised a version-rollback screen that the console doesn't have yet. Rollback is in the API; the guide now suggests uploading a new version instead.
 - The demo guide's strip on the site fits on one line.

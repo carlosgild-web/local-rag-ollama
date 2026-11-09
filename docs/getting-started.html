@@ -1,0 +1,230 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Getting started · Local RAG with Ollama</title>
+<meta name="description" content="Set up the local RAG app, load the demo company and try every feature, step by step.">
+<style>
+  :root {
+    --bg: #f7f7f5; --card: #ffffff; --ink: #18181b; --muted: #5b5b66; --line: #e4e4e7;
+    --accent: #0f766e; --accent-soft: #e6f4f2; --code-bg: #18181b; --code-ink: #f4f4f5; --warn-bg: #fff7e6; --warn-line: #f0c36d;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg: #121214; --card: #1c1c20; --ink: #ececf1; --muted: #a1a1aa; --line: #2e2e35;
+      --accent: #2dd4bf; --accent-soft: #10302c; --code-bg: #0b0b0d; --code-ink: #e4e4e7; --warn-bg: #2a2212; --warn-line: #8a6a1f; }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink); font: 16px/1.6 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+  a { color: var(--accent); }
+  .wrap { max-width: 1120px; margin: 0 auto; padding: 0 16px; display: grid; grid-template-columns: 240px minmax(0, 1fr); gap: 40px; }
+  header { max-width: 1120px; margin: 0 auto; padding: 48px 16px 24px; }
+  header p.eyebrow { margin: 0; color: var(--accent); font-weight: 600; letter-spacing: .08em; text-transform: uppercase; font-size: 13px; }
+  header h1 { margin: 6px 0 8px; font-size: clamp(30px, 5vw, 44px); line-height: 1.1; }
+  header p.lede { margin: 0; color: var(--muted); max-width: 680px; font-size: 18px; }
+  nav.toc { position: sticky; top: 24px; align-self: start; font-size: 14px; }
+  nav.toc ol { list-style: none; padding: 0; margin: 0; counter-reset: s; }
+  nav.toc li { counter-increment: s; }
+  nav.toc a { display: block; padding: 6px 10px; border-radius: 8px; color: var(--muted); text-decoration: none; }
+  nav.toc a::before { content: counter(s) ". "; color: var(--accent); font-weight: 600; }
+  nav.toc a:hover { background: var(--card); color: var(--ink); }
+  main section { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 24px 28px; margin-bottom: 24px; scroll-margin-top: 16px; }
+  h2 { margin: 0 0 12px; font-size: 24px; display: flex; gap: 12px; align-items: center; }
+  h2 .n { display: inline-grid; place-items: center; width: 34px; height: 34px; border-radius: 50%; background: var(--accent); color: var(--card); font-size: 17px; flex: none; }
+  h3 { margin: 22px 0 6px; font-size: 18px; }
+  p, li { color: var(--ink); }
+  .muted { color: var(--muted); }
+  table { width: 100%; border-collapse: collapse; font-size: 15px; }
+  td, th { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  th { font-size: 13px; color: var(--muted); text-transform: uppercase; letter-spacing: .05em; }
+  .code { position: relative; margin: 10px 0 14px; }
+  pre { margin: 0; background: var(--code-bg); color: var(--code-ink); padding: 14px 16px; border-radius: 10px; overflow-x: auto; font: 13.5px/1.6 ui-monospace, "Cascadia Code", Consolas, monospace; }
+  pre .c { color: #8b8b96; }
+  .copy { position: absolute; top: 8px; right: 8px; border: 1px solid #3f3f46; background: #27272a; color: #e4e4e7; border-radius: 6px; padding: 3px 10px; font-size: 12px; cursor: pointer; }
+  .copy:focus-visible, nav.toc a:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  code { background: var(--accent-soft); padding: 1px 6px; border-radius: 5px; font-size: .9em; }
+  pre code { background: none; padding: 0; }
+  .ways { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; margin: 12px 0 4px; }
+  .way { border: 1px solid var(--line); border-radius: 10px; padding: 12px 14px; font-size: 14px; }
+  .way b { display: block; font-size: 15px; }
+  figure { margin: 14px 0 18px; }
+  figure img { width: 100%; height: auto; border-radius: 10px; border: 1px solid var(--line); display: block; }
+  figcaption { font-size: 14px; color: var(--muted); margin-top: 6px; }
+  .step { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr); gap: 20px; align-items: start; margin: 18px 0; }
+  .step p { margin-top: 0; }
+  .note { border: 1px solid var(--warn-line); background: var(--warn-bg); border-radius: 10px; padding: 12px 16px; font-size: 15px; }
+  footer { max-width: 1120px; margin: 0 auto; padding: 8px 16px 48px; color: var(--muted); font-size: 14px; }
+  @media (max-width: 860px) {
+    .wrap { grid-template-columns: minmax(0, 1fr); gap: 0; }
+    nav.toc { position: static; margin-bottom: 16px; }
+    .ways, .step { grid-template-columns: minmax(0, 1fr); }
+    main section { padding: 20px 18px; }
+  }
+</style>
+</head>
+<body>
+<header>
+  <p class="eyebrow">Local RAG with Ollama · Getting started</p>
+  <h1>Set it up, load the demo, try everything</h1>
+  <p class="lede">About 15 minutes, plus the model download. Everything runs on your computer; nothing you upload leaves it. Source: <a href="https://github.com/carlosgild-web/local-rag-ollama">github.com/carlosgild-web/local-rag-ollama</a>.</p>
+</header>
+
+<div class="wrap">
+<nav class="toc" aria-label="Steps">
+  <ol>
+    <li><a href="#need">What you need</a></li>
+    <li><a href="#start">Start the app</a></li>
+    <li><a href="#check">Check it's running</a></li>
+    <li><a href="#demo">Load the demo company</a></li>
+    <li><a href="#tour">Take the tour</a></li>
+    <li><a href="#test">Run the tests</a></li>
+    <li><a href="#help">If something goes wrong</a></li>
+  </ol>
+</nav>
+
+<main>
+<section id="need">
+  <h2><span class="n">1</span>What you need</h2>
+  <table>
+    <tr><th>Memory</th><td>8 GB of RAM at least; 16 GB is comfortable. On 8 GB, use the small chat model (<code>qwen2.5:3b</code>).</td></tr>
+    <tr><th>Disk</th><td>About 4 GB for the small models (<code>qwen2.5:3b</code> and <code>bge-m3</code>), or 7 GB with <code>llama3.1</code>.</td></tr>
+    <tr><th>Software</th><td><a href="https://www.docker.com/products/docker-desktop/">Docker Desktop</a> (ways A and B), or Python 3.11+ and Node 22 (way C). For ways B and C, also <a href="https://ollama.com">Ollama</a>.</td></tr>
+  </table>
+  <p class="muted">No GPU is needed, and no internet connection after the models are downloaded.</p>
+  <div class="code"><pre><code>git clone https://github.com/carlosgild-web/local-rag-ollama.git
+cd local-rag-ollama</code></pre></div>
+</section>
+
+<section id="start">
+  <h2><span class="n">2</span>Start the app</h2>
+  <div class="ways">
+    <div class="way"><b>A. Docker, all in containers</b>Easiest. Ollama runs in its own container.</div>
+    <div class="way"><b>B. Docker + your Ollama</b>Uses the Ollama already on your computer and its models.</div>
+    <div class="way"><b>C. Without Docker</b>Python and Node directly. Best for changing the code.</div>
+  </div>
+
+  <h3>A. Docker, everything in containers</h3>
+  <div class="code"><pre><code>docker compose up -d
+docker compose exec ollama ollama pull bge-m3
+docker compose exec ollama ollama pull llama3.1</code></pre></div>
+  <p>On a machine with 8 GB of RAM, use the small chat model instead:</p>
+  <div class="code"><pre><code>CHAT_MODEL=qwen2.5:3b docker compose up -d                 <span class="c"># PowerShell: $env:CHAT_MODEL="qwen2.5:3b"; docker compose up -d</span>
+docker compose exec ollama ollama pull bge-m3
+docker compose exec ollama ollama pull qwen2.5:3b</code></pre></div>
+  <p class="muted">The app image is pulled ready-made from GitHub's registry. Add <code>--build</code> to the first command to build it from the source instead.</p>
+
+  <h3>B. Docker, with the Ollama already on your computer</h3>
+  <div class="code"><pre><code>ollama pull bge-m3
+ollama pull llama3.1          <span class="c"># or qwen2.5:3b, then start with CHAT_MODEL=qwen2.5:3b</span>
+docker compose -f compose.yaml -f compose.host-ollama.yaml up -d</code></pre></div>
+
+  <h3>C. Without Docker</h3>
+  <div class="code"><pre><code>ollama pull bge-m3
+ollama pull llama3.1
+
+cd frontend &amp;&amp; npm ci &amp;&amp; npm run build             <span class="c"># build the web app first</span>
+cd ../backend
+python -m venv .venv
+.venv/Scripts/pip install -r requirements.txt      <span class="c"># macOS/Linux: .venv/bin/pip</span>
+.venv/Scripts/python -m uvicorn app.main:app --port 8000</code></pre></div>
+  <p class="muted">Settings are environment variables, such as <code>CHAT_MODEL</code>, <code>OLLAMA_BASE_URL</code> and <code>DATA_DIR</code>. See <a href="https://github.com/carlosgild-web/local-rag-ollama/blob/main/backend/.env.example"><code>backend/.env.example</code></a>.</p>
+</section>
+
+<section id="check">
+  <h2><span class="n">3</span>Check that it's running</h2>
+  <div class="step">
+    <div>
+      <p>Open <a href="http://localhost:8000">http://localhost:8000</a>. The console's dashboard shows <b>All systems OK</b> once Ollama, the database, the search index and the background worker all answer.</p>
+      <p>If something is red, click <b>Troubleshoot</b>. It names the cause and the fix, for example "Ollama isn't running" or "the chat model isn't installed".</p>
+    </div>
+    <figure><img src="showcase/img/28-console-dashboard.jpg" alt="The console dashboard showing All systems OK" loading="lazy"><figcaption>The dashboard, with the Company site and Employee portal buttons.</figcaption></figure>
+  </div>
+</section>
+
+<section id="demo">
+  <h2><span class="n">4</span>Load the demo company</h2>
+  <p><b>Hilda &amp; Luna Beadworks</b> is a fictional bead maker with 11 documents: a handbook, safety training, a catalog, a price sheet, an FAQ and more.</p>
+  <div class="code"><pre><code>docker compose exec app python -m app.cli seed-demo             <span class="c"># ways A and B</span>
+cd backend &amp;&amp; .venv/Scripts/python -m app.cli seed-demo         <span class="c"># way C</span></code></pre></div>
+  <p>It creates four shelves (customer-support, hr, meetings, operations) and ends with <code>11 ingested, 0 skipped</code>. Running it again skips every file as a duplicate.</p>
+</section>
+
+<section id="tour">
+  <h2><span class="n">5</span>Take the tour</h2>
+  <div class="step">
+    <div><p><b>① The company's website:</b> <a href="http://localhost:8000/site">localhost:8000/site</a>. The dark strip on top is the demo guide. It isn't part of the company's design; it shows reviewers the way.</p></div>
+    <figure><img src="showcase/img/22-site-home.jpg" alt="The public website of Hilda &amp; Luna Beadworks" loading="lazy"><figcaption>The product photos are Blender renders made by a script in the repo.</figcaption></figure>
+  </div>
+  <div class="step">
+    <div><p><b>② Employee login → Enter as demo employee.</b> The sign-in is a simulation: no accounts, one button.</p></div>
+    <figure><img src="showcase/img/24-staff-signin.jpg" alt="The simulated staff sign-in" loading="lazy"></figure>
+  </div>
+  <div class="step">
+    <div><p><b>③ The intranet.</b> Click <b>How this demo works</b> in the banner for the path and things to try.</p></div>
+    <figure><img src="showcase/img/25-intranet-demo-guide.jpg" alt="The intranet with the demo guide banner" loading="lazy"></figure>
+  </div>
+  <div class="step">
+    <div><p><b>④ Ask Luna</b> something, like <i>"When does the company close for the holidays?"</i>, and open a source to see the exact passage.</p><p>Switch to <b>ES</b> and ask in Spanish. Ask something the documents don't say, and Luna says so instead of guessing.</p></div>
+    <figure><img src="showcase/img/27-luna-source.jpg" alt="Luna's answer with the cited passage open" loading="lazy"></figure>
+  </div>
+  <div class="step">
+    <div><p><b>⑤ Open the RAG admin console</b> from the banner. Under <b>Collections</b>, turn a shelf's <i>Visible in the employee portal</i> switch off, and Luna stops using it.</p></div>
+    <figure><img src="showcase/img/29-collections-portal-switch.jpg" alt="Shelves with the employee-portal switch" loading="lazy"></figure>
+  </div>
+  <div class="step">
+    <div><p><b>⑥ Try your own documents.</b> In <b>Library</b>, drop a few files or a whole folder. The app suggests a shelf and tags for each one; you confirm, and they're indexed. Then ask about them in <b>Chat</b>.</p></div>
+    <figure><img src="showcase/img/04-suggestions.jpg" alt="Suggested shelves and tags for new files" loading="lazy"></figure>
+  </div>
+  <p class="muted">The <a href="https://github.com/carlosgild-web/local-rag-ollama/blob/main/docs/walkthrough.md">reviewer walkthrough</a> goes through the same tour in more detail, and the <a href="showcase/">slide deck</a> explains the design.</p>
+</section>
+
+<section id="test">
+  <h2><span class="n">6</span>Run the tests</h2>
+  <div class="code"><pre><code>cd backend
+.venv/Scripts/pip install -r requirements-dev.txt
+.venv/Scripts/python -m pytest -q                       <span class="c"># 179 tests, with fakes: no Ollama needed</span>
+.venv/Scripts/ruff check . &amp;&amp; .venv/Scripts/ruff format --check .
+cd ../frontend &amp;&amp; npm run build                         <span class="c"># type check and build</span></code></pre></div>
+  <p>The <b>end-to-end test</b> drives the running app with the real model: about 60 questions and every app mechanic. It takes 1–3 hours on a laptop CPU; see <a href="https://github.com/carlosgild-web/local-rag-ollama/blob/main/e2e/README.md"><code>e2e/README.md</code></a>. CI runs the unit tests, the linters, the frontend build and a Docker build on every push.</p>
+</section>
+
+<section id="help">
+  <h2><span class="n">7</span>If something goes wrong</h2>
+  <table>
+    <tr><th>Problem</th><th>What to do</th></tr>
+    <tr><td>"Ollama isn't running"</td><td>Start Ollama (way B or C), or check <code>docker compose ps</code> (way A). The troubleshooter shows the address it's trying.</td></tr>
+    <tr><td>"Model not installed"</td><td>Run the <code>ollama pull</code> lines from step 2 for the models the app expects (<code>CHAT_MODEL</code>, <code>EMBEDDING_MODEL</code>).</td></tr>
+    <tr><td>Answers are slow</td><td>That's normal on a CPU: 20–60 seconds an answer. Use <code>qwen2.5:3b</code> on smaller machines.</td></tr>
+    <tr><td>Port 8000 is in use</td><td>Stop the other program, or change the left port in <code>compose.yaml</code> (<code>127.0.0.1:8001:8000</code>).</td></tr>
+    <tr><td>Start over with no documents</td><td>Ways A and B: <code>docker compose down -v</code> (<b>deletes</b> the app's data and the downloaded models). Way C: delete <code>backend/data/</code>.</td></tr>
+  </table>
+  <p>To stop the app, run <code>docker compose down</code>; your documents and models are kept.</p>
+  <p class="note"><b>Security:</b> there are no logins. Run the app on your own computer or a private network only. See <a href="https://github.com/carlosgild-web/local-rag-ollama/blob/main/SECURITY.md">SECURITY.md</a>.</p>
+</section>
+</main>
+</div>
+
+<footer>Hilda &amp; Luna Beadworks, its people and its documents are fictional. MIT licensed.</footer>
+
+<script>
+  // A copy button on every command block.
+  document.querySelectorAll(".code").forEach((block) => {
+    const button = document.createElement("button");
+    button.className = "copy";
+    button.type = "button";
+    button.textContent = "Copy";
+    button.addEventListener("click", async () => {
+      const lines = block.querySelector("code").innerText.split("\n").map((l) => l.replace(/\s+#.*$/, ""));
+      try {
+        await navigator.clipboard.writeText(lines.join("\n").trim());
+        button.textContent = "Copied";
+      } catch {
+        button.textContent = "Select and copy";
+      }
+      setTimeout(() => (button.textContent = "Copy"), 1500);
+    });
+    block.appendChild(button);
+  });
+</script>
+</body>
+</html>

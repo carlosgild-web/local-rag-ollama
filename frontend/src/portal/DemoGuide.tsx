@@ -61,8 +61,8 @@ export function useDemoGuide(): [Mode, (mode: Mode) => void] {
 const GUIDE = {
   tag: { es: "Demo de portafolio · no es parte del diseño de la empresa", en: "Portfolio demo · not part of the company design" },
   strip: {
-    es: "Este sitio es de una empresa ficticia, creada para demostrar un sistema RAG local. Empieza aquí:",
-    en: "This website belongs to a fictional company, made to demo a local RAG system. Start here:",
+    es: "Empresa ficticia para demostrar un sistema RAG local. Empieza aquí:",
+    en: "A fictional company, made to demo a local RAG system. Start here:",
   },
   path: { es: "Acceso empleados → intranet → consola RAG", en: "Employee login → intranet → RAG console" },
   banner: {
@@ -192,7 +192,7 @@ export function DemoGuide({ where }: { where: "site" | "intranet" }) {
     <>
       {mode === "open" && where === "site" && (
         <div role="region" aria-label={t(GUIDE.pill)} className={cn(FRAME, "border-b")}>
-          <div className="mx-auto flex max-w-6xl flex-wrap items-center gap-x-3 gap-y-1 px-4 py-2 text-xs sm:px-6">
+          <div className="mx-auto flex max-w-7xl flex-wrap items-center gap-x-3 gap-y-1 px-4 py-2 text-xs sm:px-6">
             <Tag />
             <p className="text-zinc-200">
               {t(GUIDE.strip)}{" "}

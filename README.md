@@ -46,7 +46,7 @@ Load the demo company's 11 fictional documents with one command (Ollama must be 
 cd backend && .venv/Scripts/python -m app.cli seed-demo     # one shelf per folder in backend/demo/hilda-luna/
 ```
 
-Then open http://localhost:8000/site (the public website) or http://localhost:8000/intranet, or use **Company site** and **Employee portal** on the dashboard.
+Then open http://localhost:8000/site (the public website) or http://localhost:8000/intranet, or use **Company site** and **Employee portal** on the dashboard. A **demo guide** marked as outside the company design walks a reviewer from the website to the intranet and on to this admin console.
 
 ## How it works
 

@@ -26,6 +26,7 @@ The employee portal, from the `feature/employee-portal` branch ([decision 0010](
   - **Product photos rendered in Blender** by `scripts/render_site_art.py` (beads, charms, findings, starter set, hero necklace), and slots for three AI-generated scene photos prepared by `scripts/prepare_site_photos.py` ([docs/site-images.md](docs/site-images.md)). Any missing image falls back to its SVG drawing.
   - **Employee login** opens `/site/staff`, a simulated staff sign-in with one *Enter as demo employee* button into `/intranet`.
   - Links between the site, the intranet and the console: a *Company site* button on the dashboard and a sidebar link.
+- **Reviewer's demo guide**, marked as not part of the company design: a strip on the public site, a banner on the intranet with *How this demo works* (a side panel with the path and things to try) and *Open the RAG admin console*. It can collapse to a *Demo guide* pill.
 
 ## [0.5.0] - 2026-11-09
 

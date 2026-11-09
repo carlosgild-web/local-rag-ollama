@@ -53,6 +53,13 @@ Internal facts stay on the intranet: sales figures, the foundry delay, HR policy
 
 **Same brand, warmer look.** The site uses cream, sand, rust and forest tokens (`--color-hl-*` in `index.css`), taken from the Amber Hollow collection. It keeps the bead-moon logo, the bundled Fraunces and Figtree fonts, and the ES/EN switch. The language is stored under the same key, so it carries into the intranet. `LangSwitch` and the tab-title hook moved to `portal/brand.tsx` for both layouts. Text colors meet WCAG AA; `hl-amber-light` exists only so amber text on forest green passes.
 
+**A reviewer's guide, outside the fiction.** Someone reviewing the portfolio, such as a recruiter, starts at the website and needs to learn three things: that it's a demo, which path to follow, and that the real product is the RAG console behind the intranet. The guide in `src/portal/DemoGuide.tsx` tells them.
+- **Public site:** a one-line strip pointing to *Employee login → intranet → RAG console*.
+- **Intranet:** a banner with *How this demo works* and *Open the RAG admin console* (a new tab, so the intranet stays open).
+- **The panel:** a right-side drawer (the shared `Dialog` with `side="right"`) explaining what the project is, the four-step path with "you are here", and things to try.
+- **Look:** deliberately not the company's. Neutral charcoal, a dashed edge, a monospace "Portfolio demo · not part of the company design" tag and the console's plain font, so nobody mistakes it for Hilda & Luna's branding.
+- **Hiding:** closing it collapses it to a *Demo guide* pill at the bottom left, away from Luna's bubble. The choice is remembered in the browser (`hl-demo-guide`) for both sites, so clean screenshots are easy and the path is never lost.
+
 **No public chat yet.** Luna stays employee-only. A customer assistant would need a `public` channel and a per-shelf public flag; it is left for later.
 
 ## Consequences

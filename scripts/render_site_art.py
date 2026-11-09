@@ -430,30 +430,10 @@ def _range(start, stop, n):
 
 
 def charm_shapes(kind):
-    """(points, extra height) for each solid piece of a charm."""
+    """(points, extra height) for each flat piece of a charm (bee and lotus are sculpted)."""
     if kind == "moon":
         # The star overlaps the inner edge of the moon, so the charm is cast in one piece.
         return [(crescent_pts(), 0.0), (star_pts(43, 61, 10.5), 0.04)]
-    if kind == "bee":
-        wings = [
-            (ellipse_pts(37, 46, 11, 7, -25), -0.02),
-            (ellipse_pts(63, 46, 11, 7, 25), -0.02),
-        ]
-        body = [(circle_pts(50, 37, 7), 0.0), (ellipse_pts(50, 62, 13, 18), 0.0)]
-        stripes = [
-            (rrect_pts(50 - w / 2, y - 1.6, w, 3.2, 1.5), 0.035)
-            for y, w in ((56, 22), (63, 24), (70, 21))
-        ]
-        return wings + body + stripes
-    if kind == "lotus":
-        petal = cubic((50, 82), (39, 66), (41, 46), (50, 34)) + cubic(
-            (50, 34), (59, 46), (61, 66), (50, 82)
-        )
-        pieces = []
-        for deg, h in ((-62, -0.03), (62, -0.03), (-32, 0.0), (32, 0.0), (0, 0.03)):
-            pieces.append(([P(x, y) for x, y in rotate(petal, deg, 50, 82)], h))
-        pieces.append((ellipse_pts(50, 84, 18, 3.5), 0.0))
-        return pieces
     if kind == "cactus":
         return [
             (rrect_pts(43, 30, 14, 54, 6.9), 0.03),
@@ -465,6 +445,46 @@ def charm_shapes(kind):
     if kind == "initial":
         return [(circle_pts(50, 58, 26), 0.0)]
     raise ValueError(kind)
+
+
+def dome(name, outline, mat, height, base=0.0, rings=14):
+    """A cast, rounded piece: the outline filled and raised into a smooth dome.
+
+    Rings run from the centre out to the outline; z follows a quarter circle, so
+    the edge meets the ground steeply, like a pillowy cast charm.
+    """
+    n = len(outline)
+    cx = sum(x for x, _ in outline) / n
+    cy = sum(y for _, y in outline) / n
+    verts = [(cx, cy, base + height)]
+    for k in range(1, rings + 1):
+        t = math.sin(0.5 * math.pi * k / rings)  # rings bunch up near the edge
+        z = base + height * math.sqrt(max(0.0, 1.0 - t * t))
+        verts += [(cx + (x - cx) * t, cy + (y - cy) * t, z) for x, y in outline]
+    faces = [(0, 1 + i, 1 + (i + 1) % n) for i in range(n)]
+    for k in range(rings - 1):
+        a, b = 1 + k * n, 1 + (k + 1) * n
+        faces += [(a + i, b + i, b + (i + 1) % n, a + (i + 1) % n) for i in range(n)]
+    last = 1 + (rings - 1) * n
+    faces.append(tuple(reversed(range(last, last + n))))
+    me = bpy.data.meshes.new(name)
+    me.from_pydata(verts, [], faces)
+    bm = bmesh.new()
+    bm.from_mesh(me)
+    bmesh.ops.recalc_face_normals(bm, faces=bm.faces)
+    bm.to_mesh(me)
+    bm.free()
+    for poly in me.polygons:
+        poly.use_smooth = len(poly.vertices) <= 4
+    obj = link(bpy.data.objects.new(name, me))
+    obj.data.materials.append(mat)
+    return obj
+
+
+def ellipse_height(x, y, cx, cy, rx, ry, height, base=0.0):
+    """Height of an elliptical dome (in drawing units for x, y) at a point."""
+    t = min(1.0, math.hypot((x - cx) / rx, (y - cy) / ry))
+    return base + height * math.sqrt(1.0 - t * t)
 
 
 def slab(name, points, mat, thick=0.1, bevel=0.025, lift=0.0, holes=()):
@@ -493,9 +513,12 @@ def charm(code_or_kind, finish=None, at=(0.0, 0.0), yaw=0.0, scale=1.0):
     mat = metal(finish)
     root = link(bpy.data.objects.new(f"{kind}-root", None))
     parts = []
-    for i, (points, extra) in enumerate(charm_shapes(kind)):
-        # Raised details are thicker, wings thinner; a hair of lift keeps faces from coinciding.
-        parts.append(slab(f"{kind}-{i}", points, mat, thick=0.1 + extra, lift=i * 0.0007))
+    if kind in SCULPTED:
+        parts += SCULPTED[kind](mat)
+    else:
+        for i, (points, extra) in enumerate(charm_shapes(kind)):
+            # Raised details are thicker; a hair of lift keeps faces from coinciding.
+            parts.append(slab(f"{kind}-{i}", points, mat, thick=0.1 + extra, lift=i * 0.0007))
     if kind == "initial":
         parts.append(_letter(mat))
     bail = torus(f"{kind}-bail", 4.5 * S, 1.25 * S)
@@ -531,6 +554,81 @@ def _letter(mat):
     return obj
 
 
+def _bee(mat):
+    """Domed head and body with raised stripes, engraved wings, eyes, antennae, stinger."""
+    parts = []
+    wing_top = 0.06 + 2 * 0.025
+    for side, (cx, rot) in enumerate(((37, -25), (63, 25))):
+        parts.append(slab(f"wing{side}", ellipse_pts(cx, 46, 11, 7, rot), mat, thick=0.06))
+        c, sn = math.cos(math.radians(rot)), math.sin(math.radians(rot))
+
+        def wing_pt(angle, scale, cx=cx, c=c, sn=sn):
+            a = math.radians(angle)
+            x, y = 11 * scale * math.cos(a), 7 * scale * math.sin(a)
+            return P(cx + x * c - y * sn, 46 + x * sn + y * c)
+
+        root = wing_pt(0 if side == 0 else 180, 0.75)
+        fan = (150, 180, 210) if side == 0 else (30, 0, -30)
+        for k, angle in enumerate(fan):
+            tip = wing_pt(angle, 0.82)
+            pts = [
+                (root[0] + (tip[0] - root[0]) * f, root[1] + (tip[1] - root[1]) * f)
+                for f in _range(0, 1, 8)
+            ]
+            parts.append(
+                tube(f"vein{side}{k}", [(x, y, wing_top + 0.004) for x, y in pts], 0.012, mat)
+            )
+        rim = [wing_pt(a, 0.8) for a in range(0, 360, 6)]
+        parts.append(
+            tube(f"rim{side}", [(x, y, wing_top + 0.004) for x, y in rim], 0.012, mat, cyclic=True)
+        )
+
+    parts.append(dome("head", circle_pts(50, 37, 7, n=64), mat, 0.17, base=0.0))
+    for x in (46.8, 53.2):
+        eye = sphere("eye", 1.5 * S, seg=24, rings=12)
+        eye.location = (*P(x, 35.5), ellipse_height(x, 35.5, 50, 37, 7, 7, 0.17) + 0.01)
+        eye.data.materials.append(mat)
+        parts.append(eye)
+    for sign in (-1, 1):
+        stalk = [P(50 + sign * 3, 31), P(50 + sign * 6, 26), P(50 + sign * 9.5, 22.5)]
+        parts.append(tube("antenna", [(x, y, 0.08) for x, y in stalk], 0.018, mat))
+        tip = sphere("antenna-tip", 1.4 * S, seg=24, rings=12)
+        tip.location = (*stalk[-1], 0.08)
+        tip.data.materials.append(mat)
+        parts.append(tip)
+
+    parts.append(dome("body", ellipse_pts(50, 62, 13, 18, n=96), mat, 0.21))
+    for y in (54, 61.5, 69):
+        half = 13 * math.sqrt(max(0.0, 1 - ((y - 62) / 18) ** 2)) * 0.9
+        xs = _range(50 - half, 50 + half, 24)
+        pts = [(*P(x, y), ellipse_height(x, y, 50, 62, 13, 18, 0.21) + 0.004) for x in xs]
+        parts.append(tube("stripe", pts, 0.032, mat))
+    parts.append(slab("stinger", [P(47.8, 78.5), P(52.2, 78.5), P(50, 85)], mat, thick=0.06))
+    return parts
+
+
+def _lotus(mat):
+    """Five pillowy petals, outer ones underneath, each with a raised centre vein."""
+    parts = []
+    petal = cubic((50, 82), (39, 66), (41, 46), (50, 34)) + cubic(
+        (50, 34), (59, 46), (61, 66), (50, 82)
+    )
+    height = 0.12
+    for deg, base in ((-62, 0.0), (62, 0.0), (-32, 0.02), (32, 0.02), (0, 0.04)):
+        outline = [P(x, y) for x, y in rotate(petal, deg, 50, 82)]
+        parts.append(dome(f"petal{deg}", outline, mat, height, base=base))
+        vein = []
+        for s_ in _range(-0.8, 0.8, 20):
+            x, y = rotate([(50, 58 + 24 * s_)], deg, 50, 82)[0]
+            vein.append((*P(x, y), base + height * math.sqrt(1 - s_ * s_) + 0.006))
+        parts.append(tube(f"vein{deg}", vein, 0.014, mat))
+    parts.append(slab("lotus-base", ellipse_pts(50, 84, 18, 3.5), mat, thick=0.1))
+    return parts
+
+
+SCULPTED = {"bee": _bee, "lotus": _lotus}
+
+
 # --------------------------------------------------------------------------- findings
 
 
@@ -554,62 +652,73 @@ def finding(kind):
             gap.operation = "DIFFERENCE"
             gap.object = cut
     elif kind == "clasp":
-        # A lobster clasp: a claw-shaped body around its opening, the spring lever on
-        # top of the right side, a trigger nub, and the ring it hangs from.
+        # A lobster clasp seen from the side: a teardrop claw open on one side,
+        # the spring gate filling the opening, a trigger tab and the end ring.
         gold = metal("gold")
         k = 1.5
 
-        def at(points):
-            return [(x * k, y * k) for x, y in (P(px, py) for px, py in points)]
+        def tear(theta, rx, ry, cy):
+            """Teardrop point in drawing units: theta 0 is the narrow top, clockwise."""
+            a = math.radians(theta)
+            narrow = 0.55 + 0.45 * (1 - math.cos(a)) / 2
+            x, y = P(50 + rx * math.sin(a) * narrow, cy - ry * math.cos(a))
+            return (x * k, y * k)
 
-        outer = cubic((50, 30), (66, 36), (72, 70), (50, 86)) + cubic(
-            (50, 86), (30, 72), (32, 40), (50, 30)
-        )
-        hole = cubic((51, 42), (60, 47), (62, 68), (50, 76)) + cubic(
-            (50, 76), (41, 68), (42, 50), (51, 42)
-        )
-        slab("clasp-body", at(outer), gold, thick=0.26, bevel=0.06, holes=[at(hole)])
-        lever = cubic((53, 44), (60, 48), (62, 62), (57, 70)) + cubic(
-            (57, 70), (59, 62), (58, 50), (53, 44)
-        )
-        slab("clasp-lever", at(lever), gold, thick=0.2, bevel=0.04, lift=0.2)
-        slab(
-            "clasp-nub",
-            at([(61, 50), (68, 47), (69, 50), (62, 54)]),
-            gold,
-            thick=0.16,
-            bevel=0.03,
-            lift=0.2,
-        )
+        gap = (45.0, 100.0)  # where the gate sits, on the right side
+        outer = [tear(t, 14, 27, 60) for t in _range(gap[1], gap[0] + 360, 120)]
+        inner = [tear(t, 8, 19, 62) for t in _range(gap[0] + 360, gap[1], 100)]
+        slab("clasp-body", outer + inner, gold, thick=0.3, bevel=0.07)
+        # The gate: a flat band filling the opening, with a hairline gap each side.
+        z = 0.3 / 2 + 0.07
+        gate_out = [tear(t, 13, 26, 60.5) for t in _range(gap[0] - 3, gap[1] + 2, 40)]
+        gate_in = [tear(t, 9, 20, 61.5) for t in _range(gap[1] + 2, gap[0] - 3, 40)]
+        slab("clasp-gate", gate_out + gate_in, gold, thick=0.24, bevel=0.05, lift=0.02)
+        pin = cylinder("clasp-pin", 0.07, 0.5)
+        pin.location = (*tear(gap[0] - 1, 11, 23, 61), z)
+        pin.data.materials.append(gold)
+        root = tear(70, 12.5, 25.5, 60.5)
+        tip = tear(70, 17.5, 30, 60.5)
+        tube("clasp-trigger", [(*root, z + 0.06), (*tip, z + 0.06)], 0.09, gold)
+        nub = sphere("clasp-trigger-tip", 0.12, seg=24, rings=12)
+        nub.location = (*tip, z + 0.06)
+        nub.data.materials.append(gold)
         ring = torus("clasp-ring", 5.5 * S * k, 1.3 * S * k)
-        ring.location = (*[v * k for v in P(50, 23)], 1.3 * S * k)
+        ring.location = (*[v * k for v in P(50, 28.5)], 1.3 * S * k)
         ring.data.materials.append(gold)
     elif kind == "wire":
-        spool = plain("spool", "#2b2622", 0.75)
+        # A spool of beading wire: two flanges on a hub, with the wire really wound
+        # on, turn by turn, in two layers.
+        spool = plain("spool", "#3a332d", 0.55)
         for z in (0.06, 1.04):
-            flange = cylinder("flange", 1.25, 0.12)
+            flange = cylinder("flange", 1.25, 0.12, seg=96)
             flange.location.z = z
             flange.data.materials.append(spool)
-        core = cylinder("wire", 0.95, 0.86)
-        core.location.z = 0.55
-        wound = metal("rhodium")
-        nt = wound.node_tree
-        wave = nt.nodes.new("ShaderNodeTexWave")
-        wave.bands_direction = "Z"
-        wave.inputs["Scale"].default_value = 40.0
-        bump = nt.nodes.new("ShaderNodeBump")
-        bump.inputs["Strength"].default_value = 0.4
-        nt.links.new(wave.outputs["Fac"], bump.inputs["Height"])
-        nt.links.new(bump.outputs["Normal"], nt.nodes["Principled BSDF"].inputs["Normal"])
-        core.data.materials.append(wound)
+            soft = flange.modifiers.new("soft-edge", "BEVEL")
+            soft.width = 0.02
+            soft.segments = 3
+        hub = cylinder("hub", 0.82, 0.86, seg=96)
+        hub.location.z = 0.55
+        hub.data.materials.append(spool)
+        wire = metal("rhodium")
+        r_wire = 0.024
+        bottom, top = 0.12 + r_wire, 0.98 - r_wire
+        turns = int((top - bottom) / (2 * r_wire))
+        for layer, radius in enumerate((0.82 + r_wire, 0.82 + 3 * r_wire)):
+            pts = []
+            for i in range(turns * 64 + 1):
+                f = i / 64
+                a = 2 * math.pi * f + layer * math.pi
+                pts.append((radius * math.cos(a), radius * math.sin(a), bottom + 2 * r_wire * f))
+            tube(f"wire-layer{layer}", pts, r_wire, wire)
+        r_out = 0.82 + 3 * r_wire
         end = [
-            (0.95, 0.0, 0.5),
-            (1.3, -0.15, 0.35),
-            (1.75, -0.35, 0.05),
-            (2.4, -0.45, 0.03),
-            (2.9, -0.2, 0.03),
+            (r_out, 0.0, top),
+            (r_out + 0.25, -0.2, 0.75),
+            (r_out + 0.75, -0.45, 0.25),
+            (r_out + 1.35, -0.55, 0.03),
+            (r_out + 2.0, -0.3, 0.03),
         ]
-        tube("wire-end", end, 0.02, metal("rhodium"))
+        tube("wire-end", end, r_wire, wire)
     elif kind == "memory":
         steel = metal("steel")
         turns, per_turn, radius, pitch = 4, 120, 1.1, 0.13

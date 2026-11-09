@@ -69,6 +69,10 @@ export const HERO = {
   },
   shop: { es: "Ver el catálogo", en: "Browse the catalog" },
   trade: { es: "Cuentas de mayoreo", en: "Wholesale accounts" },
+  photoAlt: {
+    es: "Un collar de cuentas de vidrio del catálogo con el dije dorado de luna creciente y estrella",
+    en: "A necklace of glass beads from the catalog with the gold Crescent Moon & Star charm",
+  },
 };
 
 export interface Collection {
@@ -79,6 +83,8 @@ export interface Collection {
   body: Bi;
   palette: string[];
   charms: CharmKind[];
+  /** Describes the AI-generated banner photo (docs/site-images.md), if there is one. */
+  photoAlt: Bi;
 }
 
 /** Catalog section 4 and the FAQ. */
@@ -94,6 +100,10 @@ export const COLLECTIONS: Collection[] = [
     },
     palette: ["#e39a2d", "#a8481f", "#2d5443", "#c87f3a", "#6b3a1f"],
     charms: ["acorn", "moon", "mushroom"],
+    photoAlt: {
+      es: "Cuentas de vidrio ámbar, óxido y verde bosque con dijes de bellota y hongo sobre madera oscura",
+      en: "Amber, rust and forest-green glass beads with acorn and mushroom charms on dark wood",
+    },
   },
   {
     id: "coastal-garden",
@@ -106,6 +116,10 @@ export const COLLECTIONS: Collection[] = [
     },
     palette: ["#e7a3a6", "#9fd3c7", "#f3d9a4", "#b9c8ea", "#5fae9c"],
     charms: ["shell", "leaf"],
+    photoAlt: {
+      es: "Cuentas de vidrio en tonos pastel con dijes de concha y hoja sobre lino claro",
+      en: "Pastel glass beads with seashell and leaf charms on pale linen",
+    },
   },
 ];
 
@@ -129,6 +143,10 @@ export const SECTIONS = {
     body: {
       es: "Desde 2015 diseñamos cada colección en nuestro Estudio y la hacemos en nuestro Taller: cuentas de vidrio enrolladas a mano, dijes diseñados aquí y fundidos en peltre sin plomo, y pedidos empacados en nuestro propio Almacén.",
       en: "Since 2015 we have designed every collection in our Studio and made it in our Workshop: glass beads wound by hand, charms designed here and cast in lead-free pewter, and orders packed in our own Warehouse.",
+    },
+    photoAlt: {
+      es: "Manos enrollando una cuenta de vidrio en el soplete, en el taller",
+      en: "An artisan's hands winding a glass bead at the torch in the workshop",
     },
   },
   trade: {

@@ -4,9 +4,30 @@ import { cn } from "@/lib/utils";
 import { type Lang, useLang, useT } from "@/portal/i18n";
 import { BeadArt, CharmArt, FindingArt } from "./art";
 import { type BeadProduct, CATALOG, type CharmProduct, FINISH, type Finding } from "./content";
+import { photo } from "./photos";
 
 export function price(value: number, lang: Lang): string {
   return new Intl.NumberFormat(lang === "es" ? "es-MX" : "en-US", { style: "currency", currency: "USD", currencyDisplay: "narrowSymbol" }).format(value);
+}
+
+/**
+ * The rendered product photo when there is one (scripts/render_site_art.py),
+ * otherwise the SVG drawing.
+ */
+export function Picture({ name, alt, fallback, className }: { name: string; alt: string; fallback: ReactNode; className?: string }) {
+  const src = photo(name);
+  if (!src) return <>{fallback}</>;
+  return (
+    <img
+      src={src}
+      alt={alt}
+      width={720}
+      height={540}
+      loading="lazy"
+      decoding="async"
+      className={cn("absolute inset-0 size-full object-cover", className)}
+    />
+  );
 }
 
 function Card({ art, badge, children }: { art: ReactNode; badge?: string; children: ReactNode }) {
@@ -14,7 +35,7 @@ function Card({ art, badge, children }: { art: ReactNode; badge?: string; childr
     <article className="flex h-full flex-col overflow-hidden rounded-2xl border border-hl-clay bg-white">
       <div className="relative grid aspect-[4/3] place-items-center bg-gradient-to-b from-hl-cream to-hl-sand/70">
         {badge && (
-          <span className="absolute left-3 top-3 rounded-full bg-hl-rust px-2.5 py-1 text-[0.7rem] font-semibold uppercase tracking-wider text-white">
+          <span className="absolute left-3 top-3 z-10 rounded-full bg-hl-rust px-2.5 py-1 text-[0.7rem] font-semibold uppercase tracking-wider text-white">
             {badge}
           </span>
         )}
@@ -39,8 +60,18 @@ function Price({ value }: { value: number }) {
 }
 
 export function BeadCard({ bead, badge }: { bead: BeadProduct; badge?: string }) {
+  const t = useT();
   return (
-    <Card art={<BeadArt shape={bead.shape} colors={bead.colors} className="w-3/5" />} badge={badge}>
+    <Card
+      art={
+        <Picture
+          name={bead.sku}
+          alt={t({ es: `Cuentas de vidrio ${bead.name}`, en: `${bead.name} glass beads` })}
+          fallback={<BeadArt shape={bead.shape} colors={bead.colors} className="w-3/5" />}
+        />
+      }
+      badge={badge}
+    >
       <p className="font-mono text-xs text-hl-bark-muted">{bead.sku}</p>
       <h3 className="font-semibold leading-snug">{bead.name}</h3>
       <p className="text-sm text-hl-bark-muted">{bead.size}</p>
@@ -53,7 +84,16 @@ export function CharmCard({ charm, badge }: { charm: CharmProduct; badge?: strin
   const t = useT();
   const finish = FINISH[charm.finish];
   return (
-    <Card art={<CharmArt kind={charm.kind} finish={charm.finish} className="w-1/2" />} badge={badge}>
+    <Card
+      art={
+        <Picture
+          name={charm.sku}
+          alt={t({ es: `Dije ${t(charm.name)}, ${t(finish.label).toLowerCase()}`, en: `${t(charm.name)} charm, ${t(finish.label).toLowerCase()}` })}
+          fallback={<CharmArt kind={charm.kind} finish={charm.finish} className="w-1/2" />}
+        />
+      }
+      badge={badge}
+    >
       <p className="font-mono text-xs text-hl-bark-muted">{charm.sku}</p>
       <h3 className="font-semibold leading-snug">{t(charm.name)}</h3>
       <p className="text-sm text-hl-bark-muted">{t(finish.label)}</p>
@@ -74,7 +114,15 @@ export function CharmCard({ charm, badge }: { charm: CharmProduct; badge?: strin
 export function FindingCard({ finding }: { finding: Finding }) {
   const t = useT();
   return (
-    <Card art={<FindingArt kind={finding.kind} className="w-1/2" />}>
+    <Card
+      art={
+        <Picture
+          name={`finding-${finding.kind}`}
+          alt={t(finding.name)}
+          fallback={<FindingArt kind={finding.kind} className="w-1/2" />}
+        />
+      }
+    >
       <h3 className="font-semibold leading-snug">{t(finding.name)}</h3>
       <p className="text-sm text-hl-bark-muted">{t(finding.detail)}</p>
       <p className="mt-auto pt-3 text-xs text-hl-bark-muted">{t(CATALOG.individually)}</p>

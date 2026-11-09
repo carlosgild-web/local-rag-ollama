@@ -6,7 +6,8 @@ import { useT } from "@/portal/i18n";
 import { BeadArt, CharmArt, CollectionStrand, FindingArt, HeroStrand } from "./art";
 import { BEADS, CATALOG, CHARMS, COLLECTIONS, CRAFT, type Collection, HERO, SECTIONS, SITE, WHOLESALE } from "./content";
 import { DemoForm, Field } from "./DemoForm";
-import { BeadCard, CharmCard } from "./ProductCard";
+import { photo } from "./photos";
+import { BeadCard, CharmCard, Picture } from "./ProductCard";
 
 export default function SiteHome() {
   return (
@@ -26,6 +27,7 @@ export default function SiteHome() {
 
 function Hero() {
   const t = useT();
+  const hero = photo("hero-strand");
   return (
     <section className="relative overflow-hidden">
       <div className="mx-auto grid max-w-6xl items-center gap-6 px-4 pb-6 pt-10 sm:px-6 md:grid-cols-[minmax(0,1.05fr)_minmax(0,1fr)] md:pt-14">
@@ -48,7 +50,18 @@ function Hero() {
             </Link>
           </div>
         </div>
-        <HeroStrand className="mx-auto w-full max-w-[520px]" />
+        {hero ? (
+          <img
+            src={hero}
+            alt={t(HERO.photoAlt)}
+            width={1200}
+            height={900}
+            fetchPriority="high"
+            className="hl-rise mx-auto w-full max-w-[560px] rounded-3xl shadow-xl shadow-hl-bark/10"
+          />
+        ) : (
+          <HeroStrand className="mx-auto w-full max-w-[520px]" />
+        )}
       </div>
     </section>
   );
@@ -84,7 +97,9 @@ function Collections() {
 
 function CollectionBanner({ collection: c }: { collection: Collection }) {
   const t = useT();
-  const dark = c.id === "amber-hollow";
+  const scene = photo(`collection-${c.id}`);
+  // On a photo, both banners use light text over a dark fade.
+  const dark = c.id === "amber-hollow" || Boolean(scene);
   return (
     <article
       className={cn(
@@ -92,24 +107,32 @@ function CollectionBanner({ collection: c }: { collection: Collection }) {
         dark ? "bg-hl-forest text-hl-cream" : "bg-[#eef4f1] text-hl-bark",
       )}
     >
-      <div>
+      {scene && (
+        <>
+          <img src={scene} alt={t(c.photoAlt)} loading="lazy" decoding="async" className="absolute inset-0 size-full object-cover" />
+          <div aria-hidden="true" className="absolute inset-0 bg-gradient-to-b from-[#1b140e]/85 via-[#1b140e]/45 to-[#1b140e]/10" />
+        </>
+      )}
+      <div className="relative">
         <p className={cn("text-xs font-semibold uppercase tracking-[0.14em]", dark ? "text-hl-amber-light" : "text-hl-forest")}>
           {t(c.season)} · {t(c.status)}
         </p>
         <h3 className="font-display mt-2 text-3xl font-semibold sm:text-4xl">{c.name}</h3>
         <p className={cn("mt-3 max-w-sm", dark ? "text-hl-cream/85" : "text-hl-bark-muted")}>{t(c.body)}</p>
       </div>
-      <CollectionStrand
-        palette={c.palette}
-        charms={c.charms}
-        finish={dark ? "bronze" : "rhodium"}
-        thread={dark ? "#d9cbb5" : "#a8957f"}
-        className="mt-4 w-full max-w-[420px] self-end"
-      />
-      {dark && (
+      {!scene && (
+        <CollectionStrand
+          palette={c.palette}
+          charms={c.charms}
+          finish={dark ? "bronze" : "rhodium"}
+          thread={dark ? "#d9cbb5" : "#a8957f"}
+          className="mt-4 w-full max-w-[420px] self-end"
+        />
+      )}
+      {c.id === "amber-hollow" && (
         <Link
           to="/site/catalog"
-          className="mt-2 inline-flex w-fit items-center gap-2 rounded-full bg-hl-amber px-4 py-2 text-sm font-semibold text-hl-bark transition-opacity hover:opacity-90"
+          className="relative mt-2 inline-flex w-fit items-center gap-2 rounded-full bg-hl-amber px-4 py-2 text-sm font-semibold text-hl-bark transition-opacity hover:opacity-90"
         >
           {t(SECTIONS.collections.cta)} <ArrowRight className="size-4" />
         </Link>
@@ -121,12 +144,28 @@ function CollectionBanner({ collection: c }: { collection: Collection }) {
 function ShopBy() {
   const t = useT();
   const tiles = [
-    { to: "/site/catalog?c=beads", label: CATALOG.tabs.beads, art: <BeadArt shape="swirl" colors={BEADS[2].colors} className="size-24" /> },
-    { to: "/site/catalog?c=charms", label: CATALOG.tabs.charms, art: <CharmArt kind="moon" finish="gold" className="size-24" /> },
-    { to: "/site/catalog?c=findings", label: CATALOG.tabs.findings, art: <FindingArt kind="clasp" className="size-24" /> },
+    {
+      to: "/site/catalog?c=beads",
+      label: CATALOG.tabs.beads,
+      photo: "GB-1014",
+      art: <BeadArt shape="swirl" colors={BEADS[2].colors} className="size-24" />,
+    },
+    {
+      to: "/site/catalog?c=charms",
+      label: CATALOG.tabs.charms,
+      photo: "CH-2004",
+      art: <CharmArt kind="moon" finish="gold" className="size-24" />,
+    },
+    {
+      to: "/site/catalog?c=findings",
+      label: CATALOG.tabs.findings,
+      photo: "finding-clasp",
+      art: <FindingArt kind="clasp" className="size-24" />,
+    },
     {
       to: "/site/wholesale#sets",
       label: WHOLESALE.sets.title,
+      photo: "starter-set",
       art: <CollectionStrand palette={COLLECTIONS[0].palette} charms={["acorn"]} finish="bronze" className="h-24 w-auto" />,
     },
   ];
@@ -138,10 +177,17 @@ function ShopBy() {
           <li key={tile.to}>
             <Link
               to={tile.to}
-              className="group flex h-full flex-col items-center gap-3 rounded-2xl border border-hl-clay bg-white p-5 text-center transition-shadow hover:shadow-md"
+              className="group flex h-full flex-col items-center gap-3 overflow-hidden rounded-2xl border border-hl-clay bg-white pb-4 text-center transition-shadow hover:shadow-md"
             >
-              <span className="grid h-28 place-items-center transition-transform group-hover:-translate-y-1">{tile.art}</span>
-              <span className="font-semibold">{t(tile.label)}</span>
+              <span className="relative grid aspect-[4/3] w-full place-items-center overflow-hidden bg-gradient-to-b from-hl-cream to-hl-sand/70">
+                <Picture
+                  name={tile.photo}
+                  alt=""
+                  fallback={<span className="transition-transform group-hover:-translate-y-1">{tile.art}</span>}
+                  className="transition-transform duration-500 group-hover:scale-105"
+                />
+              </span>
+              <span className="px-3 font-semibold">{t(tile.label)}</span>
             </Link>
           </li>
         ))}
@@ -185,8 +231,18 @@ function Favorites() {
 
 function Story() {
   const t = useT();
+  const workshop = photo("story-workshop");
   return (
     <section id="story" className="scroll-mt-24 rounded-3xl bg-hl-sand p-7 sm:p-10">
+      {workshop && (
+        <img
+          src={workshop}
+          alt={t(SECTIONS.story.photoAlt)}
+          loading="lazy"
+          decoding="async"
+          className="mb-8 aspect-[21/9] w-full rounded-2xl object-cover"
+        />
+      )}
       <div className="grid gap-10 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)]">
         <div>
           <p className="text-xs font-semibold uppercase tracking-[0.16em] text-hl-rust">{t(SECTIONS.story.eyebrow)}</p>

@@ -180,3 +180,7 @@ Your documents, the database, vectors and backups live in `backend/data/`, which
 
 - **Done:** Phases 0–4 of [PLAN.md](PLAN.md), plus the UI improvements in v0.5.0 ([CHANGELOG](CHANGELOG.md), [decision 0008](docs/decisions/0008-ui-improvements-scope.md)) and the employee portal in v0.6.0 ([decision 0010](docs/decisions/0010-employee-portal.md)).
 - **Next:** a versions UI, a control panel, an evaluation set, hardening, and polish.
+
+## License
+
+[MIT](LICENSE). The bundled Fraunces and Figtree fonts keep their own [SIL Open Font License 1.1](https://openfontlicense.org). Hilda & Luna Beadworks, its people and its documents are fictional.

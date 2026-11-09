@@ -44,3 +44,8 @@ class VectorStore(ABC):
     @abstractmethod
     def ping(self) -> None:
         """Raises if the store is unusable (for /health)."""
+
+    @abstractmethod
+    def get_vectors(self, collection: str, where: dict) -> list[tuple[dict, list[float]]]:
+        """(metadata, embedding) of every stored vector whose metadata matches
+        `where` exactly, e.g. {"chunk_index": 0} for each version's first passage."""

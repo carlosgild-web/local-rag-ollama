@@ -31,6 +31,89 @@ class UploadResponse(BaseModel):
     jobs: list[QueuedUpload]
 
 
+class IntakeStarted(BaseModel):
+    batch_id: str
+    job_id: int
+    files: int
+
+
+class IntakeFileOut(BaseModel):
+    key: str
+    name: str
+    path: str
+    size: int
+    # new | new_version | duplicate | name_in_trash | unsupported | empty
+    # | too_large | unreadable | pending
+    status: str
+    message: str
+    include: bool
+    shelf: str | None  # "existing:<id>" or "new:<key>"
+    confidence: str  # high | low
+    reason: str
+    tags: list[str]
+    alternatives: list[str]
+
+
+class IntakeShelfOut(BaseModel):
+    ref: str
+    name: str
+    description: str
+    existing: bool
+    named_by: str  # model | keywords | existing
+
+
+class IntakeOut(BaseModel):
+    batch_id: str
+    state: str  # staged (analysis running) | ready
+    files: list[IntakeFileOut]
+    shelves: list[IntakeShelfOut]
+
+
+class IntakeDecisionIn(BaseModel):
+    key: str
+    include: bool
+    shelf: str = Field(min_length=1, max_length=40)
+    tags: list[str] = Field(default_factory=list, max_length=10)
+
+
+class IntakeConfirmIn(BaseModel):
+    new_shelves: dict[str, str] = Field(default_factory=dict)  # "new:<key>" -> name
+    files: list[IntakeDecisionIn]
+
+
+class IntakeConfirmed(BaseModel):
+    job_ids: list[int]
+    created_shelves: list[dict[str, Any]]
+
+
+class UploadRules(BaseModel):
+    extensions: list[str]
+    max_upload_mb: int
+
+
+class UploadCandidateIn(BaseModel):
+    name: str = Field(min_length=1, max_length=255)
+    sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
+    size: int = Field(ge=0)
+
+
+class UploadCheckIn(BaseModel):
+    collection_id: int | None = None  # None: the default shelf
+    files: list[UploadCandidateIn] = Field(max_length=1000)
+
+
+class UploadCheckOut(BaseModel):
+    name: str
+    status: str  # new | new_version | duplicate | name_in_trash | unsupported | empty | too_large
+    message: str
+    document_id: int | None = None
+    existing_filename: str | None = None
+    existing_shelf: str | None = None
+    existing_version: int | None = None
+    next_version: int | None = None
+    existing_since: UtcDatetime | None = None
+
+
 class DocumentOut(BaseModel):
     id: int
     collection_id: int
@@ -119,6 +202,8 @@ class JobOut(BaseModel):
     cancel_requested: bool
     document_id: int | None
     payload: dict[str, Any]
+    subject: str | None = None  # what the job is about: a file name or "shelf <name>"
+    note: str | None = None  # plain-language outcome, e.g. why an upload was skipped
     created_at: UtcDatetime
     updated_at: UtcDatetime
 
@@ -162,6 +247,21 @@ class ChatIn(BaseModel):
     session_id: int | None = None
     collection_id: int | None = None
     profile: str | None = None  # profile name; defaults to "default"
+
+
+class ChunkDetail(BaseModel):
+    """One passage, for showing what a citation points at."""
+
+    id: int
+    text: str
+    document_id: int
+    filename: str
+    collection_id: int
+    version_id: int
+    version_number: int
+    page: int | None
+    heading: str | None
+    retired: bool  # replaced by a reindex; kept because an answer cites it
 
 
 class SessionSummary(BaseModel):
@@ -277,8 +377,70 @@ class ComponentHealth(BaseModel):
     detail: str | None = None
 
 
+class DiagnosticAction(BaseModel):
+    kind: str  # pull_model | reindex_collection | open_queue | open_collections
+    label: str
+    target: str | None = None
+
+
+class DiagnosticCheck(BaseModel):
+    id: str
+    component: str  # ollama | sqlite | vector_store | jobs
+    title: str
+    status: str  # ok | warn | fail | skip
+    detail: str
+    cause: str | None = None
+    fix: str | None = None
+    commands: list[str] = []
+    action: DiagnosticAction | None = None
+
+
+class DiagnosticsOut(BaseModel):
+    status: str  # ok | warn | fail
+    checks: list[DiagnosticCheck]
+    simulated: list[str]  # SIMULATE_FAULTS in effect (developer setting)
+    ran_at: UtcDatetime
+
+
+class SupportDraftOut(BaseModel):
+    """A prefilled service-desk incident, for the user to review."""
+
+    environment: dict[str, Any]  # computer, user, OS, versions, models
+    category: str
+    subcategory: str
+    assignment_group: str
+    impact: int  # 1 high .. 3 low
+    urgency: int  # 1 high .. 3 low
+    priority: str  # from the impact/urgency matrix, e.g. "2 - High"
+    short_description: str
+    system_status: str  # troubleshooter: ok | warn | fail
+    problems: list[dict[str, Any]]
+    simulated_faults: list[str]
+
+
+class SupportTicketIn(BaseModel):
+    caller_name: str = Field(min_length=1, max_length=120)
+    contact: str | None = Field(default=None, max_length=200)
+    best_time_to_contact: str | None = Field(default=None, max_length=200)
+    impact: int = Field(ge=1, le=3)
+    urgency: int = Field(ge=1, le=3)
+    short_description: str = Field(min_length=1, max_length=160)
+    description: str = Field(min_length=1, max_length=4000)  # "what happened"
+    started_at: str | None = Field(default=None, max_length=100)
+    recent_changes: str | None = Field(default=None, max_length=1000)
+    users_affected: str | None = Field(default=None, max_length=200)
+    steps_to_reproduce: str | None = Field(default=None, max_length=2000)
+
+
+class SupportTicketOut(BaseModel):
+    number: str  # e.g. INC0010001
+    saved_to: str  # simulated: the incident is saved locally, never sent
+    incident: dict[str, Any]
+
+
 class HealthOut(BaseModel):
     status: str  # "ok" | "degraded" | "down"
+    simulated: list[str] = []
     ollama: ComponentHealth
     sqlite: ComponentHealth
     vector_store: ComponentHealth

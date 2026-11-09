@@ -74,7 +74,9 @@ def _fake_ollama_handler(request: httpx.Request) -> httpx.Response:
     """A tiny stand-in for the Ollama HTTP API used by OllamaAdmin."""
     path = request.url.path
     if path == "/api/version":
-        return httpx.Response(200, json={"version": "0.0.0-fake"})
+        return httpx.Response(200, json={"version": "0.9.0-fake"})
+    if path == "/api/ps":
+        return httpx.Response(200, json={"models": []})
     if path == "/api/tags":
         return httpx.Response(
             200,

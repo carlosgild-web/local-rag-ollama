@@ -53,6 +53,14 @@ class Settings(BaseSettings):
     # Logging
     log_level: str = "INFO"
 
+    # Developer only: simulate failures for the troubleshooter, e.g.
+    # "sqlite,ollama_down" (see app/core/faults.py). Empty = off.
+    simulate_faults: str = ""
+    # Shown on the simulated L2 ticket instead of this machine's real name
+    # and user (e.g. for screenshots). Empty = the real values.
+    support_computer_name: str = ""
+    support_user_name: str = ""
+
     @property
     def files_dir(self) -> Path:
         return self.data_dir / "files"
@@ -68,6 +76,11 @@ class Settings(BaseSettings):
     @property
     def uploads_dir(self) -> Path:
         return self.data_dir / "uploads"
+
+    @property
+    def support_dir(self) -> Path:
+        """Simulated L2 support tickets (nothing is sent anywhere)."""
+        return self.data_dir / "support"
 
     @property
     def backups_dir(self) -> Path:

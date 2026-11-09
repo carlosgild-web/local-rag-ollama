@@ -3,14 +3,25 @@ import type {
   CollectionCreate,
   CollectionReindex,
   Document,
+  ChunkDetail,
+  Diagnostics,
+  SupportDraft,
+  SupportTicket,
+  SupportTicketIn,
   Health,
   Job,
   JobQueued,
+  Intake,
+  IntakeConfirm,
+  IntakeConfirmed,
+  IntakeStarted,
   Model,
   Profile,
   Session,
   SessionSummary,
+  UploadCheckResult,
   UploadResponse,
+  UploadRules,
 } from "./types";
 
 export const API_BASE = "/api";
@@ -79,6 +90,10 @@ export const api = {
     throw await errorFromResponse(response);
   },
 
+  diagnostics: () => request<Diagnostics>("/diagnostics"),
+  supportDraft: () => request<SupportDraft>("/support/draft"),
+  submitSupportTicket: (body: SupportTicketIn) => request<SupportTicket>("/support/tickets", json("POST", body)),
+
   documents: (filters: DocumentFilters = {}) =>
     request<Document[]>(`/documents${query({ ...filters, limit: 500 })}`),
   upload: (files: File[], options: { collectionId?: number; tags?: string } = {}) => {
@@ -88,7 +103,24 @@ export const api = {
     if (options.tags) form.append("tags", options.tags);
     return request<UploadResponse>("/documents", { method: "POST", body: form });
   },
+  uploadRules: () => request<UploadRules>("/documents/upload-rules"),
+  checkUploads: (collectionId: number | undefined, files: { name: string; sha256: string; size: number }[]) =>
+    request<UploadCheckResult[]>("/documents/check", json("POST", { collection_id: collectionId ?? null, files })),
+  startIntake: (files: { file: File; path: string }[]) => {
+    const form = new FormData();
+    for (const { file, path } of files) {
+      form.append("files", file);
+      form.append("paths", path);
+    }
+    return request<IntakeStarted>("/intake", { method: "POST", body: form });
+  },
+  intake: (batchId: string) => request<Intake>(`/intake/${batchId}`),
+  confirmIntake: (batchId: string, body: IntakeConfirm) =>
+    request<IntakeConfirmed>(`/intake/${batchId}/confirm`, json("POST", body)),
+  cancelIntake: (batchId: string) => request<void>(`/intake/${batchId}`, { method: "DELETE" }),
   deleteDocument: (id: number) => request<void>(`/documents/${id}`, { method: "DELETE" }),
+  restoreDocument: (id: number) => request<Document>(`/documents/${id}/restore`, json("POST")),
+  chunk: (id: number) => request<ChunkDetail>(`/chunks/${id}`),
   reindexDocument: (id: number) => request<JobQueued>(`/documents/${id}/reindex`, json("POST")),
 
   collections: (includeInactive = false) =>

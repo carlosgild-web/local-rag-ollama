@@ -1,6 +1,7 @@
-import { FileText } from "lucide-react";
+import { ChevronDown, FileText, Loader2 } from "lucide-react";
 import Markdown from "react-markdown";
 import type { Source } from "@/api/types";
+import { useChunk } from "@/hooks/queries";
 import { cn } from "@/lib/utils";
 
 // "[1]" or "[1, 3]" not followed by "(" (so real markdown links stay links).
@@ -95,7 +96,11 @@ export function SourceList({
             <span className="ml-auto shrink-0 tabular-nums" title="Fused retrieval score (RRF)">
               {s.score.toFixed(3)}
             </span>
+            <ChevronDown
+              className={cn("size-3.5 shrink-0 transition-transform", highlighted === s.rank && "rotate-180")}
+            />
           </button>
+          {highlighted === s.rank && <Passage chunkId={s.chunk_id} />}
         </li>
       ))}
     </ol>
@@ -108,4 +113,29 @@ function sourceLabel(s: Source | undefined): string {
   if (s.page) parts.push(`page ${s.page}`);
   if (s.heading) parts.push(s.heading);
   return parts.join(" · ");
+}
+
+/** The text a citation points at, so the answer can be checked against it. */
+function Passage({ chunkId }: { chunkId: number }) {
+  const chunk = useChunk(chunkId);
+  return (
+    <div className="mx-2 mb-2 mt-1 rounded-md border bg-background px-3 py-2 text-xs">
+      {chunk.isLoading && (
+        <span className="flex items-center gap-1.5 text-muted-foreground">
+          <Loader2 className="size-3 animate-spin" /> Loading the passage…
+        </span>
+      )}
+      {chunk.isError && <span className="text-destructive">Could not load this passage.</span>}
+      {chunk.data && (
+        <>
+          <p className="mb-1 text-muted-foreground">
+            {chunk.data.filename} · version {chunk.data.version_number}
+            {chunk.data.page ? ` · page ${chunk.data.page}` : ""}
+            {chunk.data.retired && " · replaced by a later reindex (kept for this answer)"}
+          </p>
+          <p className="max-h-60 overflow-y-auto whitespace-pre-wrap leading-relaxed">{chunk.data.text}</p>
+        </>
+      )}
+    </div>
+  );
 }

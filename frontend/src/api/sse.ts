@@ -7,11 +7,11 @@ import type { ChatEvent } from "./types";
  * Aborting the signal closes the connection; the backend keeps the partial
  * answer.
  */
-export async function* postEventStream(
+export async function* postEventStream<E extends { event: string; data: unknown } = ChatEvent>(
   path: string,
   body: unknown,
   signal?: AbortSignal,
-): AsyncGenerator<ChatEvent> {
+): AsyncGenerator<E> {
   const response = await fetch(`${API_BASE}${path}`, {
     method: "POST",
     headers: { "Content-Type": "application/json", Accept: "text/event-stream" },
@@ -29,7 +29,7 @@ export async function* postEventStream(
       buffer += value.replace(/\r\n/g, "\n");
       let boundary = buffer.indexOf("\n\n");
       while (boundary !== -1) {
-        const parsed = parseEvent(buffer.slice(0, boundary));
+        const parsed = parseEvent<E>(buffer.slice(0, boundary));
         buffer = buffer.slice(boundary + 2);
         if (parsed) yield parsed;
         boundary = buffer.indexOf("\n\n");
@@ -40,7 +40,7 @@ export async function* postEventStream(
   }
 }
 
-function parseEvent(block: string): ChatEvent | null {
+function parseEvent<E>(block: string): E | null {
   let event = "message";
   const data: string[] = [];
   for (const line of block.split("\n")) {
@@ -48,5 +48,5 @@ function parseEvent(block: string): ChatEvent | null {
     else if (line.startsWith("data:")) data.push(line.slice(5).trimStart());
   }
   if (data.length === 0) return null;
-  return { event, data: JSON.parse(data.join("\n")) } as ChatEvent;
+  return { event, data: JSON.parse(data.join("\n")) } as E;
 }

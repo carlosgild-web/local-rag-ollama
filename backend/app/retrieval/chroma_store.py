@@ -67,3 +67,12 @@ class ChromaVectorStore(VectorStore):
 
     def ping(self) -> None:
         self._client.heartbeat()
+
+    def get_vectors(self, collection: str, where: dict) -> list[tuple[dict, list[float]]]:
+        result = self._client.get_collection(collection).get(
+            where=where, include=["embeddings", "metadatas"]
+        )
+        return [
+            (metadata, list(embedding))
+            for metadata, embedding in zip(result["metadatas"], result["embeddings"], strict=True)
+        ]

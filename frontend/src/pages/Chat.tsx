@@ -8,6 +8,8 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/input";
 import { useCollections, useFeedback, useSession, useSessions } from "@/hooks/queries";
 import { useChatStream } from "@/hooks/useChatStream";
+import { useSystemStatus } from "@/hooks/useSystemStatus";
+import { Paused } from "@/components/Paused";
 import { cn, formatDate } from "@/lib/utils";
 
 export default function Chat() {
@@ -16,6 +18,7 @@ export default function Chat() {
   const sessionId = params.sessionId ? Number(params.sessionId) : null;
 
   const sessions = useSessions();
+  const system = useSystemStatus();
   const session = useSession(sessionId);
   const collections = useCollections();
   const shelves = collections.data ?? [];
@@ -128,6 +131,7 @@ export default function Chat() {
           </div>
         </div>
 
+        <Paused reason={system.canBrowse ? system.chatBlocked : null} what="Asking questions" compact>
         <div className="border-t bg-background px-6 py-4">
           <div className="mx-auto max-w-3xl space-y-2">
             <div className="flex items-end gap-2">
@@ -186,6 +190,7 @@ export default function Chat() {
             </div>
           </div>
         </div>
+        </Paused>
       </section>
     </div>
   );

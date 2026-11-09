@@ -9,6 +9,7 @@ export default defineConfig({
   resolve: { alias: { "@": path.resolve(import.meta.dirname, "src") } },
   server: {
     port: 5173,
-    proxy: { "/api": { target: "http://127.0.0.1:8000", changeOrigin: true } },
+    // API_TARGET lets a second dev server talk to another backend (e.g. :8001).
+    proxy: { "/api": { target: process.env.API_TARGET ?? "http://127.0.0.1:8000", changeOrigin: true } },
   },
 });

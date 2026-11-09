@@ -13,10 +13,14 @@ from app.api.schemas import (
     JobQueued,
     QueuedUpload,
     RollbackIn,
+    UploadCheckIn,
+    UploadCheckOut,
     UploadResponse,
+    UploadRules,
     VersionOut,
 )
 from app.db.models import Chunk, Document, DocumentVersion
+from app.ingest.parsers import SUPPORTED_EXTENSIONS
 from app.ingest.uploads import stage_upload
 from app.jobs import queue
 from app.versioning import service
@@ -80,6 +84,34 @@ def upload_documents(
     return UploadResponse(jobs=queued)
 
 
+@router.get("/documents/upload-rules", response_model=UploadRules)
+def upload_rules(runtime: RuntimeDep):
+    """File types and size the server accepts, so the browser can flag files early."""
+    return UploadRules(
+        extensions=sorted(SUPPORTED_EXTENSIONS), max_upload_mb=runtime.settings.max_upload_mb
+    )
+
+
+@router.post("/documents/check", response_model=list[UploadCheckOut])
+def check_uploads(db: DbDep, runtime: RuntimeDep, body: UploadCheckIn):
+    """Review before processing: what would happen to each file (read-only).
+    The browser sends names, sizes and SHA-256 hashes, not the files."""
+    if body.collection_id is None:
+        collection = service.get_active_collection(db, service.DEFAULT_COLLECTION_NAME)
+    else:
+        collection = service.get_collection(db, body.collection_id)
+        if not collection.is_active:
+            raise service.ConflictError(f"collection {body.collection_id} is not active")
+    checks = service.check_uploads(
+        db,
+        collection,
+        [service.UploadCandidate(f.name, f.sha256, f.size) for f in body.files],
+        max_bytes=runtime.settings.max_upload_mb * 1024 * 1024,
+        supported_extensions=SUPPORTED_EXTENSIONS,
+    )
+    return [UploadCheckOut(**vars(c)) for c in checks]
+
+
 @router.get("/documents", response_model=list[DocumentOut])
 def list_documents(
     db: DbDep,
@@ -90,17 +122,7 @@ def list_documents(
     limit: Annotated[int, Query(ge=1, le=500)] = 100,
     offset: Annotated[int, Query(ge=0)] = 0,
 ):
-    version_count = (
-        select(func.count(DocumentVersion.id))
-        .where(DocumentVersion.document_id == Document.id)
-        .scalar_subquery()
-    )
-    active_number = (
-        select(DocumentVersion.version_number)
-        .where(DocumentVersion.id == Document.active_version_id)
-        .scalar_subquery()
-    )
-    query = select(Document, version_count, active_number).order_by(Document.id.desc())
+    query = _document_rows().order_by(Document.id.desc())
     query = query.where(
         Document.trashed_at.isnot(None) if trashed else Document.trashed_at.is_(None)
     )
@@ -113,20 +135,40 @@ def list_documents(
         query = query.where(("," + Document.tags + ",").contains(f",{tag.strip()},"))
 
     rows = db.execute(query.limit(limit).offset(offset)).all()
-    return [
-        DocumentOut(
-            id=d.id,
-            collection_id=d.collection_id,
-            filename=d.filename,
-            tags=split_tags(d.tags),
-            active_version_id=d.active_version_id,
-            active_version_number=number,
-            version_count=count,
-            trashed_at=d.trashed_at,
-            created_at=d.created_at,
-        )
-        for d, count, number in rows
-    ]
+    return [_row_out(*row) for row in rows]
+
+
+def _document_rows():
+    """Documents with their version count and active version number."""
+    version_count = (
+        select(func.count(DocumentVersion.id))
+        .where(DocumentVersion.document_id == Document.id)
+        .scalar_subquery()
+    )
+    active_number = (
+        select(DocumentVersion.version_number)
+        .where(DocumentVersion.id == Document.active_version_id)
+        .scalar_subquery()
+    )
+    return select(Document, version_count, active_number)
+
+
+def _row_out(d: Document, count: int, number: int | None) -> DocumentOut:
+    return DocumentOut(
+        id=d.id,
+        collection_id=d.collection_id,
+        filename=d.filename,
+        tags=split_tags(d.tags),
+        active_version_id=d.active_version_id,
+        active_version_number=number,
+        version_count=count,
+        trashed_at=d.trashed_at,
+        created_at=d.created_at,
+    )
+
+
+def _document_out(db, document: Document) -> DocumentOut:
+    return _row_out(*db.execute(_document_rows().where(Document.id == document.id)).one())
 
 
 @router.delete("/documents/{document_id}", status_code=status.HTTP_204_NO_CONTENT)
@@ -134,6 +176,13 @@ def delete_document(db: DbDep, document_id: int):
     """Soft delete: moves the document to the 30-day trash."""
     service.soft_delete_document(db, document_id)
     return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
+@router.post("/documents/{document_id}/restore", response_model=DocumentOut)
+def restore_document(db: DbDep, document_id: int):
+    """Takes a document out of the trash (409 if a newer one has its name)."""
+    service.restore_document(db, document_id)
+    return _document_out(db, service.get_document(db, document_id))
 
 
 @router.post(

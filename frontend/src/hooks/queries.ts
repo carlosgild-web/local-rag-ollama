@@ -17,6 +17,17 @@ export const keys = {
 const ACTIVE: Job["status"][] = ["pending", "running"];
 export const isActiveJob = (job: Job) => ACTIVE.includes(job.status);
 
+/** The troubleshooter; runs only while its panel is open. */
+export function useDiagnostics(enabled: boolean) {
+  return useQuery({
+    queryKey: ["diagnostics"],
+    queryFn: api.diagnostics,
+    enabled,
+    staleTime: 0,
+    refetchOnWindowFocus: false,
+  });
+}
+
 export function useHealth() {
   return useQuery({ queryKey: keys.health, queryFn: api.health, refetchInterval: 10_000 });
 }
@@ -97,6 +108,24 @@ export function useDeleteDocument() {
   return useMutation({
     mutationFn: api.deleteDocument,
     onSuccess: () => invalidate("documents", "collections"),
+  });
+}
+
+export function useRestoreDocument() {
+  const invalidate = useInvalidate();
+  return useMutation({
+    mutationFn: api.restoreDocument,
+    onSuccess: () => invalidate("documents", "collections"),
+  });
+}
+
+/** A citation's passage; fetched only when someone opens it. */
+export function useChunk(id: number | null) {
+  return useQuery({
+    queryKey: ["chunk", id],
+    queryFn: () => api.chunk(id as number),
+    enabled: id !== null,
+    staleTime: Number.POSITIVE_INFINITY, // passages never change
   });
 }
 

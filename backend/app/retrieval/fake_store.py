@@ -52,6 +52,13 @@ class FakeVectorStore(VectorStore):
     def count(self, collection: str) -> int:
         return len(self._collections.get(collection, {}))
 
+    def get_vectors(self, collection: str, where: dict) -> list[tuple[dict, list[float]]]:
+        return [
+            (metadata, embedding)
+            for embedding, metadata, _ in self._collections.get(collection, {}).values()
+            if all(metadata.get(k) == v for k, v in where.items())
+        ]
+
     def ping(self) -> None:
         if getattr(self, "fail_ping", False):
             raise RuntimeError("fake vector store is down")

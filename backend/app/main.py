@@ -10,11 +10,25 @@ import httpx
 from fastapi import APIRouter, FastAPI, Request
 from fastapi.responses import JSONResponse
 
-from app.api.routes import chat, collections, documents, jobs, models, ops, profiles, retrieval
+from app.api.routes import (
+    chat,
+    collections,
+    documents,
+    jobs,
+    models,
+    ops,
+    profiles,
+    retrieval,
+    support,
+)
+from app.api.routes import (
+    intake as intake_routes,
+)
 from app.api.static import find_static_dir, mount_frontend
 from app.core.config import get_settings
 from app.core.logging import RequestIdMiddleware, configure_logging
 from app.core.runtime import Runtime, build_runtime
+from app.ingest import intake
 from app.ingest.uploads import EmptyUploadError, UnsupportedUploadError, UploadTooLargeError
 from app.jobs.worker import JobWorker
 from app.versioning.profiles import InvalidProfileError
@@ -46,6 +60,8 @@ def create_app(runtime: Runtime | None = None, *, start_worker: bool = True) -> 
             app.state.runtime = build_runtime(settings)
         else:
             app.state.runtime = runtime
+        # Staged intake batches nobody confirmed or cancelled expire after a day.
+        intake.purge_stale_batches(app.state.runtime.settings)
         app.state.worker = JobWorker(app.state.runtime)
         if start_worker:
             app.state.worker.start()
@@ -57,13 +73,24 @@ def create_app(runtime: Runtime | None = None, *, start_worker: bool = True) -> 
 
     app = FastAPI(
         title="Local RAG with Ollama",
-        version="0.4.0",
+        version="0.5.0",
         description="Fully local retrieval-augmented generation: documents, versions, chat.",
         lifespan=lifespan,
     )
 
     api = APIRouter(prefix=API_PREFIX)
-    for module in (documents, collections, chat, retrieval, jobs, models, profiles, ops):
+    for module in (
+        documents,
+        intake_routes,
+        collections,
+        chat,
+        retrieval,
+        jobs,
+        models,
+        profiles,
+        ops,
+        support,
+    ):
         api.include_router(module.router)
     app.include_router(api)
     # Unprefixed alias for container health checks.

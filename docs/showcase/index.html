@@ -1,0 +1,497 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Local RAG Showcase</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: one 16:9 slide at a time on wide screens (arrow keys, click, swipe);
+   on phones and in print, every slide stacked. Palette = the app's own teal. */
+:root {
+  --bg: #f3f6f6;
+  --surface: #ffffff;
+  --ink: #10201f;
+  --muted: #5b6b6a;
+  --line: #d9e2e1;
+  --accent: #0f766e;
+  --accent-soft: #e0f2ef;
+  --warn: #b45309;
+  --warn-soft: #fef3e2;
+  --shadow: 0 1px 2px rgb(16 32 31 / 0.06), 0 12px 32px -12px rgb(16 32 31 / 0.18);
+  --display: "Bricolage Grotesque", "Segoe UI", system-ui, sans-serif;
+  --body: "IBM Plex Sans", "Segoe UI", system-ui, sans-serif;
+  --mono: "IBM Plex Mono", ui-monospace, "Cascadia Mono", Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0d1716; --surface: #142220; --ink: #e5efed; --muted: #94a8a5; --line: #26403c;
+    --accent: #2dd4bf; --accent-soft: #123a35; --warn: #f59e0b; --warn-soft: #3a2a10;
+    --shadow: 0 1px 2px rgb(0 0 0 / 0.4), 0 12px 32px -12px rgb(0 0 0 / 0.6);
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0d1716; --surface: #142220; --ink: #e5efed; --muted: #94a8a5; --line: #26403c;
+  --accent: #2dd4bf; --accent-soft: #123a35; --warn: #f59e0b; --warn-soft: #3a2a10;
+  --shadow: 0 1px 2px rgb(0 0 0 / 0.4), 0 12px 32px -12px rgb(0 0 0 / 0.6);
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+html, body { height: 100%; }
+body {
+  margin: 0; background: var(--bg); color: var(--ink);
+  font: 400 clamp(15px, 1.15vw, 19px)/1.55 var(--body);
+  -webkit-font-smoothing: antialiased;
+}
+h1, h2, h3 { font-family: var(--display); font-weight: 700; line-height: 1.1; margin: 0; text-wrap: balance; letter-spacing: -0.01em; }
+h1 { font-size: clamp(2.4rem, 5vw, 4.6rem); }
+h2 { font-size: clamp(1.6rem, 2.7vw, 2.6rem); }
+h3 { font-size: 1.05rem; font-family: var(--body); font-weight: 600; letter-spacing: 0; }
+p { margin: 0; }
+a { color: var(--accent); }
+img { max-width: 100%; }
+.eyebrow { font: 500 0.78rem/1 var(--mono); letter-spacing: 0.08em; text-transform: uppercase; color: var(--accent); }
+.muted { color: var(--muted); }
+.mono { font-family: var(--mono); font-size: 0.9em; }
+.cite { display: inline-flex; align-items: center; justify-content: center; min-width: 1.6em; padding: 0 0.35em; border-radius: 0.4em; background: var(--accent-soft); color: var(--accent); font: 500 0.82em/1.5 var(--mono); }
+.shelf { display: inline-block; padding: 0.15em 0.6em; border-radius: 999px; border: 1px solid var(--line); background: var(--surface); font: 500 0.8em/1.5 var(--mono); color: var(--ink); }
+
+/* Deck frame */
+.deck { height: 100%; display: grid; place-items: center; padding-block: 2vh 7vh; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+.slide {
+  display: none; width: min(100%, calc(88vh * 16 / 9)); aspect-ratio: 16 / 9; max-width: 100%;
+  background: var(--surface); border-radius: 18px; box-shadow: var(--shadow);
+  padding: clamp(20px, 3.4vw, 56px); overflow: hidden; position: relative;
+}
+.slide.active { display: flex; flex-direction: column; gap: clamp(12px, 1.6vw, 24px); }
+.slide-head { display: flex; flex-direction: column; gap: 0.6em; }
+.slide-num { position: absolute; right: clamp(16px, 2vw, 28px); bottom: clamp(12px, 1.6vw, 22px); font: 400 0.75rem/1 var(--mono); color: var(--muted); font-variant-numeric: tabular-nums; }
+
+.split { display: grid; grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.5fr); gap: clamp(16px, 2.6vw, 44px); align-items: center; flex: 1; min-height: 0; }
+.split.even { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+.split > * { min-width: 0; min-height: 0; }
+.split:has(> .pair) { grid-template-columns: minmax(0, 0.62fr) minmax(0, 2fr); }
+.split.top { align-items: start; }
+.copy { display: flex; flex-direction: column; gap: 0.9em; }
+.copy ul { margin: 0; padding-left: 1.1em; display: grid; gap: 0.45em; }
+
+/* Screenshot in a window frame */
+.shot { margin: 0; display: flex; flex-direction: column; min-height: 0; max-height: 100%; border-radius: 10px; overflow: hidden; border: 1px solid var(--line); background: var(--surface); box-shadow: var(--shadow); }
+.shot::before { content: ""; display: block; height: 22px; flex: none; background:
+  radial-gradient(circle at 14px 11px, #e5675b 4px, transparent 4.5px),
+  radial-gradient(circle at 30px 11px, #e8b84a 4px, transparent 4.5px),
+  radial-gradient(circle at 46px 11px, #5cb85c 4px, transparent 4.5px), var(--bg); border-bottom: 1px solid var(--line); }
+.shot img { display: block; width: 100%; height: auto; min-height: 0; object-fit: contain; object-position: top left; flex: 1; background: #fff; }
+.shot figcaption { padding: 0.5em 0.8em; font-size: 0.8em; color: var(--muted); border-top: 1px solid var(--line); }
+.pair { display: grid; grid-template-columns: 1fr 1fr; gap: clamp(12px, 1.6vw, 24px); flex: 1; min-height: 0; align-items: start; }
+.pair > * { min-width: 0; }
+
+/* Title slide */
+.title { justify-content: center; background:
+  linear-gradient(135deg, var(--surface) 0 55%, var(--accent-soft) 55% 100%); }
+.title .lede { font-size: clamp(1.1rem, 1.7vw, 1.6rem); max-width: 34ch; color: var(--muted); }
+.facts { display: flex; flex-wrap: wrap; gap: 0.6em; margin-top: 0.6em; }
+.facts span { padding: 0.35em 0.8em; border-radius: 999px; background: var(--surface); border: 1px solid var(--line); font: 500 0.82rem/1.4 var(--mono); }
+.answer-card { max-width: 30rem; padding: 1em 1.2em; border-radius: 12px; background: var(--surface); border: 1px solid var(--line); box-shadow: var(--shadow); font-size: 0.95em; display: grid; gap: 0.5em; }
+.answer-card .q { font-weight: 600; }
+
+/* Feature grid */
+.grid3 { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: clamp(12px, 1.6vw, 22px); flex: 1; align-content: center; }
+.feature { padding: 1em 1.1em; border-top: 3px solid var(--accent); background: var(--bg); border-radius: 0 0 10px 10px; display: grid; gap: 0.4em; align-content: start; }
+.feature p { font-size: 0.92em; color: var(--muted); }
+
+/* Architecture */
+.arch { flex: 1; min-height: 0; display: grid; grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr); gap: clamp(16px, 2vw, 32px); align-items: center; }
+.arch svg { width: 100%; height: auto; max-height: 100%; }
+.arch svg .box { fill: var(--surface); stroke: var(--line); stroke-width: 1.5; }
+.arch svg .box.hot { fill: var(--accent-soft); stroke: var(--accent); }
+.arch svg text { fill: var(--ink); font: 500 13px var(--body); }
+.arch svg .small { fill: var(--muted); font: 400 11px var(--mono); }
+.arch svg .edge { stroke: var(--muted); stroke-width: 1.4; fill: none; marker-end: url(#arrow); }
+.arch svg .edge.q { stroke: var(--accent); }
+.arch svg #arrow path { fill: var(--muted); }
+.steps { margin: 0; padding-left: 1.3em; display: grid; gap: 0.5em; font-size: 0.92em; }
+
+/* Numbers */
+.stats { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: clamp(10px, 1.4vw, 20px); }
+.stat { padding: 0.9em 1em; background: var(--bg); border-radius: 10px; display: grid; gap: 0.2em; }
+.stat b { font: 700 clamp(1.5rem, 2.6vw, 2.4rem)/1 var(--display); color: var(--accent); font-variant-numeric: tabular-nums; }
+.stat span { font-size: 0.82em; color: var(--muted); }
+table { border-collapse: collapse; width: 100%; font-size: 0.86em; }
+th, td { text-align: left; padding: 0.45em 0.6em; border-bottom: 1px solid var(--line); vertical-align: top; }
+th { font-weight: 600; color: var(--muted); font-size: 0.85em; }
+td.num { font-variant-numeric: tabular-nums; white-space: nowrap; }
+
+.callout { padding: 0.8em 1em; border-radius: 10px; background: var(--accent-soft); font-size: 0.92em; }
+.callout.warn { background: var(--warn-soft); }
+
+/* Controls */
+.nav { position: fixed; left: 0; right: 0; bottom: 0; display: flex; justify-content: center; align-items: center; gap: 0.8em;
+  padding-block: 0.6em calc(0.6em + env(safe-area-inset-bottom, 0px));
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+.nav button { font: 500 0.85rem/1 var(--body); color: var(--ink); background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 0.55em 0.9em; cursor: pointer; }
+.nav button:hover { border-color: var(--accent); }
+.nav button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.nav .count { font: 400 0.8rem/1 var(--mono); color: var(--muted); min-width: 5ch; text-align: center; font-variant-numeric: tabular-nums; }
+.progress { position: fixed; left: 0; top: 0; height: 3px; background: var(--accent); transition: width 0.25s ease; }
+
+/* Phones: a scrolling document instead of a slideshow. */
+@media (max-width: 760px), (max-height: 460px) {
+  .deck { display: grid; gap: 16px; height: auto; place-items: stretch; padding-block: 16px 24px; }
+  .slide, .slide.active { display: flex; flex-direction: column; gap: 14px; aspect-ratio: auto; width: 100%; overflow: visible; }
+  .split, .split.even, .pair, .arch, .grid3 { grid-template-columns: minmax(0, 1fr); }
+  .stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .nav, .progress { display: none; }
+  .title { background: var(--surface); }
+}
+@media print {
+  .deck { display: block; height: auto; padding: 0; }
+  .slide, .slide.active { display: flex; flex-direction: column; break-after: page; box-shadow: none; border-radius: 0; width: 100%; }
+  .nav, .progress { display: none; }
+}
+@media (prefers-reduced-motion: reduce) { .progress { transition: none; } }
+</style>
+</head>
+<body>
+<div class="progress" id="progress" aria-hidden="true"></div>
+<main class="deck" id="deck">
+
+<!-- 1 -->
+<section class="slide title" id="slide-1" aria-label="Title">
+  <div class="split">
+    <div class="copy">
+      <p class="eyebrow">Portfolio project · v0.5.0</p>
+      <h1>Ask your documents.<br>Privately.</h1>
+      <p class="lede">A fully local assistant that answers questions from your own files, cites every source, and says so when the answer isn't there.</p>
+      <div class="facts"><span>runs offline</span><span>English + Spanish</span><span>7.2 GB RAM laptop</span><span>FastAPI · React · Ollama</span></div>
+    </div>
+    <div class="answer-card" aria-label="Example answer">
+      <p class="q">When does the company close for the year-end holiday?</p>
+      <p>The company closes for the year-end holiday from December 22, 2026 through January 2, 2027. <span class="cite">[1]</span></p>
+      <p class="muted mono" style="font-size:0.8em">[1] 05-holiday-announcement.pdf · page 1</p>
+    </div>
+  </div>
+</section>
+
+<!-- 2 -->
+<section class="slide" id="slide-2" aria-label="The problem">
+  <div class="slide-head"><p class="eyebrow">The problem</p><h2>The answers are in the documents. Nobody wants to read them all.</h2></div>
+  <div class="split even">
+    <div class="copy">
+      <p>A small business keeps its knowledge in folders: an HR handbook, a supplier contract, a price sheet, meeting notes. Staff ask the same questions every week.</p>
+      <p>A cloud chatbot means uploading private files to someone else's servers. And a general chatbot <strong>invents</strong> answers when it doesn't know.</p>
+    </div>
+    <div class="copy">
+      <h3>What this app promises</h3>
+      <ul>
+        <li><strong>Nothing leaves the machine.</strong> Models run locally in Ollama.</li>
+        <li><strong>Answers only from your files,</strong> with numbered citations you can check.</li>
+        <li><strong>"Not found in the documents"</strong> instead of a guess.</li>
+        <li><strong>Usable without training:</strong> plain words, guidance, and a troubleshooter.</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<!-- 3 -->
+<section class="slide" id="slide-3" aria-label="What it does">
+  <div class="slide-head"><p class="eyebrow">What it does</p><h2>Six things, end to end</h2></div>
+  <div class="grid3">
+    <div class="feature"><h3>Organises new files</h3><p>Drop a folder. Each file gets a suggested shelf and tags. You decide, then confirm.</p></div>
+    <div class="feature"><h3>Grounded answers</h3><p>Hybrid search finds the right passages; the model may only use those.</p></div>
+    <div class="feature"><h3>Checkable citations</h3><p>Click <span class="cite">[1]</span> to read the exact passage, with file, page and score.</p></div>
+    <div class="feature"><h3>Versions and trash</h3><p>Duplicates are skipped, changed files become v2, deletes can be restored.</p></div>
+    <div class="feature"><h3>Settings without jargon</h3><p>Tooltips, presets and warnings for values that would hurt answers.</p></div>
+    <div class="feature"><h3>Self-diagnosis</h3><p>A troubleshooter names the cause and fix, and can draft a support ticket.</p></div>
+  </div>
+</section>
+
+<!-- 4 -->
+<section class="slide" id="slide-4" aria-label="Adding documents">
+  <div class="slide-head"><p class="eyebrow">Walkthrough · 1 of 6 · Add documents</p><h2>Pick files or a whole folder</h2></div>
+  <div class="split">
+    <div class="copy">
+      <p>Drag and drop, <strong>Choose files</strong>, or <strong>Choose folder</strong> (subfolders included). Files that can't be read are greyed out with the reason before anything is sent.</p>
+      <p>Then <strong>Analyze</strong>: the app reads each file, compares it with the shelves you already have, and picks tags. A progress bar shows each step.</p>
+      <p class="callout">Nothing is added to the library yet. The files wait in a staging area until you confirm, and are deleted if you cancel.</p>
+    </div>
+    <div class="pair">
+      <figure class="shot"><img src="img/02-library-pick.jpg" alt="Library with a list of picked files, one greyed out as unsupported"><figcaption>The picked files, with an unsupported one greyed out.</figcaption></figure>
+      <figure class="shot"><img src="img/03-analyzing.jpg" alt="Analysis in progress with a progress bar"><figcaption>Analysis runs in the background.</figcaption></figure>
+    </div>
+  </div>
+</section>
+
+<!-- 5 -->
+<section class="slide" id="slide-5" aria-label="Suggested shelves and tags">
+  <div class="slide-head"><p class="eyebrow">Walkthrough · 2 of 6 · Review suggestions</p><h2>The app suggests. You decide.</h2></div>
+  <div class="split">
+    <div class="copy">
+      <ul>
+        <li>Each file gets a shelf: an existing one when it's similar to documents there, or a <strong>new shelf</strong> with a suggested name.</li>
+        <li>Tags come from the content: department, kind of document, validity like <span class="shelf">q4-2026</span>, and the folder.</li>
+        <li>A reason for every suggestion: <em>"Grouped with 02-supplier-agreement.docx"</em>, or for an existing shelf <em>"Similar to 09-shipping-returns-policy.md on business"</em>.</li>
+        <li>Rename shelves (here to <span class="shelf">business</span> and <span class="shelf">staff</span>), move files, edit tags, or leave a file out. Then one button: <strong>Create 2 shelves and process 11 documents</strong>.</li>
+      </ul>
+    </div>
+    <figure class="shot"><img src="img/04-suggestions.jpg" alt="Suggestions review grouping files under two suggested new shelves with tags"><figcaption>Files grouped by suggested shelf, with editable names and tags.</figcaption></figure>
+  </div>
+</section>
+
+<!-- 6 -->
+<section class="slide" id="slide-6" aria-label="Processing">
+  <div class="slide-head"><p class="eyebrow">Walkthrough · 3 of 6 · Processing</p><h2>Indexed in the background, visible at every step</h2></div>
+  <div class="split">
+    <div class="copy">
+      <p>Each file becomes a job in a queue: parsed (PDF, Word with tables, OCR for scans), cut into overlapping pieces, embedded and indexed twice, for meaning and for exact words.</p>
+      <p>The Library shows live progress. The Queue names each job by its file and explains anything skipped, such as <em>"Already in the library as … on shelf …"</em>.</p>
+    </div>
+    <div class="pair">
+      <figure class="shot"><img src="img/05-processing.jpg" alt="Queue with ingest jobs and progress"><figcaption>The Queue: readable job names and live progress.</figcaption></figure>
+      <figure class="shot"><img src="img/06-library.jpg" alt="Library list of documents with shelves and tags"><figcaption>The Library: shelves, tags, search and trash.</figcaption></figure>
+    </div>
+  </div>
+</section>
+
+<!-- 7 -->
+<section class="slide" id="slide-7" aria-label="Chat with citations">
+  <div class="slide-head"><p class="eyebrow">Walkthrough · 4 of 6 · Ask</p><h2>Answers with numbered sources</h2></div>
+  <div class="split">
+    <div class="copy">
+      <p>Pick a shelf and ask. The answer streams in with citations <span class="cite">[1]</span> <span class="cite">[2]</span>, and the sources are listed underneath with file, page and score.</p>
+      <p>A citation check runs on every answer. If the model forgot to cite, or cited a number that doesn't exist, the answer is marked so you know to verify it.</p>
+    </div>
+    <figure class="shot"><img src="img/07-chat-citations.jpg" alt="Chat answer with numbered citations and a source list"><figcaption>A grounded answer and its sources.</figcaption></figure>
+  </div>
+</section>
+
+<!-- 8 -->
+<section class="slide" id="slide-8" aria-label="Checking a citation">
+  <div class="slide-head"><p class="eyebrow">Walkthrough · 5 of 6 · Check</p><h2>Every claim can be checked in one click</h2></div>
+  <div class="split">
+    <div class="copy">
+      <p>Clicking a citation opens the exact passage the model was given: the text, the file, the page or section, and the version it came from.</p>
+      <p>Answers are reproducible: each one stores the retrieval settings, passages and scores it used, so an old answer can be explained even after documents change.</p>
+    </div>
+    <figure class="shot"><img src="img/08-passage.jpg" alt="Expanded citation showing the source passage"><figcaption>The passage behind <span class="cite">[1]</span>.</figcaption></figure>
+  </div>
+</section>
+
+<!-- 9 -->
+<section class="slide" id="slide-9" aria-label="Grounding and Spanish">
+  <div class="slide-head"><p class="eyebrow">Walkthrough · 6 of 6 · No guessing</p><h2>"Not found in the documents" is a feature</h2></div>
+  <div class="pair">
+    <figure class="shot"><img src="img/09-not-found.jpg" alt="Chat replying not found in the documents"><figcaption>A sales question asked on the staff shelf: the figure exists, but not on this shelf.</figcaption></figure>
+    <figure class="shot"><img src="img/10-spanish.jpg" alt="Spanish question answered in Spanish from an English document"><figcaption>A question in Spanish, answered in Spanish from an English policy.</figcaption></figure>
+  </div>
+</section>
+
+<!-- 10 -->
+<section class="slide" id="slide-10" aria-label="Versions and trash">
+  <div class="slide-head"><p class="eyebrow">Safety</p><h2>Nothing is stored twice, and nothing is lost by accident</h2></div>
+  <div class="split">
+    <div class="copy">
+      <ul>
+        <li>Files are stored once under their <span class="mono">SHA-256</span> hash. The same content again is recognised and skipped.</li>
+        <li>The same name with new content becomes <strong>v2</strong>. The old version stays, and rollback is instant: it flips a pointer and never re-embeds.</li>
+        <li>Deletes go to a 30-day trash with <strong>Restore</strong>. Every upload, delete, rollback and settings change is in the audit log.</li>
+      </ul>
+    </div>
+    <div class="pair">
+      <figure class="shot"><img src="img/11-duplicates.jpg" alt="Second upload showing a new version, existing-shelf matches and duplicates left out"><figcaption>A second drop: a new version, matches to existing shelves, and three files already in the library.</figcaption></figure>
+      <figure class="shot"><img src="img/16-restore.jpg" alt="Trash view with a Restore button"><figcaption>The trash, with Restore.</figcaption></figure>
+    </div>
+  </div>
+</section>
+
+<!-- 11 -->
+<section class="slide" id="slide-11" aria-label="Collections settings">
+  <div class="slide-head"><p class="eyebrow">Settings</p><h2>Expert settings, explained for everyone</h2></div>
+  <div class="split">
+    <div class="copy">
+      <p>Each shelf has its own embedding model and chunking. Tooltips say what they mean; presets fill in values that work (<em>Short facts</em>, <em>Balanced</em>, <em>Long text</em>); unusual values get a plain warning, and values that would break the shelf are blocked.</p>
+      <p>Changing a setting rebuilds the shelf <strong>blue/green</strong>: a new copy is built in the background and swapped in when ready. The old copy keeps answering meanwhile.</p>
+    </div>
+    <div class="pair">
+      <figure class="shot"><img src="img/12-collections.jpg" alt="Collections page with a tooltip, presets and a warning"><figcaption>Tooltips, presets and a warning.</figcaption></figure>
+      <figure class="shot"><img src="img/13-rebuild-confirm.jpg" alt="Rebuild confirmation dialog"><figcaption>Every rebuild is confirmed with a summary.</figcaption></figure>
+    </div>
+  </div>
+</section>
+
+<!-- 12 -->
+<section class="slide" id="slide-12" aria-label="Troubleshooting">
+  <div class="slide-head"><p class="eyebrow">Operations</p><h2>When something breaks, the app says what and how to fix it</h2></div>
+  <div class="split">
+    <div class="copy">
+      <p>A status bar on every page, and controls that can't work are paused with the reason. The troubleshooter checks Ollama, the database, the search index and the background worker, with a cause, a fix and action buttons.</p>
+      <p>One click drafts a <strong>support ticket</strong> in service-desk format: environment, failed checks, impact, urgency and priority, plus the user's own notes. In this demo it is saved locally and never sent.</p>
+    </div>
+    <div class="pair">
+      <figure class="shot"><img src="img/14-troubleshooter.jpg" alt="Troubleshooter panel showing Ollama down with cause and fix"><figcaption>Ollama stopped: cause, fix, paused chat.</figcaption></figure>
+      <figure class="shot"><img src="img/15-l2-ticket.jpg" alt="Simulated L2 incident ticket"><figcaption>A drafted support incident.</figcaption></figure>
+    </div>
+  </div>
+</section>
+
+<!-- 13 -->
+<section class="slide" id="slide-13" aria-label="Architecture">
+  <div class="slide-head"><p class="eyebrow">How it works</p><h2>Architecture</h2></div>
+  <div class="arch">
+    <svg viewBox="0 0 720 360" role="img" aria-label="Browser to FastAPI; FastAPI to service layer, retrieval and job queue; these to file store, SQLite with FTS5, Chroma and Ollama">
+      <defs><marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z"/></marker></defs>
+      <rect class="box" x="10" y="150" width="120" height="60" rx="10"/><text x="70" y="176" text-anchor="middle">React UI</text><text class="small" x="70" y="194" text-anchor="middle">Vite · TS</text>
+      <rect class="box hot" x="180" y="150" width="110" height="60" rx="10"/><text x="235" y="176" text-anchor="middle">FastAPI</text><text class="small" x="235" y="194" text-anchor="middle">REST + SSE</text>
+      <rect class="box" x="340" y="40" width="150" height="60" rx="10"/><text x="415" y="66" text-anchor="middle">Service layer</text><text class="small" x="415" y="84" text-anchor="middle">versioning · ingest</text>
+      <rect class="box" x="340" y="150" width="150" height="60" rx="10"/><text x="415" y="176" text-anchor="middle">Retrieval</text><text class="small" x="415" y="194" text-anchor="middle">vector + FTS · RRF</text>
+      <rect class="box" x="340" y="260" width="150" height="60" rx="10"/><text x="415" y="286" text-anchor="middle">Job queue</text><text class="small" x="415" y="304" text-anchor="middle">ingest · 1 worker</text>
+      <rect class="box" x="560" y="10" width="150" height="50" rx="10"/><text x="635" y="32" text-anchor="middle">File store</text><text class="small" x="635" y="48" text-anchor="middle">&lt;sha256&gt;.pdf</text>
+      <rect class="box" x="560" y="80" width="150" height="50" rx="10"/><text x="635" y="102" text-anchor="middle">SQLite + FTS5</text><text class="small" x="635" y="118" text-anchor="middle">keywords · audit</text>
+      <rect class="box" x="560" y="150" width="150" height="50" rx="10"/><text x="635" y="172" text-anchor="middle">Chroma</text><text class="small" x="635" y="188" text-anchor="middle">vectors per shelf</text>
+      <rect class="box hot" x="560" y="250" width="150" height="70" rx="10"/><text x="635" y="276" text-anchor="middle">Ollama (local)</text><text class="small" x="635" y="294" text-anchor="middle">bge-m3 (embed)</text><text class="small" x="635" y="309" text-anchor="middle">qwen2.5 (chat)</text>
+      <path class="edge q" d="M130 180 H176"/>
+      <path class="edge" d="M290 170 C315 170 310 70 336 70"/>
+      <path class="edge q" d="M290 180 H336"/>
+      <path class="edge" d="M290 190 C315 190 310 290 336 290"/>
+      <path class="edge" d="M490 62 C525 62 525 35 556 35"/>
+      <path class="edge" d="M490 74 C525 74 525 105 556 105"/>
+      <path class="edge" d="M490 86 C530 86 525 175 556 175"/>
+      <path class="edge q" d="M490 180 H556"/>
+      <path class="edge q" d="M490 190 C530 190 525 280 556 280"/>
+    </svg>
+    <div class="copy">
+      <h3>A question, step by step</h3>
+      <ol class="steps">
+        <li>Search the chosen shelf two ways: by meaning (Chroma) and by exact words (SQLite FTS5).</li>
+        <li>Fuse both rankings with reciprocal rank fusion.</li>
+        <li>Send the top 5 passages to the local model with a prompt that allows only those, with citations.</li>
+        <li>Stream the answer; store passages and scores; check the citations.</li>
+      </ol>
+      <p class="muted" style="font-size:0.85em">Teal: the path of a question.</p>
+    </div>
+  </div>
+</section>
+
+<!-- 14 -->
+<section class="slide" id="slide-14" aria-label="Engineering highlights">
+  <div class="slide-head"><p class="eyebrow">Engineering</p><h2>Decisions that keep it correct</h2></div>
+  <div class="split even">
+    <div class="copy">
+      <ul>
+        <li><strong>One service layer.</strong> Every write to SQLite, Chroma and the file store goes through it; routes never write directly.</li>
+        <li><strong>One embedding model per shelf.</strong> Vectors from different models are never mixed; a change means a blue/green rebuild.</li>
+        <li><strong>Interfaces with fakes</strong> for the LLM, embeddings and vector store, so CI never needs a model.</li>
+        <li><strong>Container-ready:</strong> config from environment variables, all state under one data folder, structured JSON logs with request ids, a <span class="mono">/health</span> endpoint.</li>
+      </ul>
+    </div>
+    <div class="copy">
+      <h3>Measured, then written down</h3>
+      <table>
+        <thead><tr><th>Question</th><th>Measured</th><th>Record</th></tr></thead>
+        <tbody>
+          <tr><td>How to make a 3B model cite?</td><td class="num">one-line hint 6/6 vs long reminder 2/6</td><td class="mono">0007</td></tr>
+          <tr><td>How to group new files into shelves?</td><td class="num">department tags 11/11 vs clustering 5–19/30</td><td class="mono">0009</td></tr>
+          <tr><td>Which chat model fits 7.2 GB RAM?</td><td class="num">qwen2.5:3b; an 8B model swapped to disk and gave no answer in 5 min</td><td class="mono">0004</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</section>
+
+<!-- 15 -->
+<section class="slide" id="slide-15" aria-label="Testing">
+  <div class="slide-head"><p class="eyebrow">Quality</p><h2>Tested with fakes in CI, and end to end with the real model</h2></div>
+  <div class="stats">
+    <div class="stat"><b>164</b><span>unit and API tests, no model needed</span></div>
+    <div class="stat"><b>53/53</b><span>must-pass end-to-end checks</span></div>
+    <div class="stat"><b>52/57</b><span>answer quality checks passed</span></div>
+    <div class="stat"><b>82%</b><span>answers citing the right source (31/38)</span></div>
+  </div>
+  <div class="split even top">
+    <div class="copy">
+      <p>The end-to-end kit drives the same API as the UI with 11 fictional business documents in English and Spanish and about 60 questions. It checks ingestion of every file type, answers against expected facts, citations, refusals, versions and rollback, trash and restore, cancel and retry, rebuilds, suggested shelves, prompt injection, and recovery after a restart.</p>
+    </div>
+    <div class="copy">
+      <p>Every failure is classified as a <em>retrieval miss</em>, an <em>answer miss</em> or an <em>app error</em>, and each run gets a written report. The first run, graded by a reviewer, found citations right only 64% of the time; a measured prompt fix and a citation check raised that to 81%. The five answer misses in the latest run are all the small model leaving out a fact it was given.</p>
+      <p class="muted" style="font-size:0.85em">CI: ruff, pytest, the frontend build and a Docker build on every push.</p>
+    </div>
+  </div>
+</section>
+
+<!-- 16 -->
+<section class="slide" id="slide-16" aria-label="How it was built">
+  <div class="slide-head"><p class="eyebrow">How it was built</p><h2>Built with an AI coding assistant, directed and tested by me</h2></div>
+  <div class="split even">
+    <div class="copy">
+      <p>I built this with <strong>Claude Code</strong>. I set the requirements and made the product calls: <em>"suggest a shelf, but let me decide"</em>, <em>"few broad shelves"</em>, <em>"never lose data"</em>. I tried every step in the browser, reviewed the changes and the test reports, and sent back what didn't work.</p>
+      <p>Claude Code wrote most of the code, proposed options and measured them. Every deviation from the plan is a short decision record in the repository.</p>
+    </div>
+    <div class="copy">
+      <h3>Stack</h3>
+      <p class="mono" style="font-size:0.85em; line-height:1.9">Python 3 · FastAPI · SQLAlchemy · Alembic · SQLite FTS5 · ChromaDB · PyMuPDF · python-docx · Tesseract · Ollama (bge-m3, qwen2.5) · React · TypeScript · Vite · Tailwind · TanStack Query · Docker · GitHub Actions</p>
+      <p>Code, decisions and test reports: <span class="mono">github.com/carlosgild-web/local-rag-ollama</span></p>
+    </div>
+  </div>
+</section>
+
+</main>
+<nav class="nav" aria-label="Slides">
+  <button type="button" id="prev" aria-label="Previous slide">← Prev</button>
+  <span class="count" id="count" aria-live="polite">1 / 16</span>
+  <button type="button" id="next" aria-label="Next slide">Next →</button>
+</nav>
+<script>
+(() => {
+  const slides = Array.from(document.querySelectorAll(".slide"));
+  const count = document.getElementById("count");
+  const bar = document.getElementById("progress");
+  let index = 0;
+  slides.forEach((s, i) => {
+    const n = document.createElement("span");
+    n.className = "slide-num";
+    n.textContent = `${i + 1} / ${slides.length}`;
+    s.appendChild(n);
+  });
+  function show(i, updateHash) {
+    index = Math.max(0, Math.min(slides.length - 1, i));
+    slides.forEach((s, k) => s.classList.toggle("active", k === index));
+    count.textContent = `${index + 1} / ${slides.length}`;
+    bar.style.width = `${((index + 1) / slides.length) * 100}%`;
+    if (updateHash) {
+      try { history.replaceState(null, "", `#slide-${index + 1}`); } catch (e) { /* sandboxed */ }
+    }
+  }
+  function fromHash() {
+    const m = /^#slide-(\d+)$/.exec(location.hash);
+    return m ? Number(m[1]) - 1 : 0;
+  }
+  document.getElementById("prev").addEventListener("click", () => show(index - 1, true));
+  document.getElementById("next").addEventListener("click", () => show(index + 1, true));
+  document.addEventListener("keydown", (e) => {
+    if (e.target.closest && e.target.closest("button")) {
+      if (e.key === " " || e.key === "Enter") return;
+    }
+    if (["ArrowRight", "PageDown", " "].includes(e.key)) { e.preventDefault(); show(index + 1, true); }
+    if (["ArrowLeft", "PageUp"].includes(e.key)) { e.preventDefault(); show(index - 1, true); }
+    if (e.key === "Home") show(0, true);
+    if (e.key === "End") show(slides.length - 1, true);
+  });
+  let startX = null;
+  document.addEventListener("touchstart", (e) => { startX = e.touches[0].clientX; }, { passive: true });
+  document.addEventListener("touchend", (e) => {
+    if (startX === null) return;
+    const dx = e.changedTouches[0].clientX - startX;
+    if (Math.abs(dx) > 50) show(index + (dx < 0 ? 1 : -1), true);
+    startX = null;
+  });
+  window.addEventListener("hashchange", () => show(fromHash(), false));
+  show(fromHash(), false);
+})();
+</script>
+</body>
+</html>

@@ -1,5 +1,6 @@
-import { CheckCircle2, MessageSquare, Upload, XCircle } from "lucide-react";
+import { CheckCircle2, MessageSquare, Upload, Wrench, XCircle } from "lucide-react";
 import { Link } from "react-router-dom";
+import { useTroubleshooter } from "@/components/TroubleshooterContext";
 import type { ComponentHealth } from "@/api/types";
 import { ErrorNote, JOB_LABEL, JobStatusBadge, PageHeader } from "@/components/common";
 import { Button } from "@/components/ui/button";
@@ -24,6 +25,7 @@ const COMPONENTS = [
 
 export default function Dashboard() {
   const health = useHealth();
+  const { open: openTroubleshooter } = useTroubleshooter();
   const documents = useDocuments();
   const collections = useCollections();
   const sessions = useSessions();
@@ -74,11 +76,16 @@ export default function Dashboard() {
 
         <section className="grid gap-4 lg:grid-cols-2">
           <Card>
-            <CardHeader>
-              <CardTitle>System health</CardTitle>
-              <CardDescription>
-                {health.data ? `Overall: ${health.data.status}` : "Checking…"}
-              </CardDescription>
+            <CardHeader className="flex-row items-start justify-between">
+              <div className="space-y-1">
+                <CardTitle>System health</CardTitle>
+                <CardDescription>
+                  {health.data ? `Overall: ${health.data.status}` : "Checking…"}
+                </CardDescription>
+              </div>
+              <Button variant="outline" size="sm" onClick={openTroubleshooter}>
+                <Wrench /> Troubleshoot
+              </Button>
             </CardHeader>
             <CardContent>
               <ul className="divide-y">
@@ -134,7 +141,7 @@ export default function Dashboard() {
                     <JobStatusBadge status={job.status} />
                     <span>{JOB_LABEL[job.job_type] ?? job.job_type}</span>
                     <span className="truncate text-muted-foreground">
-                      {String(job.payload.filename ?? "")}
+                      {job.subject ?? ""}
                     </span>
                     <span className="ml-auto shrink-0 text-xs text-muted-foreground">
                       {formatDate(job.updated_at)}

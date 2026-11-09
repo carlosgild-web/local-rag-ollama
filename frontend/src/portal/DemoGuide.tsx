@@ -105,8 +105,8 @@ const GUIDE = {
       {
         title: { es: "Consola de administración RAG", en: "RAG admin console" },
         body: {
-          es: "Donde se suben, versionan e indexan los documentos: estantes, historial de versiones y reversión, la cola de trabajos y el diagnóstico.",
-          en: "Where documents are uploaded, versioned and indexed: shelves, version history and rollback, the job queue and the troubleshooter.",
+          es: "Donde se suben, versionan e indexan los documentos: estantes, versiones automáticas, la papelera, la cola de trabajos y el diagnóstico.",
+          en: "Where documents are uploaded, versioned and indexed: shelves, automatic versions, the trash, the job queue and the troubleshooter.",
         },
       },
     ] as { title: Bi; body: Bi }[],
@@ -121,8 +121,8 @@ const GUIDE = {
         en: "Ask something the documents don't cover: Luna says so instead of guessing.",
       },
       {
-        es: "En la consola, sube una versión modificada de un documento, vuelve a preguntar y luego revierte la versión.",
-        en: "In the console, upload a changed version of a document, ask again, then roll the version back.",
+        es: "En la consola, sube una versión modificada de un documento con el mismo nombre: se vuelve la versión 2. Luego pregúntale de nuevo a Luna.",
+        en: "In the console, upload a changed copy of a document under the same name: it becomes version 2. Then ask Luna again.",
       },
       {
         es: "Apaga el interruptor «Visible in the employee portal» de un estante y mira cómo Luna deja de usarlo.",

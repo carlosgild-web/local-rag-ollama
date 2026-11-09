@@ -73,7 +73,7 @@ def create_app(runtime: Runtime | None = None, *, start_worker: bool = True) -> 
 
     app = FastAPI(
         title="Local RAG with Ollama",
-        version="0.4.0",
+        version="0.5.0",
         description="Fully local retrieval-augmented generation: documents, versions, chat.",
         lifespan=lifespan,
     )

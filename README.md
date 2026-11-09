@@ -16,7 +16,7 @@ Drop in PDFs, Word files, Markdown or plain text. The app reads them, suggests w
 - **Keeps versions.** The same file twice is skipped. A changed file becomes v2 and the old version stays available. Deletes go to a 30-day trash you can restore from.
 - **Explains problems in plain words.** A troubleshooter checks Ollama, the database, the search index and the background worker, and gives the cause and the fix. It can draft a (simulated) support ticket for the next support level.
 - **Works in English and Spanish**, with search that combines meaning (vectors) and exact words (keywords).
-- **Comes with an employee portal.** The intranet of *Hilda & Luna Beadworks*, a fictional bead maker, at `/intranet`. Employees ask **Luna**, an assistant that searches every shelf the admin shares with the portal, in a floating chat or full screen, in Spanish or English. See [Employee portal](#employee-portal).
+- **Comes with a demo company.** *Hilda & Luna Beadworks*, a fictional bead maker, has a public website at `/site` and an intranet at `/intranet`. Employees ask **Luna**, an assistant that searches every shelf the admin shares with the portal, in a floating chat or full screen, in Spanish or English. See [Employee portal](#employee-portal).
 
 | | |
 |---|---|
@@ -37,7 +37,8 @@ The console above is for the person who manages the documents. The portal shows 
 - **Same rules as the console:** answers only from the documents, numbered citations with the exact passage, and a clear "I couldn't find this" when the documents don't say.
 - **ES / EN switch.** The interface changes language and Luna is asked to answer in it, whatever language the documents are in.
 - **Kept apart, still visible.** Employee chats don't appear in the console's chat history; the dashboard lists them under *Employee questions*, with their 👍/👎 feedback stored like any other answer.
-- **Simulated internal access:** there is no sign-in. The footer says so.
+- **Simulated internal access:** there is no real sign-in. The footer says so.
+- **A public website** at `/site`, the company's outside face. It's modeled on real bead and charm makers: a home page with collections and the workshop's story, a catalog, a wholesale page, and help on shipping, returns and FAQ. All of it is written from the customer-facing demo documents, and every bead and charm is drawn in SVG. Its forms are demos that send nothing. **Employee login** opens a simulated staff sign-in, with one button into the intranet ([decision 0011](docs/decisions/0011-public-site.md)).
 
 Load the demo company's 11 fictional documents with one command (Ollama must be running):
 
@@ -45,7 +46,7 @@ Load the demo company's 11 fictional documents with one command (Ollama must be 
 cd backend && .venv/Scripts/python -m app.cli seed-demo     # one shelf per folder in backend/demo/hilda-luna/
 ```
 
-Then open http://localhost:8000/intranet, or use **Employee portal** on the dashboard.
+Then open http://localhost:8000/site (the public website) or http://localhost:8000/intranet, or use **Company site** and **Employee portal** on the dashboard.
 
 ## How it works
 
@@ -166,6 +167,7 @@ backend/app/        FastAPI app: api/, core/, ingest/, retrieval/, llm/, version
 backend/tests/      pytest suite (fakes only)        backend/migrations/  Alembic
 frontend/src/       React + Vite + TypeScript + Tailwind: pages/, components/, api/, hooks/
 frontend/src/portal/  The employee portal and Luna (lazy-loaded, own fonts)
+frontend/src/site/    The demo company's public website (lazy-loaded)
 backend/demo/       Fictional Hilda & Luna Beadworks documents for `seed-demo`
 e2e/                End-to-end test kit and a fictional sample corpus
 docs/decisions/     Why things are the way they are   docs/test-reports/  End-to-end reports

@@ -19,6 +19,12 @@ The employee portal, from the `feature/employee-portal` branch ([decision 0010](
 - **Dashboard:** an *Employee portal* button, an *Employee questions* card, and a sidebar link.
 - **`python -m app.cli seed-demo`** loads the 11 fictional documents in `backend/demo/hilda-luna/`, one shelf per folder. Running it again skips every file.
 - Migration `0005_portal`.
+- **Public company website** at `/site` ([decision 0011](docs/decisions/0011-public-site.md)): the outside face of Hilda & Luna Beadworks, in warm Amber Hollow colors with the same logo, fonts and ES/EN switch.
+  - Home: collection banners (Amber Hollow, Coastal Garden), shop-by tiles, customer favorites, the workshop's story, a wholesale band and a newsletter.
+  - Catalog (glass beads, charms, findings, with retail prices and nickel notes), Wholesale (tiers, how to apply, custom colors, starter sets) and Help (shipping, returns, damaged items, FAQ, contact).
+  - Written only from the customer-facing demo documents. Beads, charms and findings are drawn in SVG, and the forms are demos that send and store nothing.
+  - **Employee login** opens `/site/staff`, a simulated staff sign-in with one *Enter as demo employee* button into `/intranet`.
+  - Links between the site, the intranet and the console: a *Company site* button on the dashboard and a sidebar link.
 
 ## [0.5.0] - 2026-11-09
 

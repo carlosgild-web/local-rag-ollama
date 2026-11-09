@@ -1,0 +1,47 @@
+HILDA & LUNA BEADWORKS
+NEW EMPLOYEE ONBOARDING CHECKLIST
+[Sample data — generated for RAG testing]
+
+Employee name: ______________________________
+Department: [ ] Design Studio  [ ] Production Workshop  [ ] Warehouse  [ ] Office
+Start date: ______________________________
+Manager: ______________________________
+
+--- BEFORE DAY 1 (HR) ---
+[ ] Offer letter signed and returned
+[ ] Background check completed (where applicable by role)
+[ ] IT account created (email, portal login)
+[ ] Workstation or workshop bench assigned
+[ ] Welcome kit prepared (branded apron, name badge, sample product kit)
+
+--- DAY 1 ---
+[ ] Office/Workshop tour completed
+[ ] Introduced to immediate team and department lead
+[ ] Employee Handbook distributed and acknowledgment signed
+[ ] Payroll and direct deposit forms completed
+[ ] Benefits enrollment packet provided (health insurance enrollment window: first 60 days)
+[ ] Emergency contact form completed
+[ ] Parking/building access badge issued
+
+--- WEEK 1 ---
+[ ] Workshop Safety Training completed (Production Workshop staff and visitors only — mandatory before unsupervised work)
+[ ] Quality Control Manual reviewed with Quality Lead (Production and Design Studio roles)
+[ ] Employee portal walkthrough (pay stubs, PTO requests, benefits)
+[ ] Department-specific tools/software access confirmed
+[ ] Reviewed current product catalog and active seasonal collection
+
+--- 30 DAYS ---
+[ ] Check-in meeting with manager
+[ ] Goals for first 90 days documented
+[ ] Any training gaps identified and scheduled
+
+--- 90 DAYS (END OF PROBATIONARY PERIOD) ---
+[ ] Formal 90-day review completed
+[ ] Benefits eligibility confirmed (full benefits begin after 60 days per Employee Handbook Section 4.3)
+[ ] PTO accrual confirmed active (12 days/year for Years 1–2 per Handbook Section 5.1)
+
+Notes:
+_______________________________________________________________
+_______________________________________________________________
+
+HR contact for onboarding questions: hr@hildaluna-sample.com (sample)

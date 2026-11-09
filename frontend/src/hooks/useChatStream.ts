@@ -28,7 +28,12 @@ export function useChatStream(onSession: (id: number) => void) {
   useEffect(() => () => controller.current?.abort(), []);
 
   const ask = useCallback(
-    async (question: string, sessionId: number | null, collectionId?: number) => {
+    async (
+      question: string,
+      sessionId: number | null,
+      collectionId?: number,
+      extra?: Record<string, unknown>,
+    ) => {
       controller.current?.abort();
       const abort = new AbortController();
       controller.current = abort;
@@ -37,7 +42,7 @@ export function useChatStream(onSession: (id: number) => void) {
       let session = sessionId;
       sessionRef.current = sessionId;
       try {
-        const body = { question, session_id: sessionId, collection_id: collectionId ?? null };
+        const body = { question, session_id: sessionId, collection_id: collectionId ?? null, ...extra };
         for await (const message of postEventStream("/chat", body, abort.signal)) {
           switch (message.event) {
             case "session":

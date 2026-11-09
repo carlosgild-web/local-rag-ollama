@@ -21,6 +21,7 @@ from sqlalchemy import select
 from app.api.deps import DbDep, RuntimeDep
 from app.api.routes.retrieval import chunk_out, resolve_collection
 from app.api.schemas import (
+    Channel,
     ChatIn,
     FeedbackIn,
     FeedbackOut,
@@ -34,9 +35,9 @@ from app.core.runtime import Runtime
 from app.db.models import Chunk, Document, DocumentVersion, Feedback, Message, MessageSource
 from app.llm.ollama_client import OllamaError
 from app.retrieval.citations import citation_status
-from app.retrieval.prompt import NOT_FOUND_PHRASE
-from app.retrieval.qa import AnswerContext, prepare_context
-from app.versioning import history, profiles
+from app.retrieval.prompt import NOT_FOUND_PHRASE, with_answer_language
+from app.retrieval.qa import AnswerContext, prepare_context, prepare_context_many
+from app.versioning import history, profiles, service
 from app.versioning.history import SourceRef
 
 router = APIRouter(tags=["chat"])
@@ -57,30 +58,52 @@ def chat(db: DbDep, runtime: RuntimeDep, body: ChatIn):
         db, settings, body.profile or profiles.DEFAULT_PROFILE_NAME
     )
     existing = history.get_session(db, body.session_id) if body.session_id is not None else None
-    collection = resolve_collection(
-        db,
-        runtime,
-        body.collection_id,
-        session_collection_id=existing.collection_id if existing else None,
-    )
-    if existing is None:
-        session = history.create_session(db, body.question, collection_id=collection.id)
-    else:
-        session = existing
-        if session.collection_id != collection.id:  # remember the shelf for follow-ups
-            session.collection_id = collection.id
-            db.commit()
+    # A follow-up stays in the channel its conversation started in.
+    channel = existing.channel if existing else body.channel
+    instructions = with_answer_language(profile.system_prompt, body.answer_language)
 
-    context = prepare_context(
-        db,
-        body.question,
-        collection=collection,
-        settings=settings,
-        embedding_client=runtime.embedding_client_for(collection.embedding_model),
-        vector_store=runtime.vector_store,
-        top_k=profile.retrieval_top_k,
-        system_instructions=profile.system_prompt,
-    )
+    if channel == "intranet":
+        session = existing or history.create_session(db, body.question, channel="intranet")
+        shelves = service.portal_collections(db)
+        context = (
+            prepare_context_many(
+                db,
+                body.question,
+                collections=shelves,
+                settings=settings,
+                embedding_client_for=runtime.embedding_client_for,
+                vector_store=runtime.vector_store,
+                top_k=profile.retrieval_top_k,
+                system_instructions=instructions,
+            )
+            if shelves
+            else None
+        )
+    else:
+        collection = resolve_collection(
+            db,
+            runtime,
+            body.collection_id,
+            session_collection_id=existing.collection_id if existing else None,
+        )
+        if existing is None:
+            session = history.create_session(db, body.question, collection_id=collection.id)
+        else:
+            session = existing
+            if session.collection_id != collection.id:  # remember the shelf for follow-ups
+                session.collection_id = collection.id
+                db.commit()
+
+        context = prepare_context(
+            db,
+            body.question,
+            collection=collection,
+            settings=settings,
+            embedding_client=runtime.embedding_client_for(collection.embedding_model),
+            vector_store=runtime.vector_store,
+            top_k=profile.retrieval_top_k,
+            system_instructions=instructions,
+        )
     user_message = history.add_message(db, session.id, "user", body.question)
 
     stream = _answer_stream(
@@ -187,7 +210,10 @@ def list_sessions(
     db: DbDep,
     limit: Annotated[int, Query(ge=1, le=200)] = 50,
     offset: Annotated[int, Query(ge=0)] = 0,
+    channel: Channel = "admin",
 ):
+    """The console's chats by default; `channel=intranet` lists the
+    employee portal's."""
     return [
         SessionSummary(
             id=s.id,
@@ -195,8 +221,9 @@ def list_sessions(
             created_at=s.created_at,
             message_count=count,
             collection_id=s.collection_id,
+            channel=s.channel,
         )
-        for s, count in history.list_sessions(db, limit=limit, offset=offset)
+        for s, count in history.list_sessions(db, limit=limit, offset=offset, channel=channel)
     ]
 
 
@@ -243,6 +270,7 @@ def get_session(db: DbDep, session_id: int):
         title=session.title,
         created_at=session.created_at,
         collection_id=session.collection_id,
+        channel=session.channel,
         messages=[
             MessageOut(
                 id=m.id,

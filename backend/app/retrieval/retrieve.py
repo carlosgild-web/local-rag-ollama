@@ -5,11 +5,22 @@ fused, of which `top_k` are sent to the LLM. Only chunks of each
 document's *active* version, in the given collection, of non-trashed
 documents are eligible: older versions stay indexed (invariant 3) but are
 filtered out here.
+
+`retrieve_many` searches several shelves at once (the employee portal,
+decision 0010). Scores are only compared where they mean the same thing:
+- shelves that share an embedding model give one vector list, merged by
+  cosine similarity;
+- FTS5 runs once over all the shelves (one index, one BM25 ranking);
+- RRF then fuses those lists by rank, so vectors from different models are
+  never compared (invariant 4).
+Merging per shelf instead would put every shelf's best chunk near the top,
+however weak: a one-document shelf would win a slot for every question.
 """
 
+from collections.abc import Callable
 from dataclasses import dataclass
 
-from sqlalchemy import select, text
+from sqlalchemy import bindparam, select, text
 from sqlalchemy.orm import Session
 
 from app.core.config import Settings
@@ -46,15 +57,50 @@ def retrieve(
     vector_store: VectorStore,
     top_k: int | None = None,
 ) -> list[RetrievedChunk]:
+    return retrieve_many(
+        db,
+        question,
+        collections=[collection],
+        settings=settings,
+        embedding_client_for=lambda _model: embedding_client,
+        vector_store=vector_store,
+        top_k=top_k,
+    )
+
+
+def retrieve_many(
+    db: Session,
+    question: str,
+    *,
+    collections: list[Collection],
+    settings: Settings,
+    embedding_client_for: Callable[[str], EmbeddingClient],
+    vector_store: VectorStore,
+    top_k: int | None = None,
+) -> list[RetrievedChunk]:
+    """Hybrid retrieval over one or more shelves. With one shelf this is
+    exactly the single-shelf search: its vector and FTS lists, fused."""
     top_k = top_k or settings.retrieval_top_k
     candidates = settings.retrieval_candidates
 
-    vector_ids = _vector_candidate_ids(
-        db, question, collection, embedding_client, vector_store, candidates
-    )
-    fts_ids = _fts_candidate_ids(db, question, collection, candidates)
+    embeddings: dict[str, list[float]] = {}  # the question, once per model
 
-    fused = fuse_rrf_scored([vector_ids, fts_ids])[:top_k]
+    def embed(model: str) -> list[float]:
+        if model not in embeddings:
+            [embeddings[model]] = embedding_client_for(model).embed([question])
+        return embeddings[model]
+
+    by_model: dict[str, list[Collection]] = {}
+    for collection in collections:
+        by_model.setdefault(collection.embedding_model, []).append(collection)
+
+    ranked_lists = [
+        _vector_candidate_ids(db, shelves, lambda m=model: embed(m), vector_store, candidates)
+        for model, shelves in by_model.items()
+    ]
+    ranked_lists.append(_fts_candidate_ids(db, question, collections, candidates))
+
+    fused = fuse_rrf_scored(ranked_lists)[:top_k]
     if not fused:
         return []
 
@@ -79,10 +125,10 @@ def retrieve(
     return results
 
 
-def _eligible(collection: Collection):
-    """SQL conditions for a chunk that may be served from `collection`."""
+def _eligible(collections: list[Collection]):
+    """SQL conditions for a chunk that may be served from these shelves."""
     return (
-        Chunk.collection_id == collection.id,
+        Chunk.collection_id.in_([c.id for c in collections]),
         Chunk.retired_at.is_(None),
         Document.active_version_id == Chunk.version_id,
         Document.trashed_at.is_(None),
@@ -91,20 +137,24 @@ def _eligible(collection: Collection):
 
 def _vector_candidate_ids(
     db: Session,
-    question: str,
-    collection: Collection,
-    embedding_client: EmbeddingClient,
+    collections: list[Collection],
+    embed: Callable[[], list[float]],
     vector_store: VectorStore,
     candidates: int,
 ) -> list[int]:
-    if vector_store.count(collection.chroma_collection) == 0:
+    """One ranked list for shelves that share an embedding model, merged by
+    cosine similarity (comparable, since the model is the same)."""
+    shelves = [c for c in collections if vector_store.count(c.chroma_collection) > 0]
+    if not shelves:
         return []
-    [embedding] = embedding_client.embed([question])
-    matches = vector_store.query(
-        collection.chroma_collection, embedding, candidates * VECTOR_OVERFETCH
-    )
-    ranked = [int(match.id.split(":", 1)[1]) for match in matches]
-    if not ranked:
+    embedding = embed()
+    scored: dict[int, float] = {}
+    for collection in shelves:
+        for match in vector_store.query(
+            collection.chroma_collection, embedding, candidates * VECTOR_OVERFETCH
+        ):
+            scored[int(match.id.split(":", 1)[1])] = match.score
+    if not scored:
         return []
 
     eligible = set(
@@ -112,16 +162,17 @@ def _vector_candidate_ids(
             select(Chunk.id)
             .join(DocumentVersion, DocumentVersion.id == Chunk.version_id)
             .join(Document, Document.id == DocumentVersion.document_id)
-            .where(Chunk.id.in_(ranked), *_eligible(collection))
+            .where(Chunk.id.in_(list(scored)), *_eligible(shelves))
         )
         .scalars()
         .all()
     )
-    return [chunk_id for chunk_id in ranked if chunk_id in eligible][:candidates]
+    ranked = sorted(eligible, key=lambda chunk_id: scored[chunk_id], reverse=True)
+    return ranked[:candidates]
 
 
 def _fts_candidate_ids(
-    db: Session, question: str, collection: Collection, candidates: int
+    db: Session, question: str, collections: list[Collection], candidates: int
 ) -> list[int]:
     match_query = build_match_query(question)
     if not match_query:
@@ -133,12 +184,12 @@ def _fts_candidate_ids(
             " JOIN document_versions ON document_versions.id = chunks.version_id"
             " JOIN documents ON documents.id = document_versions.document_id"
             " WHERE chunks_fts MATCH :q"
-            " AND chunks.collection_id = :collection_id"
+            " AND chunks.collection_id IN :collection_ids"
             " AND documents.active_version_id = chunks.version_id"
             " AND documents.trashed_at IS NULL"
             " ORDER BY chunks_fts.rank LIMIT :k"
-        ),
-        {"q": match_query, "collection_id": collection.id, "k": candidates},
+        ).bindparams(bindparam("collection_ids", expanding=True)),
+        {"q": match_query, "collection_ids": [c.id for c in collections], "k": candidates},
     ).fetchall()
     return [row[0] for row in rows]
 

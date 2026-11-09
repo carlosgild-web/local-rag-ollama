@@ -20,10 +20,14 @@ class SourceRef:
 
 
 def create_session(
-    db: Session, first_question: str, *, collection_id: int | None = None
+    db: Session,
+    first_question: str,
+    *,
+    collection_id: int | None = None,
+    channel: str = "admin",
 ) -> ChatSession:
     title = " ".join(first_question.split())[:TITLE_MAX_CHARS] or "New chat"
-    session = ChatSession(title=title, collection_id=collection_id)
+    session = ChatSession(title=title, collection_id=collection_id, channel=channel)
     db.add(session)
     db.commit()
     return session
@@ -37,16 +41,16 @@ def get_session(db: Session, session_id: int) -> ChatSession:
 
 
 def list_sessions(
-    db: Session, *, limit: int = 50, offset: int = 0
+    db: Session, *, limit: int = 50, offset: int = 0, channel: str | None = "admin"
 ) -> list[tuple[ChatSession, int]]:
-    """Newest first, each with its message count."""
+    """Newest first, each with its message count. `channel=None` lists all."""
+    query = select(ChatSession, func.count(Message.id)).outerjoin(
+        Message, Message.session_id == ChatSession.id
+    )
+    if channel is not None:
+        query = query.where(ChatSession.channel == channel)
     rows = db.execute(
-        select(ChatSession, func.count(Message.id))
-        .outerjoin(Message, Message.session_id == ChatSession.id)
-        .group_by(ChatSession.id)
-        .order_by(ChatSession.id.desc())
-        .limit(limit)
-        .offset(offset)
+        query.group_by(ChatSession.id).order_by(ChatSession.id.desc()).limit(limit).offset(offset)
     ).all()
     return [(session, count) for session, count in rows]
 

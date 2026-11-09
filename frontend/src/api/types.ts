@@ -203,6 +203,8 @@ export interface Collection {
   chunk_size_tokens: number;
   chunk_overlap_pct: number;
   is_active: boolean;
+  /** Searched by Luna, the employee portal assistant. */
+  portal_visible: boolean;
   created_at: string;
   document_count: number;
 }
@@ -289,12 +291,16 @@ export interface Message {
  * number with no source; not_applicable: "not found" answers. */
 export type CitationStatus = "ok" | "missing" | "invalid" | "not_applicable";
 
+/** Where a chat came from: the RAG console or the employee portal. */
+export type Channel = "admin" | "intranet";
+
 export interface SessionSummary {
   id: number;
   title: string;
   created_at: string;
   message_count: number;
   collection_id: number | null;
+  channel: Channel;
 }
 
 export interface Session {
@@ -302,6 +308,7 @@ export interface Session {
   title: string;
   created_at: string;
   collection_id: number | null;
+  channel: Channel;
   messages: Message[];
 }
 

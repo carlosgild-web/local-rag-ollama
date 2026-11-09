@@ -53,6 +53,7 @@ def test_openapi_lists_every_phase3_route(client):
         ("post", "/api/documents/{document_id}/rollback"),
         ("get", "/api/collections"),
         ("post", "/api/collections"),
+        ("patch", "/api/collections/{collection_id}"),
         ("post", "/api/collections/{collection_id}/reindex"),
         ("post", "/api/chat"),
         ("get", "/api/sessions"),

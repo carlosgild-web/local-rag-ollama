@@ -1,0 +1,96 @@
+/* Loaded only with the public site's lazy chunk. The fonts are the same
+   bundled @fontsource files as the intranet's (no cloud calls, decision 0011). */
+@import "@fontsource-variable/fraunces/full.css";
+@import "@fontsource-variable/figtree/index.css";
+
+.site {
+  --color-primary: var(--color-hl-rust);
+  --color-primary-foreground: #ffffff;
+  --color-ring: var(--color-hl-rust);
+  --color-border: var(--color-hl-clay);
+  --color-background: #ffffff;
+  --color-foreground: var(--color-hl-bark);
+  font-family: var(--font-body);
+  background: var(--color-hl-cream);
+  color: var(--color-hl-bark);
+  -webkit-font-smoothing: antialiased;
+}
+
+.site .font-display {
+  font-family: var(--font-display);
+  font-variation-settings: "SOFT" 50, "WONK" 1;
+  text-wrap: balance;
+}
+
+.site :focus-visible:not(input, textarea, select) {
+  outline: 2px solid var(--color-hl-rust);
+  outline-offset: 2px;
+}
+
+/* Form fields: one quiet style for every demo form. */
+.site .field {
+  width: 100%;
+  border-radius: 0.6rem;
+  border: 1px solid var(--color-hl-clay);
+  background: #ffffff;
+  padding: 0.6rem 0.8rem;
+  font-size: 0.95rem;
+  color: var(--color-hl-bark);
+}
+.site .field:focus {
+  outline: none;
+  border-color: var(--color-hl-rust);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-hl-rust) 22%, transparent);
+}
+
+/* Tables on the help and wholesale pages scroll inside their card on phones. */
+.site .data-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.92rem;
+}
+.site .data-table th {
+  text-align: left;
+  font-weight: 600;
+  color: var(--color-hl-bark-muted);
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  padding: 0.6rem 0.9rem;
+  border-bottom: 1px solid var(--color-hl-clay);
+  white-space: nowrap;
+}
+.site .data-table td {
+  padding: 0.7rem 0.9rem;
+  border-bottom: 1px solid color-mix(in srgb, var(--color-hl-clay) 60%, transparent);
+  vertical-align: top;
+}
+.site .data-table tr:last-child td {
+  border-bottom: none;
+}
+
+.site details > summary {
+  list-style: none;
+  cursor: pointer;
+}
+.site details > summary::-webkit-details-marker {
+  display: none;
+}
+.site details[open] .chevron {
+  transform: rotate(180deg);
+}
+
+@keyframes hl-rise {
+  from {
+    transform: translateY(10px);
+    opacity: 0;
+  }
+}
+.hl-rise {
+  animation: hl-rise 600ms cubic-bezier(0.2, 0.8, 0.3, 1) both;
+}
+@media (prefers-reduced-motion: reduce) {
+  .hl-rise {
+    animation: none;
+  }
+}

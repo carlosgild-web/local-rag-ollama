@@ -9,6 +9,7 @@ writes to them (CLAUDE.md invariant 1).
 import datetime as dt
 
 from sqlalchemy import Float, ForeignKey, Integer, Text, UniqueConstraint
+from sqlalchemy import true as sa_true
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
 
@@ -34,6 +35,8 @@ class Collection(Base):
     chunk_size_tokens: Mapped[int] = mapped_column(default=600)
     chunk_overlap_pct: Mapped[float] = mapped_column(default=0.12)
     is_active: Mapped[bool] = mapped_column(default=True)
+    # Searched by Luna, the employee portal assistant (decision 0010).
+    portal_visible: Mapped[bool] = mapped_column(default=True, server_default=sa_true())
     created_at: Mapped[dt.datetime] = mapped_column(default=utcnow)
 
     documents: Mapped[list["Document"]] = relationship(back_populates="collection")
@@ -149,6 +152,9 @@ class ChatSession(Base):
     created_at: Mapped[dt.datetime] = mapped_column(default=utcnow)
     # The shelf the conversation searches; follow-up questions reuse it.
     collection_id: Mapped[int | None] = mapped_column(ForeignKey("collections.id"), default=None)
+    # "admin" (the RAG console) or "intranet" (the employee portal, which
+    # searches every portal-visible shelf and so has no collection_id).
+    channel: Mapped[str] = mapped_column(default="admin", server_default="admin", index=True)
 
     messages: Mapped[list["Message"]] = relationship(back_populates="session")
 

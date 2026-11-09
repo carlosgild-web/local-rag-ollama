@@ -4,6 +4,30 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Ver
 
 ## [Unreleased]
 
+## [0.6.0] - 2026-11-09
+
+The employee portal, from the `feature/employee-portal` branch ([decision 0010](docs/decisions/0010-employee-portal.md)).
+
+### Added
+
+- **Employee portal** at `/intranet`: the intranet of *Hilda & Luna Beadworks*, a fictional company, with its own bead-moon logo, self-hosted fonts and an ES/EN switch.
+  - Home page with a dated season timeline, handbook highlights, department hours, a company snapshot and news, written from the demo documents. Every card can ask Luna about it.
+  - **Luna**, the assistant, as a floating chat bubble on every portal page and full screen at `/intranet/luna`, sharing one conversation and one stream. It has suggested questions, citations with the exact passage, 👍/👎 feedback, a friendly "not found" message, and recent conversations kept in the browser.
+- **Multi-shelf retrieval:** `retrieve_many` searches several shelves. Shelves that share an embedding model are ranked together by similarity, keyword search runs once over all of them, and RRF fuses the lists. Models are never mixed. The single-shelf `retrieve` now calls it with one shelf, with the same results as before.
+- **Portal visibility per shelf:** `collections.portal_visible` (default on), a switch on each shelf in Collections, and `PATCH /api/collections/{id}`. Audited as `collection_portal_visibility`; a blue/green swap keeps the setting.
+- **Chat channels:** `chat_sessions.channel` (`admin` or `intranet`). `POST /api/chat` takes `channel` and `answer_language` (`en` or `es`, which adds one prompt rule). `GET /api/sessions?channel=` defaults to `admin`.
+- **Dashboard:** an *Employee portal* button, an *Employee questions* card, and a sidebar link.
+- **`python -m app.cli seed-demo`** loads the 11 fictional documents in `backend/demo/hilda-luna/`, one shelf per folder. Running it again skips every file.
+- Migration `0005_portal`.
+- **Public company website** at `/site` ([decision 0011](docs/decisions/0011-public-site.md)): the outside face of Hilda & Luna Beadworks, in warm Amber Hollow colors with the same logo, fonts and ES/EN switch.
+  - Home: collection banners (Amber Hollow, Coastal Garden), shop-by tiles, customer favorites, the workshop's story, a wholesale band and a newsletter.
+  - Catalog (glass beads, charms, findings, with retail prices and nickel notes), Wholesale (tiers, how to apply, custom colors, starter sets) and Help (shipping, returns, damaged items, FAQ, contact).
+  - Written only from the customer-facing demo documents. Beads, charms and findings are drawn in SVG, and the forms are demos that send and store nothing.
+  - **Product photos rendered in Blender** by `scripts/render_site_art.py` (beads, charms, findings, starter set, hero necklace), and slots for three AI-generated scene photos prepared by `scripts/prepare_site_photos.py` ([docs/site-images.md](docs/site-images.md)). Any missing image falls back to its SVG drawing.
+  - **Employee login** opens `/site/staff`, a simulated staff sign-in with one *Enter as demo employee* button into `/intranet`.
+  - Links between the site, the intranet and the console: a *Company site* button on the dashboard and a sidebar link.
+- **Reviewer's demo guide**, marked as not part of the company design: a strip on the public site, a banner on the intranet with *How this demo works* (a side panel with the path and things to try) and *Open the RAG admin console*. It can collapse to a *Demo guide* pill.
+
 ## [0.5.0] - 2026-11-09
 
 UI improvements for non-technical users, from the `feature/ui-improvements` branch. Some items came forward from later phases ([decision 0008](docs/decisions/0008-ui-improvements-scope.md)).

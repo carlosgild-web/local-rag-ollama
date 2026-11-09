@@ -226,6 +226,36 @@ def collection_for_question(
     raise ConflictError(f"choose a collection to search ({names})")
 
 
+def portal_collections(db: Session) -> list[Collection]:
+    """The shelves Luna, the employee portal assistant, searches: every
+    active one the admin left visible in the portal (decision 0010)."""
+    return list(
+        db.execute(
+            select(Collection)
+            .where(Collection.is_active.is_(True), Collection.portal_visible.is_(True))
+            .order_by(Collection.name)
+        ).scalars()
+    )
+
+
+def set_portal_visible(db: Session, collection_id: int, visible: bool) -> Collection:
+    """Shows or hides a shelf in the employee portal. Audited (invariant 7)."""
+    collection = get_collection(db, collection_id)
+    if not collection.is_active:
+        raise ConflictError(f"collection {collection_id} is not active")
+    if collection.portal_visible != visible:
+        collection.portal_visible = visible
+        record_audit(
+            db,
+            "collection_portal_visibility",
+            "collection",
+            collection.id,
+            f"{collection.name}: {'visible in' if visible else 'hidden from'} the employee portal",
+        )
+        db.commit()
+    return collection
+
+
 def get_or_create_default_collection(
     db: Session, vector_store: VectorStore, settings: Settings
 ) -> Collection:
@@ -328,6 +358,8 @@ def swap_collection(db: Session, source_collection_id: int, target_collection_id
         document.collection_id = target.id
     source.is_active = False
     target.is_active = True
+    # Taken at swap time, so a toggle made during the rebuild is kept.
+    target.portal_visible = source.portal_visible
     record_audit(
         db,
         "collection_swap",

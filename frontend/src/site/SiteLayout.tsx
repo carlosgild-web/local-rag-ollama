@@ -5,6 +5,7 @@ import { Link, NavLink, Outlet, useLocation } from "react-router-dom";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { cn } from "@/lib/utils";
 import { LangSwitch, useBrandTab } from "@/portal/brand";
+import { DemoGuide } from "@/portal/DemoGuide";
 import { LangProvider, useT } from "@/portal/i18n";
 import { Logo } from "@/portal/Logo";
 import { ANNOUNCE, FOOTER, NAV, SITE } from "./content";
@@ -61,6 +62,7 @@ function Shell() {
         {t(NAV.skip)}
       </a>
 
+      <DemoGuide where="site" />
       <div className="bg-hl-bark text-hl-cream">
         <div className="mx-auto flex max-w-6xl items-center gap-x-4 gap-y-1 px-4 py-1.5 text-xs sm:px-6">
           <p className="hidden text-hl-cream/75 sm:block">{t(NAV.tagline)}</p>

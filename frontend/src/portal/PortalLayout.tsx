@@ -6,6 +6,7 @@ import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { cn } from "@/lib/utils";
 import { COMPANY } from "./content";
 import { LangSwitch, useBrandTab } from "./brand";
+import { DemoGuide } from "./DemoGuide";
 import { LangProvider, UI, useT } from "./i18n";
 import { Logo } from "./Logo";
 import { LunaBubble } from "./LunaBubble";
@@ -51,6 +52,7 @@ function Shell() {
       >
         {t(UI.skip)}
       </a>
+      <DemoGuide where="intranet" />
       <header className="sticky top-0 z-30 bg-hl-night text-hl-moon shadow-[0_1px_0_rgba(255,255,255,0.06)]">
         <div className="mx-auto flex max-w-6xl items-center gap-4 px-4 py-3 sm:px-6">
           <Link to="/intranet" className="shrink-0 rounded-md" aria-label="Hilda & Luna Beadworks">

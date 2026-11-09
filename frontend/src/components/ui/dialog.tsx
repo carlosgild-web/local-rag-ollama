@@ -4,7 +4,8 @@ import { createPortal } from "react-dom";
 import { cn } from "@/lib/utils";
 
 /** A modal dialog (shadcn/ui look, no extra dependency): closes on Escape,
- * on the backdrop and on the ✕; focus moves into it when it opens. */
+ * on the backdrop and on the ✕; focus moves into it when it opens.
+ * `side="right"` shows it as a full-height drawer instead of a centred box. */
 export function Dialog({
   open,
   onClose,
@@ -13,6 +14,8 @@ export function Dialog({
   children,
   footer,
   className,
+  side = "center",
+  closeLabel = "Close",
 }: {
   open: boolean;
   onClose: () => void;
@@ -21,6 +24,8 @@ export function Dialog({
   children: ReactNode;
   footer?: ReactNode;
   className?: string;
+  side?: "center" | "right";
+  closeLabel?: string;
 }) {
   const panel = useRef<HTMLDivElement>(null);
   // Callers usually pass a new onClose on every render. Keep the latest in a
@@ -37,15 +42,21 @@ export function Dialog({
   }, [open]);
   if (!open) return null;
   return createPortal(
-    <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/40 p-4 sm:p-10">
-      <button type="button" aria-label="Close" className="fixed inset-0 cursor-default" onClick={onClose} />
+    <div
+      className={cn(
+        "fixed inset-0 z-50 flex bg-black/40",
+        side === "right" ? "justify-end" : "items-start justify-center overflow-y-auto p-4 sm:p-10",
+      )}
+    >
+      <button type="button" aria-label={closeLabel} className="fixed inset-0 cursor-default" onClick={onClose} />
       <div
         ref={panel}
         role="dialog"
         aria-modal="true"
         tabIndex={-1}
         className={cn(
-          "relative z-10 flex max-h-full w-full max-w-2xl flex-col rounded-lg border bg-background shadow-xl outline-none",
+          "relative z-10 flex w-full flex-col border bg-background shadow-xl outline-none",
+          side === "right" ? "dialog-drawer h-full max-w-md border-y-0 border-r-0" : "max-h-full max-w-2xl rounded-lg",
           className,
         )}
       >
@@ -54,7 +65,13 @@ export function Dialog({
             <h2 className="text-lg font-semibold">{title}</h2>
             {description && <div className="mt-1 text-sm text-muted-foreground">{description}</div>}
           </div>
-          <button type="button" onClick={onClose} className="rounded p-1 text-muted-foreground hover:bg-muted" title="Close">
+          <button
+            type="button"
+            onClick={onClose}
+            className="rounded p-1 text-muted-foreground hover:bg-muted"
+            title={closeLabel}
+            aria-label={closeLabel}
+          >
             <X className="size-4" />
           </button>
         </div>

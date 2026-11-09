@@ -82,3 +82,19 @@ body {
 .prose-answer pre {
   @apply my-2 overflow-x-auto rounded-md bg-muted p-3 text-sm;
 }
+
+/* Dialog with side="right": slides in from the edge. */
+@keyframes dialog-drawer-in {
+  from {
+    transform: translateX(24px);
+    opacity: 0;
+  }
+}
+.dialog-drawer {
+  animation: dialog-drawer-in 220ms cubic-bezier(0.2, 0.8, 0.3, 1) both;
+}
+@media (prefers-reduced-motion: reduce) {
+  .dialog-drawer {
+    animation: none;
+  }
+}

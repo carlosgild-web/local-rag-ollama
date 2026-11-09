@@ -6,7 +6,15 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Ver
 
 ### Added
 
-- **[Reviewer walkthrough](docs/walkthrough.md):** a 10-minute tour from the company's website through the intranet and Luna to the admin console, with screenshots.
+- **[Getting started](GETTING_STARTED.md):** a step-by-step guide covering three ways to start, the demo, a tour with screenshots, the tests and troubleshooting. It's also a web page for GitHub Pages (`docs/getting-started.html`), next to a landing page (`docs/index.html`).
+- **Ready-made Docker image:** `.github/workflows/release-image.yml` publishes `ghcr.io/carlosgild-web/local-rag-ollama` on version tags. `compose.yaml` pulls it, and builds from source with `--build` or when no image is published yet. Checked by hand on 2026-11-09:
+  - the fallback build, the health check and the non-root user
+  - `seed-demo` in the container
+  - data kept across a restart
+  - `CHAT_MODEL`
+  - all pages
+  - Luna answering in English and Spanish with citations
+- **Reviewer walkthrough** ([docs/walkthrough.md](docs/walkthrough.md)): a 10-minute tour from the company's website through the intranet and Luna to the admin console, with screenshots.
 - New showcase screenshots of the public site, staff sign-in, demo guide, Luna's sources, the dashboard and the portal switch, plus a contact sheet of the product renders and a GitHub social preview image (`docs/showcase/social-preview.jpg`).
 
 ### Security

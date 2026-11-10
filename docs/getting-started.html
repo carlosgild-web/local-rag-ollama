@@ -88,7 +88,7 @@
   <table>
     <tr><th>Memory</th><td>8 GB of RAM at least; 16 GB is comfortable. On 8 GB, use the small chat model (<code>qwen2.5:3b</code>).</td></tr>
     <tr><th>Disk</th><td>About 4 GB for the small models (<code>qwen2.5:3b</code> and <code>bge-m3</code>), or 7 GB with <code>llama3.1</code>.</td></tr>
-    <tr><th>Software</th><td><a href="https://www.docker.com/products/docker-desktop/">Docker Desktop</a> (ways A and B), or Python 3.11+ and Node 22 (way C). For ways B and C, also <a href="https://ollama.com">Ollama</a>.</td></tr>
+    <tr><th>Software</th><td><a href="https://www.docker.com/products/docker-desktop/">Docker Desktop</a>, or <a href="https://ollama.com">Ollama</a> and Python 3.11+. The start script in step 2 finds what you have and offers to install Ollama or Python if they're missing. Node 22 is only needed to build the web app yourself.</td></tr>
   </table>
   <p class="muted">No GPU is needed, and no internet connection after the models are downloaded.</p>
   <div class="code"><pre><code>git clone https://github.com/carlosgild-web/local-rag-ollama.git
@@ -97,6 +97,19 @@ cd local-rag-ollama</code></pre></div>
 
 <section id="start">
   <h2><span class="n">2</span>Start the app</h2>
+  <h3>The easy way: one command</h3>
+  <div class="code"><pre><code>.\start.cmd        <span class="c"># Windows, in PowerShell or the Command Prompt (double-clicking it works too)</span>
+./start.sh         <span class="c"># macOS and Linux</span></code></pre></div>
+  <p>It looks at your computer and asks a few questions the first time:</p>
+  <ol>
+    <li><b>What you have:</b> RAM (it suggests <code>qwen2.5:3b</code> under 12 GB), free disk, Ollama and Docker.</li>
+    <li><b>The best way to run it</b>, and why: <b>B</b> if you have Docker and Ollama (it reuses your models, so nothing is downloaded twice), <b>A</b> with Docker only, <b>C</b> without Docker (Python and Ollama, with the built web app downloaded from the GitHub Release and checked against its SHA-256).</li>
+    <li><b>Which chat model:</b> it lists the ones your Ollama already has, and downloads only what's missing, after asking.</li>
+    <li><b>Starts the app</b>, waits until it's healthy, offers to <b>load the demo company</b>, and opens the website.</li>
+  </ol>
+  <p>It never installs anything without asking, and it shows the exact command first. If port 8000 is taken, it uses the next free one. Your answers are saved in <code>.env</code>, so the next run starts straight away. <code>stop</code> stops the app (your documents and models are kept), <code>status</code> shows its health, <code>--check</code> only explains what it would do, and <code>--reconfigure</code> asks again.</p>
+
+  <h3>Or by hand (pick one way)</h3>
   <div class="ways">
     <div class="way"><b>A. Docker, all in containers</b>Easiest. Ollama runs in its own container.</div>
     <div class="way"><b>B. Docker + your Ollama</b>Uses the Ollama already on your computer and its models.</div>
@@ -136,7 +149,7 @@ python -m venv .venv
   <h2><span class="n">3</span>Check that it's running</h2>
   <div class="step">
     <div>
-      <p>Open <a href="http://localhost:8000">http://localhost:8000</a>. The console's dashboard shows <b>All systems OK</b> once Ollama, the database, the search index and the background worker all answer.</p>
+      <p>Open <a href="http://localhost:8000">http://localhost:8000</a> (the start script opens the website for you, and tells you if it used another port). The console's dashboard shows <b>All systems OK</b> once Ollama, the database, the search index and the background worker all answer.</p>
       <p>If something is red, click <b>Troubleshoot</b>. It names the cause and the fix, for example "Ollama isn't running" or "the chat model isn't installed".</p>
     </div>
     <figure><img src="showcase/img/28-console-dashboard.jpg" alt="The console dashboard showing All systems OK" loading="lazy"><figcaption>The dashboard, with the Company site and Employee portal buttons.</figcaption></figure>
@@ -148,7 +161,7 @@ python -m venv .venv
   <p><b>Hilda &amp; Luna Beadworks</b> is a fictional bead maker with 11 documents: a handbook, safety training, a catalog, a price sheet, an FAQ and more.</p>
   <div class="code"><pre><code>docker compose exec app python -m app.cli seed-demo             <span class="c"># ways A and B</span>
 cd backend &amp;&amp; .venv/Scripts/python -m app.cli seed-demo         <span class="c"># way C</span></code></pre></div>
-  <p>It creates four shelves (customer-support, hr, meetings, operations) and ends with <code>11 ingested, 0 skipped</code>. Running it again skips every file as a duplicate.</p>
+  <p>The start script offers to do this, and the dashboard shows a <b>Load the demo company</b> button while the library is empty. By hand, these commands create four shelves (customer-support, hr, meetings, operations) and end with <code>11 ingested, 0 skipped</code>. Running it again skips every file as a duplicate.</p>
 </section>
 
 <section id="tour">
@@ -184,7 +197,7 @@ cd backend &amp;&amp; .venv/Scripts/python -m app.cli seed-demo         <span cl
   <h2><span class="n">6</span>Run the tests</h2>
   <div class="code"><pre><code>cd backend
 .venv/Scripts/pip install -r requirements-dev.txt
-.venv/Scripts/python -m pytest -q                       <span class="c"># 179 tests, with fakes: no Ollama needed</span>
+.venv/Scripts/python -m pytest -q                       <span class="c"># 189 tests, with fakes: no Ollama needed</span>
 .venv/Scripts/ruff check . &amp;&amp; .venv/Scripts/ruff format --check .
 cd ../frontend &amp;&amp; npm run build                         <span class="c"># type check and build</span></code></pre></div>
   <p>The <b>end-to-end test</b> drives the running app with the real model: about 60 questions and every app mechanic. It takes 1–3 hours on a laptop CPU; see <a href="https://github.com/carlosgild-web/local-rag-ollama/blob/main/e2e/README.md"><code>e2e/README.md</code></a>. CI runs the unit tests, the linters, the frontend build and a Docker build on every push.</p>
@@ -197,10 +210,11 @@ cd ../frontend &amp;&amp; npm run build                         <span class="c">
     <tr><td>"Ollama isn't running"</td><td>Start Ollama (way B or C), or check <code>docker compose ps</code> (way A). The troubleshooter shows the address it's trying.</td></tr>
     <tr><td>"Model not installed"</td><td>Run the <code>ollama pull</code> lines from step 2 for the models the app expects (<code>CHAT_MODEL</code>, <code>EMBEDDING_MODEL</code>).</td></tr>
     <tr><td>Answers are slow</td><td>That's normal on a CPU: 20–60 seconds an answer. Use <code>qwen2.5:3b</code> on smaller machines.</td></tr>
-    <tr><td>Port 8000 is in use</td><td>Stop the other program, or change the left port in <code>compose.yaml</code> (<code>127.0.0.1:8001:8000</code>).</td></tr>
+    <tr><td>Port 8000 is in use</td><td>The start script picks the next free port. By hand: set <code>APP_PORT=8001</code> before <code>docker compose up -d</code>.</td></tr>
+    <tr><td>The start script chose the wrong way or model</td><td>Run it with <code>--reconfigure</code>, or delete <code>.env</code>.</td></tr>
     <tr><td>Start over with no documents</td><td>Ways A and B: <code>docker compose down -v</code> (<b>deletes</b> the app's data and the downloaded models). Way C: delete <code>backend/data/</code>.</td></tr>
   </table>
-  <p>To stop the app, run <code>docker compose down</code>; your documents and models are kept.</p>
+  <p>To stop the app, run <code>.\start.cmd stop</code> (or <code>./start.sh stop</code>), or <code>docker compose down</code> if you started it by hand. Your documents and models are kept.</p>
   <p class="note"><b>Security:</b> there are no logins. Run the app on your own computer or a private network only. See <a href="https://github.com/carlosgild-web/local-rag-ollama/blob/main/SECURITY.md">SECURITY.md</a>.</p>
 </section>
 </main>

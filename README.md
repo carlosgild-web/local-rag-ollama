@@ -11,6 +11,17 @@
 
 Drop in PDFs, Word files, Markdown or plain text. The app reads them, suggests where each one belongs, and answers questions in a chat with numbered citations you can click to see the exact passage. The chat model and the embeddings run in [Ollama](https://ollama.com) on your machine, so nothing is sent anywhere.
 
+**Try it in one command.** You need [Docker Desktop](https://www.docker.com/products/docker-desktop/), or [Ollama](https://ollama.com) and Python 3.11+; the script offers to install those two if they're missing.
+
+```bash
+git clone https://github.com/carlosgild-web/local-rag-ollama.git
+cd local-rag-ollama
+.\start.cmd      # Windows (or double-click it)
+./start.sh       # macOS / Linux
+```
+
+It checks your computer, reuses the Ollama and models you already have, asks before downloading or installing anything, loads the demo company, and opens the website.
+
 **[Getting started, step by step →](GETTING_STARTED.md)** ([as a web page](https://carlosgild-web.github.io/local-rag-ollama/getting-started.html)): install, load the demo company, try everything and run the tests.
 
 **[Take the 10-minute reviewer walkthrough →](docs/walkthrough.md)**: the demo company's website, its intranet with Luna, and the admin console, with screenshots. There's also a [slide deck](https://carlosgild-web.github.io/local-rag-ollama/showcase/).
@@ -115,7 +126,7 @@ flowchart LR
 
 | Check | Result |
 |---|---|
-| Unit and API tests (fakes, run in CI) | 179 tests pass; `ruff` clean |
+| Unit and API tests (fakes, run in CI) | 189 tests pass; `ruff` clean |
 | CI (GitHub Actions) | lint, tests, frontend build and `docker build` on every push |
 | End-to-end test: real Ollama, 11 sample documents, about 60 questions, plus Luna through the portal | **53/53** must-pass checks · 53/57 answer checks · 31/38 citations correct · 7/7 refusals · 6/6 portal questions ([report](docs/test-reports/2026-11-09-e2e.md)) |
 
@@ -138,7 +149,7 @@ Every deviation from the plan is recorded in [`docs/decisions/`](docs/decisions/
 
 ## Quick start
 
-You need [Ollama](https://ollama.com) with a chat model and the embedding model:
+The easiest way is the start script above (`.\start.cmd` or `./start.sh`); see [Getting started](GETTING_STARTED.md#2-start-the-app). By hand, you need [Ollama](https://ollama.com) with a chat model and the embedding model:
 
 ```bash
 ollama pull bge-m3
@@ -183,23 +194,24 @@ To run the end-to-end test against a running server, see [e2e/README.md](e2e/REA
 ## Repository layout
 
 ```
+start.cmd, start.sh One-command start (Windows logic in scripts/start.ps1)
 backend/app/        FastAPI app: api/, core/, ingest/, retrieval/, llm/, versioning/, jobs/, db/
 backend/tests/      pytest suite (fakes only)        backend/migrations/  Alembic
 frontend/src/       React + Vite + TypeScript + Tailwind: pages/, components/, api/, hooks/
 frontend/src/portal/  The employee portal and Luna (lazy-loaded, own fonts)
 frontend/src/site/    The demo company's public website (lazy-loaded)
-scripts/            site image tools: Gemini prompts, Blender references, WebP prep (build-time only)
+scripts/            start.ps1, plus site image tools: Gemini prompts, Blender references, WebP prep
 backend/demo/       Fictional Hilda & Luna Beadworks documents for `seed-demo`
 e2e/                End-to-end test kit and a fictional sample corpus
 docs/decisions/     Why things are the way they are   docs/test-reports/  End-to-end reports
 docs/showcase/      Slide deck and screenshots
 ```
 
-Your documents, the database, vectors and backups live in `backend/data/`, which is never committed.
+Your documents, the database, vectors and backups live in `backend/data/` when you run the backend by hand, in `data/` when the start script runs it without Docker, and in the `app_data` Docker volume otherwise. None of it is ever committed.
 
 ## Status
 
-- **Done:** Phases 0–4 of [PLAN.md](PLAN.md), plus the UI improvements in v0.5.0 ([CHANGELOG](CHANGELOG.md), [decision 0008](docs/decisions/0008-ui-improvements-scope.md)) and in v0.6.0 the employee portal with Luna, the company's public website and a reviewer's demo guide ([decision 0010](docs/decisions/0010-employee-portal.md), [decision 0011](docs/decisions/0011-public-site.md)).
+- **Done:** Phases 0–4 of [PLAN.md](PLAN.md), plus the UI improvements in v0.5.0 ([CHANGELOG](CHANGELOG.md), [decision 0008](docs/decisions/0008-ui-improvements-scope.md)) and in v0.6.0 the employee portal with Luna, the company's public website and a reviewer's demo guide ([decision 0010](docs/decisions/0010-employee-portal.md), [decision 0011](docs/decisions/0011-public-site.md)). v0.7.0 adds the one-command start ([decision 0013](docs/decisions/0013-one-command-start.md)).
 - **Next:** a versions UI, a control panel, an evaluation set, hardening, and polish.
 
 ## License

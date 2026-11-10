@@ -26,9 +26,9 @@ This is the company's public face, modeled on real bead and charm makers. Everyt
 
 The dark strip at the top is **not part of the company's design**. It's the demo guide, there for reviewers, and it points the way: *Employee login → intranet → RAG console*.
 
-![The catalog with rendered product photos](showcase/img/23-site-catalog.jpg)
+![The catalog with its product photos](showcase/img/23-site-catalog.jpg)
 
-The product photos are 3D renders made in Blender by [`scripts/render_site_art.py`](../scripts/render_site_art.py). They're original, they match the catalog exactly, and they can be rendered again. See [how the images are made](site-images.md) and the [full set of renders](showcase/img/30-product-renders.jpg).
+The product photos were made with Google Gemini. Each one starts from a 3D render of the item made in Blender by [`scripts/render_site_art.py`](../scripts/render_site_art.py), so the photo keeps the catalog's colors and shapes. See [how the images are made](site-images.md) and the [full set of product photos](showcase/img/30-product-photos.jpg).
 
 ## 2. Into the intranet
 

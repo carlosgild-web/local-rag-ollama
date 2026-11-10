@@ -11,8 +11,7 @@ export function price(value: number, lang: Lang): string {
 }
 
 /**
- * The rendered product photo when there is one (scripts/render_site_art.py),
- * otherwise the SVG drawing.
+ * The product photo when there is one (docs/site-images.md), otherwise the SVG drawing.
  */
 export function Picture({ name, alt, fallback, className }: { name: string; alt: string; fallback: ReactNode; className?: string }) {
   const src = photo(name);

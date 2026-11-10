@@ -83,7 +83,7 @@ export interface Collection {
   body: Bi;
   palette: string[];
   charms: CharmKind[];
-  /** Describes the AI-generated banner photo (docs/site-images.md), if there is one. */
+  /** Describes the banner photo (made with Google Gemini, docs/site-images.md). */
   photoAlt: Bi;
 }
 

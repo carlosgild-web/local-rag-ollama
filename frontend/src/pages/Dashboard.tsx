@@ -1,18 +1,22 @@
-import { Building2, CheckCircle2, ExternalLink, Globe, MessageSquare, Upload, Wrench, XCircle } from "lucide-react";
+import { useState } from "react";
+import { Building2, CheckCircle2, ExternalLink, Globe, Loader2, MessageSquare, Sparkles, Upload, Wrench, XCircle } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useTroubleshooter } from "@/components/TroubleshooterContext";
 import type { ComponentHealth } from "@/api/types";
 import { ErrorNote, JOB_LABEL, JobStatusBadge, PageHeader } from "@/components/common";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Progress } from "@/components/ui/progress";
 import {
   isActiveJob,
   useCollections,
+  useDemo,
   useDocuments,
   useHealth,
   useJobs,
   usePortalSessions,
   useProfiles,
+  useSeedDemo,
   useSessions,
 } from "@/hooks/queries";
 import { formatDate } from "@/lib/utils";
@@ -73,6 +77,8 @@ export default function Dashboard() {
       />
       <div className="space-y-6 px-8 py-6">
         <ErrorNote error={health.error} />
+
+        <DemoCard onTroubleshoot={openTroubleshooter} />
 
         <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           {stats.map((s) => (
@@ -169,6 +175,90 @@ export default function Dashboard() {
         </Card>
       </div>
     </>
+  );
+}
+
+/**
+ * First run: offers to load the demo company while the library is empty, shows
+ * its progress, and points to the site and the intranet when it's done.
+ */
+function DemoCard({ onTroubleshoot }: { onTroubleshoot: () => void }) {
+  const demo = useDemo();
+  const seed = useSeedDemo();
+  // Keep the card up after loading, until the page is left, to show the links.
+  const [startedHere, setStartedHere] = useState(false);
+  const status = demo.data;
+  if (!status?.available) return null;
+
+  const job = status.job;
+  const active = job !== null && isActiveJob(job);
+  const failed = startedHere && job?.status === "failed";
+  const done = startedHere && job?.status === "completed";
+  if (status.documents > 0 && !active && !failed && !done) return null;
+
+  const start = () => {
+    setStartedHere(true);
+    seed.mutate();
+  };
+  const result = job?.result as { ingested?: number; skipped?: number } | null;
+
+  return (
+    <Card className="border-primary/40 bg-primary/5">
+      <CardHeader className="flex-row items-start gap-3">
+        <Sparkles className="mt-0.5 size-5 shrink-0 text-primary" />
+        <div className="space-y-1">
+          <CardTitle>{done ? "The demo company is loaded" : "New here? Load the demo company"}</CardTitle>
+          <CardDescription>
+            {done
+              ? `${result?.ingested ?? 0} documents indexed${result?.skipped ? `, ${result.skipped} already there` : ""}. Open the company's website, sign in as an employee and ask Luna.`
+              : "Hilda & Luna Beadworks is a fictional bead maker with 11 documents: a handbook, safety training, a catalog, prices, an FAQ and more. Loading them takes a few minutes on a laptop."}
+          </CardDescription>
+        </div>
+      </CardHeader>
+      <CardContent className="space-y-3">
+        {active && (
+          <div className="space-y-1.5">
+            <Progress value={job?.progress ?? 0} />
+            <p className="text-xs text-muted-foreground">
+              {job?.status === "pending" ? "Waiting to start…" : `Indexing… ${Math.round((job?.progress ?? 0) * 100)}%`}
+            </p>
+          </div>
+        )}
+        {failed && (
+          <p className="text-sm text-destructive">
+            Loading stopped: {job?.error ?? "unknown error"}. The troubleshooter can usually tell why, for example a
+            missing model.
+          </p>
+        )}
+        <ErrorNote error={seed.error} />
+        <div className="flex flex-wrap gap-2">
+          {done ? (
+            <>
+              <Button asChild>
+                <a href="/site" target="_blank" rel="noreferrer">
+                  <Globe /> Company website <ExternalLink className="size-3.5" />
+                </a>
+              </Button>
+              <Button variant="outline" asChild>
+                <a href="/intranet" target="_blank" rel="noreferrer">
+                  <Building2 /> Employee portal <ExternalLink className="size-3.5" />
+                </a>
+              </Button>
+            </>
+          ) : (
+            <Button onClick={start} disabled={active || seed.isPending}>
+              {active || seed.isPending ? <Loader2 className="animate-spin" /> : <Sparkles />}
+              {failed ? "Try again" : "Load the demo company"}
+            </Button>
+          )}
+          {failed && (
+            <Button variant="outline" onClick={onTroubleshoot}>
+              <Wrench /> Troubleshoot
+            </Button>
+          )}
+        </div>
+      </CardContent>
+    </Card>
   );
 }
 

@@ -11,6 +11,7 @@ import type {
   SupportTicketIn,
   Health,
   Job,
+  DemoStatus,
   JobQueued,
   Intake,
   IntakeConfirm,
@@ -133,6 +134,8 @@ export const api = {
     request<JobQueued>(`/collections/${id}/reindex`, json("POST", body)),
 
   jobs: () => request<Job[]>(`/jobs${query({ limit: 200 })}`),
+  demo: () => request<DemoStatus>("/demo"),
+  seedDemo: () => request<Job>("/demo/seed", json("POST")),
   retryJob: (id: number) => request<Job>(`/jobs/${id}/retry`, json("POST")),
   cancelJob: (id: number) => request<Job>(`/jobs/${id}/cancel`, json("POST")),
 

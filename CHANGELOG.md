@@ -6,6 +6,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Ver
 
 ### Added
 
+- **Load the demo company from the console.** On an empty library the dashboard offers *Load the demo company*, with a progress bar and links to the website and the intranet when it's done. It runs as a `seed_demo` job (`POST /api/demo/seed`, `GET /api/demo`), through the same service as `app.cli seed-demo`, and is audited. `compose.yaml` takes `APP_PORT` for when port 8000 is taken.
 - **[Getting started](GETTING_STARTED.md):** a step-by-step guide covering three ways to start, the demo, a tour with screenshots, the tests and troubleshooting. It's also a web page for GitHub Pages (`docs/getting-started.html`), next to a landing page (`docs/index.html`).
 - **Ready-made Docker image:** `.github/workflows/release-image.yml` publishes `ghcr.io/carlosgild-web/local-rag-ollama` on version tags. `compose.yaml` pulls it, and builds from source with `--build` or when no image is published yet. Checked by hand on 2026-11-09:
   - the fallback build, the health check and the non-root user

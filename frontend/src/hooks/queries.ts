@@ -13,6 +13,7 @@ export const keys = {
   session: (id: number) => ["session", id] as const,
   models: ["models"] as const,
   profiles: ["profiles"] as const,
+  demo: ["demo"] as const,
 };
 
 const ACTIVE: Job["status"][] = ["pending", "running"];
@@ -184,4 +185,18 @@ export function useFeedback(sessionId: number | null) {
       if (sessionId !== null) client.invalidateQueries({ queryKey: keys.session(sessionId) });
     },
   });
+}
+
+/** The demo company offer on the dashboard; polls while it's loading. */
+export function useDemo() {
+  return useQuery({
+    queryKey: keys.demo,
+    queryFn: api.demo,
+    refetchInterval: (q) => (q.state.data?.job && isActiveJob(q.state.data.job) ? 1_500 : false),
+  });
+}
+
+export function useSeedDemo() {
+  const invalidate = useInvalidate();
+  return useMutation({ mutationFn: api.seedDemo, onSuccess: () => invalidate("demo", "jobs") });
 }

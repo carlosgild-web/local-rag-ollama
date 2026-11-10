@@ -34,12 +34,16 @@ def seed_demo(
     embedding_client_for: Callable[[str], EmbeddingClient],
     vector_store: VectorStore,
     root: Path = DEMO_DIR,
+    progress: service.ProgressCallback | None = None,
 ) -> list[SeededFile]:
+    """`progress`, if given, is called with the fraction done between files."""
     if not root.is_dir():
         raise service.NotFoundError(f"demo folder not found: {root}")
 
+    folders = sorted(p for p in root.iterdir() if p.is_dir())
+    total = sum(len(service.discover_files(folder)) for folder in folders) or 1
     results: list[SeededFile] = []
-    for folder in sorted(p for p in root.iterdir() if p.is_dir()):
+    for folder in folders:
         shelf = folder.name
         collection = service.get_active_collection(db, shelf) or service.create_collection(
             db,
@@ -61,4 +65,10 @@ def seed_demo(
                 tags=f"demo,{shelf}",
             )
             results.append(SeededFile(shelf, path, result.status, result.chunk_count))
+            if progress is not None:
+                progress(len(results) / total)
     return results
+
+
+def demo_available(root: Path | None = None) -> bool:
+    return (root or DEMO_DIR).is_dir()

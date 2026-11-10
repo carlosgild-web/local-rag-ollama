@@ -8,7 +8,7 @@ Set up the app, load the demo company, and try everything it does, step by step.
 
 | | |
 |---|---|
-| **Memory** | 8 GB of RAM at least; 16 GB is comfortable. On 8 GB, use the small chat model (`qwen2.5:3b`). |
+| **Memory** | 8 GB of RAM at least; 16 GB is comfortable. On 8 GB, use the small chat model (`qwen2.5:3b`), with Ollama installed on the computer: running Ollama inside Docker needs about 16 GB, because Docker gets only part of the memory. |
 | **Disk** | About 4 GB for the small models (`qwen2.5:3b` and `bge-m3`), or 7 GB with `llama3.1`. |
 | **Software** | [Docker Desktop](https://www.docker.com/products/docker-desktop/), or [Ollama](https://ollama.com) and Python 3.11+. The start script in step 2 finds what you have and offers to install Ollama or Python if they're missing. Node 22 is only needed to build the web app yourself. |
 
@@ -28,24 +28,30 @@ cd local-rag-ollama
 ./start.sh         # macOS and Linux
 ```
 
-It looks at your computer and asks a few questions the first time:
+It looks at your computer, then asks a few questions the first time:
 
 1. **What you have:** RAM (it suggests `qwen2.5:3b` under 12 GB), free disk, Ollama and Docker.
-2. **The best way to run it**, and why:
-   - **B** if you have Docker and Ollama: it uses the Ollama and models already on your computer, so nothing is downloaded twice.
-   - **A** if you only have Docker.
-   - **C** without Docker: Python and Ollama, with the built web app downloaded from the GitHub Release and checked against its SHA-256.
-3. **Which chat model:** it lists the ones your Ollama already has, and downloads only what's missing, after asking.
-4. **Starts the app**, waits until it's healthy, offers to **load the demo company**, and opens the website.
+2. **How to run it.** Each question has a recommended answer (press Enter):
 
-It never installs anything without asking, and it shows the exact command first. If port 8000 is taken, it uses the next free one and tells you. Your answers are saved in `.env`, so the next run starts straight away.
+   | You have | It asks | Yes (recommended) | No |
+   |---|---|---|---|
+   | Docker and Ollama | *Run the app in Docker?* | **B:** the app in a container, using your Ollama and models; nothing is downloaded twice | **C:** with Python, no Docker |
+   | Docker, no Ollama | *Run Ollama inside Docker?* | **A:** both in containers; nothing to install, but the models download into Docker (about 3 GB). Under 12 GB of RAM it warns that answers will be much slower, because Docker gets only part of the memory | It offers to install Ollama, then **B** |
+   | No Docker | | **C:** Python and Ollama; it offers to install either if missing | |
+
+   With **C**, the built web app is downloaded from the GitHub Release and checked against its SHA-256, so you don't need Node.
+3. **When something is installed but not running,** it starts it for you: the Ollama app, or Docker Desktop. If that doesn't work, it tells you why and lets you **wait/retry**, choose another way, or **quit**. It never switches to another way without asking.
+4. **Which chat model:** it lists the ones your Ollama already has, and downloads only what's missing, after asking.
+5. **It starts the app**, waits until it's healthy, offers to **load the demo company**, opens the website, and ends by saying how it's running, for example "Running in Docker (route B)", with the container names.
+
+It never installs anything without asking, and it shows the exact command first. If port 8000 is taken, it uses the next free one and tells you. Your answers are saved in `.env`, so the next run starts straight away, and each run is logged to `data/start.log`.
 
 | Command | What it does |
 |---|---|
 | `.\start.cmd stop` / `./start.sh stop` | Stops the app; your documents and models are kept |
-| `.\start.cmd status` | Shows the route, the model and the app's health |
+| `.\start.cmd status` | Shows how it's running (Docker or Python), the containers and the app's health |
 | `--check` | Only explains what it would do; changes nothing |
-| `--reconfigure` | Asks the questions again |
+| `--reconfigure` | Asks the questions again; switching ways stops the old one first. Each way keeps its own library (`data/` for Python, a Docker volume for Docker). |
 | `--yes` | Accepts every suggestion without asking |
 
 ### Or by hand (pick one way)
@@ -162,7 +168,7 @@ The **end-to-end test** drives the running app with the real model, about 60 que
 | "Model not installed" | Run the `ollama pull` lines from step 2 for the models the app expects (`CHAT_MODEL`, `EMBEDDING_MODEL`). |
 | Answers are slow | That's normal on a CPU: 20–60 seconds an answer. Use `qwen2.5:3b` on smaller machines. |
 | Port 8000 is in use | The start script picks the next free port. By hand: set `APP_PORT=8001` before `docker compose up -d`. |
-| The start script chose the wrong way or model | Run it with `--reconfigure`, or delete `.env`. |
+| The start script chose the wrong way or model | Run it with `--reconfigure`, or delete `.env`. What happened is in `data/start.log`. |
 | Start over with no documents | Way A or B: `docker compose down -v` (**deletes** the app's data and the downloaded models). Way C: delete `backend/data/`. |
 
 To stop the app, run `.\start.cmd stop` (or `./start.sh stop`), or `docker compose down` if you started it by hand. Your documents and models are kept.

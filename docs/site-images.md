@@ -6,7 +6,6 @@ The public site at `/site` (decision 0011) shows 19 photos: the hero necklace, t
 |---|---|---|
 | **Products and hero** | 5 beads, 5 charms, 4 findings, the starter set, the hero necklace | A Blender render (`art/blender/`) is attached as the reference, and Gemini turns it into a photo while keeping the object's colors, shape and arrangement. |
 | **Scenes** | Amber Hollow banner, Coastal Garden banner, workshop photo | Text prompt only. |
-| **Social preview** | `docs/showcase/social-preview.jpg` | Gemini makes the background; `scripts/make_social_preview.py` adds the title text, because image models don't spell reliably. |
 
 ## The prompts
 
@@ -43,7 +42,6 @@ The key comes from the `GEMINI_API_KEY` environment variable and is sent only in
 
 ```bash
 backend/.venv/Scripts/python scripts/prepare_site_photos.py      # → frontend/src/site/img/*.webp
-backend/.venv/Scripts/python scripts/make_social_preview.py      # → docs/showcase/social-preview.jpg
 ```
 
 `prepare_site_photos.py` center-crops each image to its slot's shape, resizes it and saves WebP. Use `--only NAME …` to redo just a few.
@@ -63,4 +61,4 @@ The product list at the top of the script mirrors `frontend/src/site/content.ts`
 
 ## Credits
 
-The site's photos and the social preview background were made with Google Gemini. Hilda & Luna Beadworks and its products are fictional.
+The site's photos were made with Google Gemini. Hilda & Luna Beadworks and its products are fictional.

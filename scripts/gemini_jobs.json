@@ -25,11 +25,6 @@
       "aspect": "21:9",
       "prompt": "Close-up of an artisan's hands at a lampworking torch, winding a glowing molten orange glass bead onto a steel mandrel. Jars of colored glass rods on a small workbench, a dark background, warm light from the flame. Documentary style; hands and forearms only."
     },
-    {
-      "name": "social-background",
-      "aspect": "16:9",
-      "prompt": "Wide flat-lay of handmade lampwork glass beads (deep blue with teal dots, opal swirl, terracotta, forest green lentils, faceted sand-colored) and small gold and silver charms (a crescent moon with a star, a bee, a lotus) on warm cream linen. All objects are on the right half; the left half is empty, softly lit linen for a title. Editorial product photography."
-    },
     {"name": "GB-1001", "aspect": "4:3", "reference": "art/blender/GB-1001.webp", "product": "three 8 mm round lampwork glass beads, deep midnight blue with raised teal dots"},
     {"name": "GB-1002", "aspect": "4:3", "reference": "art/blender/GB-1002.webp", "product": "three 10 mm faceted glass beads, translucent warm desert-sand color"},
     {"name": "GB-1014", "aspect": "4:3", "reference": "art/blender/GB-1014.webp", "product": "three 12 mm round lampwork glass beads, milky opal white with soft periwinkle swirls"},

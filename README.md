@@ -204,4 +204,4 @@ Your documents, the database, vectors and backups live in `backend/data/`, which
 
 ## License
 
-[MIT](LICENSE). The bundled Fraunces and Figtree fonts keep their own [SIL Open Font License 1.1](https://openfontlicense.org). Hilda & Luna Beadworks, its people and its documents are fictional. The website's photos and the social preview background were made with Google Gemini ([details](docs/site-images.md)).
+[MIT](LICENSE). The bundled Fraunces and Figtree fonts keep their own [SIL Open Font License 1.1](https://openfontlicense.org). Hilda & Luna Beadworks, its people and its documents are fictional. The website's photos were made with Google Gemini ([details](docs/site-images.md)).

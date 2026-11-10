@@ -8,11 +8,11 @@ Decision 0011 gave the public site Blender product renders plus three AI scene p
 
 ## Decision
 
-- **Gemini makes all 19 site photos and the social preview background.** Products and the hero necklace attach their Blender render as a reference, so the photo keeps the catalog's exact colors, shapes and piece counts. The scenes are text-only.
+- **Gemini makes all 19 site photos.** Products and the hero necklace attach their Blender render as a reference, so the photo keeps the catalog's exact colors, shapes and piece counts. The scenes are text-only.
 - **The Blender renders become references.** They move to `art/blender/` and are no longer shown on the site.
 - **The free Gemini app, not the API.** The API's free tier has a quota of 0 for every image model, so the images were made in gemini.google.com, one chat per image, driven by Claude in Chrome in the user's own signed-in browser. `scripts/gemini_images.py` keeps an API route (`generate`) for keys with quota, and a `sheet` command for doing it by hand.
 - **Prompts live in the repo** (`scripts/gemini_jobs.json`) with shared style lines, so the set can be made again and stays consistent. The raw downloads and a manifest (date, source file) stay in the git-ignored `data/gemini/`.
-- **Text is added in code.** The social preview's title is drawn by `scripts/make_social_preview.py`; the image prompts ask for no text.
+- **No text in the images.** The prompts ask for none, because image models don't spell reliably. (A Gemini background for the social preview was tried too; the user chose their own image, `docs/showcase/social-preview.png`.)
 - **Credited** in the README and `docs/site-images.md`.
 
 ## Consequences

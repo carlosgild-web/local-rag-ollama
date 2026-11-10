@@ -10,7 +10,7 @@ Set up the app, load the demo company, and try everything it does, step by step.
 |---|---|
 | **Memory** | 8 GB of RAM at least; 16 GB is comfortable. On 8 GB, use the small chat model (`qwen2.5:3b`). |
 | **Disk** | About 4 GB for the small models (`qwen2.5:3b` and `bge-m3`), or 7 GB with `llama3.1`. |
-| **Software** | [Docker Desktop](https://www.docker.com/products/docker-desktop/) (way A or B), or Python 3.11+ and Node 22 (way C). For ways B and C, also [Ollama](https://ollama.com). |
+| **Software** | [Docker Desktop](https://www.docker.com/products/docker-desktop/), or [Ollama](https://ollama.com) and Python 3.11+. The start script in step 2 finds what you have and offers to install Ollama or Python if they're missing. Node 22 is only needed to build the web app yourself. |
 
 No GPU or internet connection is needed after the models are downloaded, and nothing you upload ever leaves your computer.
 
@@ -19,7 +19,36 @@ git clone https://github.com/carlosgild-web/local-rag-ollama.git
 cd local-rag-ollama
 ```
 
-## 2. Start the app (pick one way)
+## 2. Start the app
+
+### The easy way: one command
+
+```bash
+.\start.cmd        # Windows, in PowerShell or the Command Prompt (double-clicking it works too)
+./start.sh         # macOS and Linux
+```
+
+It looks at your computer and asks a few questions the first time:
+
+1. **What you have:** RAM (it suggests `qwen2.5:3b` under 12 GB), free disk, Ollama and Docker.
+2. **The best way to run it**, and why:
+   - **B** if you have Docker and Ollama: it uses the Ollama and models already on your computer, so nothing is downloaded twice.
+   - **A** if you only have Docker.
+   - **C** without Docker: Python and Ollama, with the built web app downloaded from the GitHub Release and checked against its SHA-256.
+3. **Which chat model:** it lists the ones your Ollama already has, and downloads only what's missing, after asking.
+4. **Starts the app**, waits until it's healthy, offers to **load the demo company**, and opens the website.
+
+It never installs anything without asking, and it shows the exact command first. If port 8000 is taken, it uses the next free one and tells you. Your answers are saved in `.env`, so the next run starts straight away.
+
+| Command | What it does |
+|---|---|
+| `.\start.cmd stop` / `./start.sh stop` | Stops the app; your documents and models are kept |
+| `.\start.cmd status` | Shows the route, the model and the app's health |
+| `--check` | Only explains what it would do; changes nothing |
+| `--reconfigure` | Asks the questions again |
+| `--yes` | Accepts every suggestion without asking |
+
+### Or by hand (pick one way)
 
 ### A. Docker, everything in containers (easiest)
 
@@ -68,7 +97,7 @@ Settings are environment variables, such as `CHAT_MODEL`, `OLLAMA_BASE_URL` and 
 
 ## 3. Check that it's running
 
-Open **http://localhost:8000**. The console's dashboard shows **All systems OK** once Ollama, the database, the search index and the background worker all answer.
+Open **http://localhost:8000** (the start script opens the website for you, and tells you if it used another port). The console's dashboard shows **All systems OK** once Ollama, the database, the search index and the background worker all answer.
 
 ![The console dashboard](docs/showcase/img/28-console-dashboard.jpg)
 
@@ -83,7 +112,7 @@ docker compose exec app python -m app.cli seed-demo                 # ways A and
 cd backend && .venv/Scripts/python -m app.cli seed-demo             # way C
 ```
 
-It creates four shelves (customer-support, hr, meetings, operations) and ends with `11 ingested, 0 skipped`. Running it again skips every file as a duplicate.
+The start script offers to do this, and the dashboard shows a **Load the demo company** button while the library is empty. By hand, these commands create four shelves (customer-support, hr, meetings, operations) and end with `11 ingested, 0 skipped`. Running it again skips every file as a duplicate.
 
 ## 5. Take the tour
 
@@ -118,7 +147,7 @@ The [reviewer walkthrough](docs/walkthrough.md) goes through the same tour in mo
 ```bash
 cd backend
 .venv/Scripts/pip install -r requirements-dev.txt
-.venv/Scripts/python -m pytest -q                        # 179 tests, with fakes: no Ollama needed
+.venv/Scripts/python -m pytest -q                        # 189 tests, with fakes: no Ollama needed
 .venv/Scripts/ruff check . && .venv/Scripts/ruff format --check .
 cd ../frontend && npm run build                          # type check and build
 ```
@@ -132,9 +161,10 @@ The **end-to-end test** drives the running app with the real model, about 60 que
 | "Ollama isn't running" | Start Ollama (way B or C), or check `docker compose ps` (way A). The troubleshooter shows the address it's trying. |
 | "Model not installed" | Run the `ollama pull` lines from step 2 for the models the app expects (`CHAT_MODEL`, `EMBEDDING_MODEL`). |
 | Answers are slow | That's normal on a CPU: 20–60 seconds an answer. Use `qwen2.5:3b` on smaller machines. |
-| Port 8000 is in use | Stop the other program, or change the left port in `compose.yaml` (`127.0.0.1:8001:8000`). |
+| Port 8000 is in use | The start script picks the next free port. By hand: set `APP_PORT=8001` before `docker compose up -d`. |
+| The start script chose the wrong way or model | Run it with `--reconfigure`, or delete `.env`. |
 | Start over with no documents | Way A or B: `docker compose down -v` (**deletes** the app's data and the downloaded models). Way C: delete `backend/data/`. |
 
-To stop the app, run `docker compose down`; your documents and models are kept.
+To stop the app, run `.\start.cmd stop` (or `./start.sh stop`), or `docker compose down` if you started it by hand. Your documents and models are kept.
 
 > **Security:** there are no logins. Run the app on your own computer or a private network only. See [SECURITY.md](SECURITY.md).

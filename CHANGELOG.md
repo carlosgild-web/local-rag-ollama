@@ -4,8 +4,14 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Ver
 
 ## [Unreleased]
 
+## [0.7.0] - 2026-11-10
+
+The project is public, with a one-command start for testers ([decision 0013](docs/decisions/0013-one-command-start.md)).
+
 ### Added
 
+- **One-command start:** `.\start.cmd` (Windows) and `./start.sh` (macOS, Linux). It looks at the computer, picks how to run the app, and reuses the Ollama and models already installed. It asks before downloading or installing anything, loads the demo company, and opens the website. It also has `stop`, `status`, `--check`, `--reconfigure` and `--yes`. CI lints both scripts and runs `--check` on Ubuntu, macOS and Windows.
+- **The built web app on every Release** (`web-dist.zip` and its SHA-256, from `release-web.yml`), so running without Docker needs no Node.
 - **Load the demo company from the console.** On an empty library the dashboard offers *Load the demo company*, with a progress bar and links to the website and the intranet when it's done. It runs as a `seed_demo` job (`POST /api/demo/seed`, `GET /api/demo`), through the same service as `app.cli seed-demo`, and is audited. `compose.yaml` takes `APP_PORT` for when port 8000 is taken.
 - **[Getting started](GETTING_STARTED.md):** a step-by-step guide covering three ways to start, the demo, a tour with screenshots, the tests and troubleshooting. It's also a web page for GitHub Pages (`docs/getting-started.html`), next to a landing page (`docs/index.html`).
 - **Ready-made Docker image:** `.github/workflows/release-image.yml` publishes `ghcr.io/carlosgild-web/local-rag-ollama` on version tags. `compose.yaml` pulls it, and builds from source with `--build` or when no image is published yet. Checked by hand on 2026-11-09:

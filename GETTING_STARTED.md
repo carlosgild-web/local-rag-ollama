@@ -41,6 +41,8 @@ In Windows PowerShell, set the variable first: `$env:CHAT_MODEL="qwen2.5:3b"; do
 
 The app image is pulled ready-made from GitHub's registry. To build it from the source instead, add `--build` to the first command.
 
+Way A works even if Ollama is already installed on your computer: the container's Ollama isn't exposed on your machine's port 11434, so the two don't clash. It does download the models again, into Docker. To reuse the models you already have, use way B.
+
 ### B. Docker, with the Ollama already on your computer
 
 ```bash

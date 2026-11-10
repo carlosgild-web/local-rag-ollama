@@ -17,6 +17,12 @@ Small departures from PLAN.md appendices A and B, and two dependencies.
 - **`CHAT_MODEL` and `EMBEDDING_MODEL` pass through from the host**
   (`CHAT_MODEL=qwen2.5:3b docker compose up`), with defaults `llama3.1` and
   `bge-m3`. See [0004](0004-small-chat-model-on-low-ram.md).
+- **The Ollama container publishes no port (2026-11-10).** Appendix A
+  maps `127.0.0.1:11434:11434`, but the app reaches Ollama on the Compose
+  network (`http://ollama:11434`), and the mapping made mode A fail with
+  "ports are not available" whenever Ollama was already installed on the
+  host, which an outside tester hit. Models are pulled with
+  `docker compose exec ollama ollama pull ...`, as the guide already says.
 - **The healthcheck has a timeout and a start period** of 5s and 30s. This
   covers migrations and Chroma opening on the first start.
 

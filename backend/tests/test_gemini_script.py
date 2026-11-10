@@ -36,6 +36,12 @@ def test_product_prompts_keep_the_reference_and_shared_style():
     )
 
 
+def test_logos_use_their_own_style_instead_of_the_photo_style():
+    spec = {"style": "PHOTO.", "logo_style": "VECTOR."}
+    prompt = gemini.build_prompt({"name": "logo-1", "prompt": "A moon.", "style": "logo"}, spec)
+    assert prompt == "A moon. VECTOR."
+
+
 def test_every_job_has_a_prompt_and_existing_reference():
     import json
 

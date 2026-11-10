@@ -39,7 +39,7 @@ Internal facts stay on the intranet: sales figures, the foundry delay, HR policy
 - There is no username or password field, so the page can't suggest security that isn't there.
 - `/intranet` is still reachable directly, as 0010 says. Real authentication would sit in front of `/intranet` and the admin API.
 
-**Images: Blender renders plus a few AI scenes (hybrid).** First the site used only SVG drawings; the user then asked for realistic images. The laptop has integrated graphics and 7 GB of RAM, too little to run an image model locally next to Ollama, so:
+**Images: Blender renders plus a few AI scenes (hybrid).** *Superseded by [0012](0012-site-images-with-gemini.md): all site photos are now made with Google Gemini, and the renders are its references.* First the site used only SVG drawings; the user then asked for realistic images. The laptop has integrated graphics and 7 GB of RAM, too little to run an image model locally next to Ollama, so:
 - **Product renders.** Every bead, charm and finding, the starter set and the hero necklace are rendered by Blender from `scripts/render_site_art.py`, with geometry and shaders only:
   - lampwork glass with dots, swirls, facets and a bored hole
   - pewter charms cut from the same outlines as the SVG drawings, in gold, rhodium or antique bronze

@@ -2,6 +2,7 @@
   "_about": "Images for the demo company's website, made with Google Gemini by scripts/gemini_images.py. Jobs run in this order; finished ones are skipped. 'reference' is sent with the prompt so the result keeps the object's exact colors and shape. Hilda & Luna Beadworks is fictional.",
   "style": "Photorealistic product photography, natural soft studio light, shallow depth of field, warm slightly muted colors, fine film grain. No text, no letters, no logos, no watermark, no people's faces.",
   "product_style": "Turn this 3D render into a photorealistic macro product photo of the same object: keep exactly the same colors, shape, pattern, number of pieces and their arrangement. Handmade lampwork glass or cast pewter, with real material detail (tiny bubbles and glossy reflections in glass, fine casting texture in metal). Lying on warm off-white paper, soft studio light from the upper left, gentle shadows, shallow depth of field. Same camera angle and framing as the render.",
+  "logo_style": "Clean, simple vector logo mark on a plain background, crisp edges, no gradients, no mockup, no watermark.",
   "jobs": [
     {
       "name": "hero-strand",
@@ -47,21 +48,25 @@
     {
       "name": "logo-1",
       "aspect": "1:1",
+      "style": "logo",
       "prompt": "Logo concept for 'Hilda & Luna Beadworks', a small handmade glass-bead workshop: a crescent moon formed by graduated round glass beads on a thread, with a small amber star charm hanging inside the curve. Flat vector style, few colors (cobalt blue, sea green, opal pink, amber) on white, centered, no text."
     },
     {
       "name": "logo-2",
       "aspect": "1:1",
-      "prompt": "Logo concept for 'Hilda & Luna Beadworks', a handmade bead and charm maker: a minimal monogram of the letters H and L joined by a single beaded thread, with one round glass bead as an accent. Flat vector style, deep navy and amber on cream, centered."
+      "style": "logo",
+      "prompt": "Logo concept for 'Hilda & Luna Beadworks', a handmade bead and charm maker: a minimal monogram of the letters H and L joined by a single beaded thread, with one round glass bead as an accent. Flat vector style, deep navy and amber on cream, centered, no other text besides the letters H and L."
     },
     {
       "name": "logo-3",
       "aspect": "1:1",
+      "style": "logo",
       "prompt": "Logo concept for 'Hilda & Luna Beadworks': a round emblem showing a lampwork glass bead with a crescent moon reflected in it, simple line art with two accent colors (cobalt and amber) on white, friendly and craft-like, centered, no text."
     },
     {
       "name": "logo-4",
       "aspect": "1:1",
+      "style": "logo",
       "prompt": "Logo concept for 'Hilda & Luna Beadworks': a necklace of five graduated beads hanging in a gentle U-shape with a tiny star charm in the middle, geometric flat vector style, warm palette (rust, amber, forest green, cream), centered, no text."
     }
   ]

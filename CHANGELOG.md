@@ -34,6 +34,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Ver
 
 ### Changed
 
+- **The website's photos are now made with Google Gemini** ([decision 0012](docs/decisions/0012-site-images-with-gemini.md), [how](docs/site-images.md)). All 19 site photos (the hero necklace, 15 products, two collection banners and the workshop) and the social preview background. Each product photo starts from its Blender render, now kept as a reference in `art/blender/`, so colors and shapes match the catalog. The prompts are in `scripts/gemini_jobs.json`, and `scripts/gemini_images.py` can print them, make a prompt sheet for the Gemini app, or call the API when a key has image quota.
 - README: CI and license badges, a stack line, and the slide deck linked on GitHub Pages.
 - Slide deck: v0.6.0, two new slides (the demo company, and Luna), and 179 tests.
 

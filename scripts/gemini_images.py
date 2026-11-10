@@ -97,9 +97,11 @@ def png_bytes(path: Path) -> bytes:
 
 
 def build_prompt(job: dict, spec: dict) -> str:
+    """The job's text plus a shared style; logos use "logo_style" instead of the photo style."""
+    style = spec[f"{job['style']}_style"] if job.get("style") else spec["style"]
     if "product" in job:
-        return f"{spec['product_style']} The object: {job['product']}. {spec['style']}"
-    return f"{job['prompt']} {spec['style']}"
+        return f"{spec['product_style']} The object: {job['product']}. {style}"
+    return f"{job['prompt']} {style}"
 
 
 def generate_one(

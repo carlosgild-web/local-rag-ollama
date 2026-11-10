@@ -17,8 +17,9 @@ services:
     image: ollama/ollama:latest # pin a version later (Phase 8)
     volumes:
       - ollama_models:/root/.ollama
-    ports:
-      - "127.0.0.1:11434:11434"
+    # No published port: the app reaches Ollama on Compose's own network
+    # (http://ollama:11434), so this works next to an Ollama already installed on
+    # the host, which holds port 11434. Use `docker compose exec ollama ollama ...`.
     healthcheck:
       test: ["CMD", "ollama", "list"]
       interval: 15s

@@ -40,6 +40,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Ver
 
 ### Fixed
 
+- **`docker compose up` failed when Ollama was already installed on the computer**, with "ports are not available: … 11434". The Ollama container no longer publishes port 11434 on the host; the app reaches it on Compose's own network. Found by testing from a fresh clone.
 - **Reads right after a large write could fail.** Chroma 1.5.x sometimes failed reads of a collection with "Error creating hnsw segment reader: Nothing found on disk" until its index was flushed. The end-to-end run on 2026-11-09 hit it while analysing a dropped folder right after an upload. The Chroma store now retries vector reads (search and `get_vectors`) on that error only, for up to about 15 seconds, with tests.
 - Luna showed the question twice while answering. The admin chat's check now lives in `useChatStream` and both use it.
 - The demo guide promised a version-rollback screen that the console doesn't have yet. Rollback is in the API; the guide now suggests uploading a new version instead.

@@ -113,6 +113,8 @@ docker compose exec ollama ollama pull bge-m3
 docker compose exec ollama ollama pull qwen2.5:3b</code></pre></div>
   <p class="muted">The app image is pulled ready-made from GitHub's registry. Add <code>--build</code> to the first command to build it from the source instead.</p>
 
+  <p>Way A works even if Ollama is already installed on your computer: the container's Ollama isn't exposed on your machine's port 11434, so the two don't clash. It does download the models again, into Docker. To reuse the models you already have, use way B.</p>
+
   <h3>B. Docker, with the Ollama already on your computer</h3>
   <div class="code"><pre><code>ollama pull bge-m3
 ollama pull llama3.1          <span class="c"># or qwen2.5:3b, then start with CHAT_MODEL=qwen2.5:3b</span>

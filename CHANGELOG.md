@@ -4,6 +4,10 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Ver
 
 ## [Unreleased]
 
+### Fixed
+
+- **`start.cmd` without Docker could keep a caller waiting.** The server inherited the script's handles, so anything capturing the output (a pipe, CI) waited for the server to exit. It now starts through the shell, and `stop` ends the whole process tree.
+
 ## [0.7.0] - 2026-11-10
 
 The project is public, with a one-command start for testers ([decision 0013](docs/decisions/0013-one-command-start.md)).

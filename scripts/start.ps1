@@ -290,10 +290,12 @@ function Start-RouteC([string]$VenvPy, [hashtable]$s) {
     $env:EMBEDDING_MODEL = $s.EMBEDDING_MODEL
     $env:OLLAMA_BASE_URL = $OllamaUrl
     $log = Join-Path $DataDir "server.log"
-    $proc = Start-Process -FilePath $VenvPy `
-        -ArgumentList "-m", "uvicorn", "app.main:app", "--host", "127.0.0.1", "--port", $s.APP_PORT, "--workers", "1" `
-        -WorkingDirectory (Join-Path $Root "backend") -WindowStyle Hidden -PassThru `
-        -RedirectStandardOutput $log -RedirectStandardError (Join-Path $DataDir "server.err.log")
+    # cmd does the log redirection. Start-Process without -Redirect* launches through
+    # the shell, so the server doesn't inherit this window's handles: a caller that
+    # captures our output (a pipe, CI) isn't kept waiting for the server to exit.
+    $serve = "`"$VenvPy`" -m uvicorn app.main:app --host 127.0.0.1 --port $($s.APP_PORT) --workers 1"
+    $proc = Start-Process -FilePath "cmd.exe" -ArgumentList "/c `"$serve > `"$log`" 2>&1`"" `
+        -WorkingDirectory (Join-Path $Root "backend") -WindowStyle Hidden -PassThru
     Set-Content -Path (Join-Path $DataDir "app.pid") -Value $proc.Id -Encoding ASCII
     Info "App started in the background (logs: data\server.log)"
 }
@@ -352,7 +354,11 @@ function Do-Stop {
         $pidFile = Join-Path $DataDir "app.pid"
         if (Test-Path $pidFile) {
             $p = Get-Process -Id (Get-Content $pidFile) -ErrorAction SilentlyContinue
-            if ($p) { Stop-Process -Id $p.Id -Force; Ok "App stopped" } else { Info "The app wasn't running" }
+            if ($p) {
+                # The whole tree: cmd, the venv's python launcher and the server it starts.
+                & taskkill.exe /PID $p.Id /T /F *> $null
+                Ok "App stopped"
+            } else { Info "The app wasn't running" }
             Remove-Item $pidFile -ErrorAction SilentlyContinue
         }
     } else {

@@ -1,0 +1,44 @@
+# Attaches the built web app to each GitHub Release as web-dist.zip, plus its
+# SHA-256. The start scripts' no-Docker route downloads it, so testers don't
+# need Node. Runs on a version tag, or by hand for an existing tag.
+name: Release web app
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Existing tag to attach the web app to (e.g. v0.7.0)"
+        required: true
+
+permissions:
+  contents: write # create the release if needed and upload the assets
+
+jobs:
+  web:
+    runs-on: ubuntu-latest
+    env:
+      TAG: ${{ inputs.tag || github.ref_name }}
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.TAG }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Build
+        working-directory: frontend
+        run: npm ci --no-audit --no-fund && npm run build
+      - name: Zip and checksum
+        run: |
+          (cd frontend/dist && zip -qr ../../web-dist.zip .)
+          sha256sum web-dist.zip | cut -d' ' -f1 > web-dist.zip.sha256
+          cat web-dist.zip.sha256
+      - name: Upload to the release
+        run: |
+          gh release view "$TAG" >/dev/null 2>&1 || gh release create "$TAG" --title "$TAG" --generate-notes
+          gh release upload "$TAG" web-dist.zip web-dist.zip.sha256 --clobber

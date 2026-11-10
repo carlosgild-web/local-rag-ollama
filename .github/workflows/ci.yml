@@ -64,3 +64,32 @@ jobs:
           tags: ollama-rag:ci
           cache-from: type=gha
           cache-to: type=gha,mode=max
+
+  # The one-command start scripts: lint them, then run --check (detect and
+  # explain, change nothing) on each OS a tester might use.
+  start-scripts:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Lint start.sh (shellcheck)
+        if: runner.os == 'Linux'
+        run: shellcheck start.sh
+      - name: Lint start.ps1 (PSScriptAnalyzer)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          Install-Module PSScriptAnalyzer -Force -Scope CurrentUser
+          $issues = Invoke-ScriptAnalyzer -Path scripts/start.ps1 -Severity Error
+          $issues | Format-Table -AutoSize
+          if ($issues) { exit 1 }
+      - name: start.sh --check
+        if: runner.os != 'Windows'
+        run: ./start.sh --check
+      - name: start.cmd --check (Windows PowerShell 5.1)
+        if: runner.os == 'Windows'
+        shell: cmd
+        run: start.cmd --check

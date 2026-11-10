@@ -216,6 +216,12 @@ class JobOut(BaseModel):
     updated_at: UtcDatetime
 
 
+class DemoStatusOut(BaseModel):
+    available: bool  # the demo corpus ships with this install
+    documents: int  # documents in the library, not counting the trash
+    job: JobOut | None  # the latest demo load, if any
+
+
 # --- Retrieval and chat -------------------------------------------------------
 
 

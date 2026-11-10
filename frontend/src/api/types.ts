@@ -226,6 +226,14 @@ export interface JobQueued {
 
 export type JobStatus = "pending" | "running" | "completed" | "failed" | "cancelled";
 
+/** GET /demo: whether the console should offer to load the demo company. */
+export interface DemoStatus {
+  available: boolean;
+  /** Documents in the library, not counting the trash. */
+  documents: number;
+  job: Job | null;
+}
+
 export interface Job {
   id: number;
   job_type: string;

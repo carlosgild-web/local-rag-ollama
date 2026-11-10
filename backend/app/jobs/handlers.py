@@ -10,7 +10,7 @@ from sqlalchemy.orm import Session
 from app.core.runtime import Runtime
 from app.ingest import intake
 from app.ingest.uploads import discard_staged
-from app.versioning import service
+from app.versioning import demo, service
 from app.versioning.service import ProgressCallback
 
 Handler = Callable[[Session, dict, Runtime, ProgressCallback], dict]
@@ -104,10 +104,28 @@ def handle_analyze_intake(
     return intake.analyze_batch(db, runtime, payload["batch_id"], progress)
 
 
+def handle_seed_demo(
+    db: Session, payload: dict, runtime: Runtime, progress: ProgressCallback
+) -> dict:
+    """Loads the demo company (the same as `app.cli seed-demo`)."""
+    progress(0.0)
+    results = demo.seed_demo(
+        db,
+        settings=runtime.settings,
+        embedding_client_for=runtime.embedding_client_for,
+        vector_store=runtime.vector_store,
+        root=demo.DEMO_DIR,
+        progress=progress,
+    )
+    ingested = sum(item.status == "ingested" for item in results)
+    return {"ingested": ingested, "skipped": len(results) - ingested}
+
+
 HANDLERS: dict[str, Handler] = {
     "ingest": handle_ingest,
     "analyze_intake": handle_analyze_intake,
     "reindex_document": handle_reindex_document,
     "reindex_collection": handle_reindex_collection,
     "rebuild_collection": handle_rebuild_collection,
+    "seed_demo": handle_seed_demo,
 }

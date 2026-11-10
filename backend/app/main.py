@@ -13,6 +13,7 @@ from fastapi.responses import JSONResponse
 from app.api.routes import (
     chat,
     collections,
+    demo,
     documents,
     jobs,
     models,
@@ -90,6 +91,7 @@ def create_app(runtime: Runtime | None = None, *, start_worker: bool = True) -> 
         profiles,
         ops,
         support,
+        demo,
     ):
         api.include_router(module.router)
     app.include_router(api)

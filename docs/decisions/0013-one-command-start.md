@@ -36,3 +36,22 @@ Way A failed outright next to an installed Ollama (fixed in 0005's port note). I
 - **What a tester types:** `git clone …`, `cd …`, `.\start.cmd`. The manual ways stay in the guide under "Or by hand".
 - **Two scripts to keep in step.** CI lints both (`shellcheck`, PSScriptAnalyzer) and runs `--check` on Ubuntu, macOS and Windows. Full routes are checked by hand.
 - **Route C uses the latest Release's web app.** A clone of `main` between releases gets the web app from the last tag. For changes to the UI, build it with Node.
+
+## Addendum (2026-11-10): ask, never fall back silently
+
+A tester with Docker Desktop installed and running ended up on route C (Python) without noticing, and nothing showed in Docker Desktop. The first version picked the route by itself. When Docker didn't answer, or didn't start within 2 minutes, it quietly used route C and said "no Docker". It also kept no log, so the cause couldn't be recovered. Changes:
+
+- **The route is asked, with a recommended default.**
+  - Docker and Ollama present: *Run the app in Docker?* (yes → B, no → C).
+  - Docker without Ollama: *Run Ollama inside Docker?* (yes → A, no → install Ollama, then B).
+  - On Linux, Docker can't reach the computer's Ollama, so the question says the models would download again, and the default is C when Python is installed.
+- **Installed but not running:**
+  - It starts Ollama the usual way for each OS: the tray app on Windows, the app on macOS, the systemd service on Linux (with sudo, asked).
+  - It starts Docker Desktop.
+  - If either still doesn't answer, it shows the reason and offers *wait/retry*, the other way, or *quit*. It switches only on an explicit choice, and `--yes` stops instead of switching.
+- **Visibility:**
+  - The final summary and `status` say how the app runs ("in Docker (route B)", plus the container names) and whether the script started Ollama.
+  - Each start is logged to `data/start.log`.
+- **`--reconfigure` switching** stops the previous way first, and says that each way keeps its own library.
+- **Ollama inside Docker needs memory.** Route A was tested on the 7.2 GB laptop. The models downloaded and retrieval worked, but loading `qwen2.5:3b` inside Docker's 3.4 GB VM took more than two minutes, and the answer timed out. The same question answered in about a minute on route B. Under 12 GB of RAM, the route A question now warns, and the guide says route A needs about 16 GB.
+- **Testing the questions:** the answers are fed through stdin, as well as `--yes`. Test-only flags (`--no-host-ollama`, `--no-docker`, `--ollama-start-fails`) simulate the missing and failing cases.

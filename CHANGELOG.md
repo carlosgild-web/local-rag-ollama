@@ -4,8 +4,22 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Ver
 
 ## [Unreleased]
 
+### Changed
+
+- **The start script asks how to run the app instead of deciding alone** ([decision 0013 addendum](docs/decisions/0013-one-command-start.md#addendum-2026-11-10-ask-never-fall-back-silently)):
+  - *Run the app in Docker?* and *Run Ollama inside Docker?*, each with a recommended default
+  - it starts an installed but stopped Ollama (its app or service) or Docker Desktop
+  - if either doesn't answer, it offers wait/retry, the other way, or quit
+  - the summary and `status` say whether it runs in Docker or with Python, and name the containers
+  - each start is logged to `data/start.log`
+  - `--reconfigure` stops the old way before switching
+  - under 12 GB of RAM, it warns that Ollama inside Docker is much slower (the guide now says that needs about 16 GB)
+
 ### Fixed
 
+- **A tester with Docker running could end up without Docker.** When `docker info` failed at start-up, the start script switched to running with Python without asking and said "no Docker".
+- **`start.cmd` couldn't start the all-in-Docker way (route A):** PowerShell returned the one-item compose argument list as a string, so the command became `docker composeup -d`.
+- The model question showed "Use  Press Enter" without the model name (PowerShell read `$default?` as a variable name).
 - **`start.cmd` without Docker could keep a caller waiting.** The server inherited the script's handles, so anything capturing the output (a pipe, CI) waited for the server to exit. It now starts through the shell, and `stop` ends the whole process tree.
 
 ## [0.7.0] - 2026-11-10

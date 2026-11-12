@@ -8,12 +8,14 @@ thread and call `run_once()` directly.
 import json
 import logging
 import threading
+import time
 from pathlib import Path
 
 from sqlalchemy.orm import Session
 
 from app.core.logging import request_id_var
 from app.core.runtime import Runtime
+from app.db import backup
 from app.db.models import IngestJob
 from app.ingest.uploads import discard_staged
 from app.jobs import queue
@@ -44,6 +46,7 @@ class JobWorker:
         if self._thread is not None:
             self._thread.join(timeout)
             self._thread = None
+        backup.clear_heartbeat(self._runtime.settings)
 
     @property
     def is_running(self) -> bool:
@@ -51,7 +54,15 @@ class JobWorker:
 
     def _loop(self) -> None:
         interval = self._runtime.settings.job_poll_interval_seconds
+        last_beat = 0.0
         while not self._stop.is_set():
+            if time.monotonic() - last_beat >= 10:
+                # Lets an offline restore see that the app is running (decision 0015).
+                try:
+                    backup.write_heartbeat(self._runtime.settings)
+                except OSError:
+                    logger.warning("couldn't write the heartbeat file")
+                last_beat = time.monotonic()
             try:
                 processed = self.run_once()
             except Exception:  # never let the worker thread die

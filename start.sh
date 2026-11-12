@@ -4,6 +4,8 @@
 #   ./start.sh             start (asks a few questions the first time)
 #   ./start.sh stop        stop the app (your documents and models are kept)
 #   ./start.sh status      show how it's running and whether it's healthy
+#   ./start.sh backup      back up the data now (the console's Backups page too)
+#   ./start.sh restore <backup>   restore a backup (a name from Backups, or a .zip file)
 #
 # Options: --yes (accept every suggestion), --check (look and explain, change
 # nothing), --reconfigure (ask again instead of using the saved answers).
@@ -28,10 +30,10 @@ OS="$(uname -s)"
 LOGGING=0
 OLLAMA_STARTED_HERE=0
 
-COMMAND="start"; YES=0; CHECK=0; RECONFIGURE=0; NO_HOST_OLLAMA=0; NO_DOCKER=0; OLLAMA_START_FAILS=0
+COMMAND="start"; TARGET=""; YES=0; CHECK=0; RECONFIGURE=0; NO_HOST_OLLAMA=0; NO_DOCKER=0; OLLAMA_START_FAILS=0
 for arg in "$@"; do
   case "$arg" in
-    start|stop|status) COMMAND="$arg" ;;
+    start|stop|status|backup|restore) COMMAND="$arg" ;;
     --yes|-y) YES=1 ;;
     --check) CHECK=1 ;;
     --reconfigure) RECONFIGURE=1 ;;
@@ -39,7 +41,10 @@ for arg in "$@"; do
     --no-docker) NO_DOCKER=1 ;;
     --ollama-start-fails) OLLAMA_START_FAILS=1 ;;
     -h|--help) sed -n '2,16p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
-    *) echo "Unknown option: $arg (try --help)"; exit 2 ;;
+    -*) echo "Unknown option: $arg (try --help)"; exit 2 ;;
+    *)
+      if [ "$COMMAND" = "restore" ] && [ -z "$TARGET" ]; then TARGET="$arg"
+      else echo "Unknown option: $arg (try --help)"; exit 2; fi ;;
   esac
 done
 
@@ -432,6 +437,64 @@ do_stop() {
   stop_route "$START_ROUTE"
 }
 
+# Runs `python -m app.cli <args>` against this setup's data: the venv for route C, a
+# one-off app container (with the data volume) for Docker. $1 = route, $2 = extra
+# docker run options (or ""), the rest = app.cli arguments.
+run_cli() {
+  local route="$1" extra="$2"; shift 2
+  if [ "$route" = "C" ]; then
+    [ -x "$ROOT/backend/.venv/bin/python" ] || fail "The Python environment isn't set up: run ./start.sh first."
+    (cd "$ROOT/backend" && DATA_DIR="$DATA_DIR" .venv/bin/python -m app.cli "$@")
+  elif [ -n "$extra" ]; then
+    compose "$route" run --rm --no-deps -v "$extra" app python -m app.cli "$@"
+  else
+    compose "$route" run --rm --no-deps app python -m app.cli "$@"
+  fi
+}
+
+# Backs up now: through the running app (its job worker pauses indexing meanwhile),
+# or with the app stopped through app.cli (decision 0015).
+do_backup() {
+  read_settings
+  [ -n "$START_ROUTE" ] || fail "Not set up yet: run ./start.sh first."
+  local port="${APP_PORT:-8000}" id jobs status
+  if http_get "http://127.0.0.1:$port/health" | grep -q '"status"'; then
+    id="$(curl -s -m 10 -X POST "http://127.0.0.1:$port/api/backups" | json_field job_id)"
+    info "Backing up through the running app..."
+    while true; do
+      sleep 2
+      jobs="$(http_get "http://127.0.0.1:$port/api/jobs")"
+      status="$(printf '%s' "${jobs#*\"id\":$id,}" | json_field status)"
+      case "$status" in
+        completed) ok "Backup written (see the console's Backups page)"; return 0 ;;
+        failed) fail "The backup failed; see the Queue page." ;;
+      esac
+    done
+  fi
+  info "The app isn't running, so the backup is made directly."
+  run_cli "$START_ROUTE" "" backup
+}
+
+# Restores a backup: stops the app, restores (the current data is backed up first),
+# and starts the app again.
+do_restore() {
+  [ -n "$TARGET" ] || fail "Which backup? Usage: ./start.sh restore <name or .zip file>. The console's Backups page lists them."
+  read_settings
+  [ -n "$START_ROUTE" ] || fail "Not set up yet: run ./start.sh first."
+  local route="$START_ROUTE" arg="$TARGET" extra=""
+  step "Restoring $TARGET"
+  info "Stopping the app first: a restore needs it stopped."
+  stop_route "$route"
+  if [ -f "$TARGET" ]; then
+    local full; full="$(cd "$(dirname "$TARGET")" && pwd)/$(basename "$TARGET")"
+    if [ "$route" = "C" ]; then arg="$full"
+    else extra="$full:/restore/backup.zip:ro"; arg="/restore/backup.zip"; fi
+  fi
+  run_cli "$route" "$extra" restore "$arg" || fail "The restore didn't finish; see the messages above. Run ./start.sh to start the app again."
+  ok "Restored. Starting the app again..."
+  do_start
+}
+
 do_status() {
   read_settings
   [ -n "$START_ROUTE" ] || { say "Not set up yet: run ./start.sh"; return 0; }
@@ -663,6 +726,8 @@ do_start() {
 case "$COMMAND" in
   stop) do_stop ;;
   status) do_status ;;
+  backup) do_backup ;;
+  restore) do_restore ;;
   *)
     if [ "$CHECK" = 0 ]; then
       # A log of each start (overwritten every time) for troubleshooting.

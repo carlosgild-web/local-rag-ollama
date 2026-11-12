@@ -234,6 +234,13 @@ class JobOut(BaseModel):
     updated_at: UtcDatetime
 
 
+class BackupOut(BaseModel):
+    name: str
+    size: int  # bytes
+    manifest: dict[str, Any] | None  # app version, schema, counts, reason, created_at
+    error: str | None  # set when the file can't be read as a backup
+
+
 class DemoFileOut(BaseModel):
     shelf: str  # the folder it loads into
     name: str

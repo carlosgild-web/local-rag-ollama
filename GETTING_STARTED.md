@@ -53,6 +53,8 @@ It never installs anything without asking, and it shows the exact command first.
 | `--check` | Only explains what it would do; changes nothing |
 | `--reconfigure` | Asks the questions again; switching ways stops the old one first. Each way keeps its own library (`data/` for Python, a Docker volume for Docker). |
 | `--yes` | Accepts every suggestion without asking |
+| `.\start.cmd backup` | Backs up the data now (also on the console's **Backups** page) |
+| `.\start.cmd restore <name>` | Restores a backup: stops the app, saves the current data first, restores, starts again |
 
 ### Or by hand (pick one way)
 

@@ -10,6 +10,7 @@ import httpx
 from fastapi import APIRouter, FastAPI, Request
 from fastapi.responses import JSONResponse
 
+from app import __version__
 from app.api.routes import (
     chat,
     collections,
@@ -47,6 +48,33 @@ _ERROR_STATUS = {
 }
 
 
+def _schedule_daily_backup(runtime: Runtime) -> None:
+    """Queues an automatic backup when the newest one is a day old or missing, and the
+    library has something in it (decision 0015). BACKUP_KEEP=0 turns it off."""
+    from sqlalchemy import func, select
+
+    from app.db import backup
+    from app.db.models import Document, IngestJob
+    from app.jobs import queue
+
+    settings = runtime.settings
+    if settings.backup_keep <= 0:
+        return
+    age = backup.latest_automatic_age_hours(settings)
+    if age is not None and age < 24:
+        return
+    with runtime.session_factory() as db:
+        if not db.execute(select(func.count(Document.id))).scalar_one():
+            return
+        waiting = db.execute(
+            select(func.count(IngestJob.id)).where(
+                IngestJob.job_type == "backup", IngestJob.status.in_(("pending", "running"))
+            )
+        ).scalar_one()
+        if not waiting:
+            queue.enqueue(db, "backup", {"reason": "auto"})
+
+
 def create_app(runtime: Runtime | None = None, *, start_worker: bool = True) -> FastAPI:
     """`runtime` defaults to the real one built from env settings; tests pass
     a fake one and `start_worker=False`, then drain jobs with
@@ -63,6 +91,7 @@ def create_app(runtime: Runtime | None = None, *, start_worker: bool = True) -> 
             app.state.runtime = runtime
         # Staged intake batches nobody confirmed or cancelled expire after a day.
         intake.purge_stale_batches(app.state.runtime.settings)
+        _schedule_daily_backup(app.state.runtime)
         app.state.worker = JobWorker(app.state.runtime)
         if start_worker:
             app.state.worker.start()
@@ -74,7 +103,7 @@ def create_app(runtime: Runtime | None = None, *, start_worker: bool = True) -> 
 
     app = FastAPI(
         title="Local RAG with Ollama",
-        version="0.6.0",
+        version=__version__,
         description="Fully local retrieval-augmented generation: documents, versions, chat.",
         lifespan=lifespan,
     )

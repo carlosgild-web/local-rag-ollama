@@ -3,6 +3,8 @@
 #   .\start.cmd             start (asks a few questions the first time)
 #   .\start.cmd stop        stop the app (your documents and models are kept)
 #   .\start.cmd status      show how it's running and whether it's healthy
+#   .\start.cmd backup      back up the data now (the console's Backups page too)
+#   .\start.cmd restore <backup>   restore a backup (a name from Backups, or a .zip file)
 #
 # Options: --yes (accept every suggestion), --check (look and explain, change
 # nothing), --reconfigure (ask again instead of using the saved answers).
@@ -33,11 +35,12 @@ $script:OllamaStartedHere = $false
 # --- Arguments ---------------------------------------------------------------
 
 $Command = "start"
+$Target = $null
 $Yes = $false; $CheckOnly = $false; $Reconfigure = $false
 $NoHostOllama = $false; $NoDocker = $false; $OllamaStartFails = $false
 foreach ($a in $args) {
     switch -Regex ($a) {
-        '^(start|stop|status)$' { $Command = $a }
+        '^(start|stop|status|backup|restore)$' { $Command = $a }
         '^-{1,2}yes$' { $Yes = $true }
         '^-{1,2}check$' { $CheckOnly = $true }
         '^-{1,2}reconfigure$' { $Reconfigure = $true }
@@ -45,7 +48,10 @@ foreach ($a in $args) {
         '^-{1,2}no-docker$' { $NoDocker = $true }
         '^-{1,2}ollama-start-fails$' { $OllamaStartFails = $true }
         '^-{1,2}(h|help)$' { Get-Content $PSCommandPath -TotalCount 16 | ForEach-Object { $_ -replace '^# ?', '' }; exit 0 }
-        default { Write-Host "Unknown option: $a (try --help)"; exit 2 }
+        default {
+            if ($Command -eq "restore" -and -not $Target -and -not $a.StartsWith("-")) { $Target = $a }
+            else { Write-Host "Unknown option: $a (try --help)"; exit 2 }
+        }
     }
 }
 
@@ -489,6 +495,66 @@ function Do-Stop {
     Stop-Route $s.START_ROUTE
 }
 
+# Backs up now: through the running app (its job worker pauses indexing meanwhile),
+# or with the app stopped through app.cli (decision 0015).
+function Do-Backup {
+    $s = Read-Settings
+    if (-not $s.START_ROUTE) { Fail "Not set up yet: run .\start.cmd first." }
+    $port = if ($s.APP_PORT) { $s.APP_PORT } else { "8000" }
+    if (HttpJson "http://127.0.0.1:$port/health") {
+        $queued = (& curl.exe -s -m 10 -X POST "http://127.0.0.1:$port/api/backups") -join "" | ConvertFrom-Json
+        Info "Backing up through the running app..."
+        while ($true) {
+            Start-Sleep -Seconds 2
+            $job = @(HttpJson "http://127.0.0.1:$port/api/jobs") | ForEach-Object { $_ } | Where-Object { $_.id -eq $queued.job_id }
+            if ($job.status -eq "completed") { Ok "Backup written: $($job.result.name) (see the console's Backups page)"; return }
+            if ($job.status -eq "failed") { Fail "The backup failed: $($job.error)" }
+        }
+    }
+    Info "The app isn't running, so the backup is made directly."
+    Invoke-Cli $s.START_ROUTE @("backup") | Out-Null
+}
+
+# Runs `python -m app.cli <args>` against this setup's data: the venv for route C, a
+# one-off app container (with the data volume) for Docker. Returns the exit code.
+function Invoke-Cli([string]$Route, [string[]]$CliArgs, [string[]]$DockerExtra = @()) {
+    if ($Route -eq "C") {
+        $venvPy = Join-Path $Root "backend\.venv\Scripts\python.exe"
+        if (-not (Test-Path $venvPy)) { Fail "The Python environment isn't set up: run .\start.cmd first." }
+        $env:DATA_DIR = $DataDir
+        Push-Location (Join-Path $Root "backend")
+        try { & $venvPy -m app.cli @CliArgs | Out-Host; return $LASTEXITCODE } finally { Pop-Location }
+    }
+    Push-Location $Root
+    try {
+        & docker @(@(Compose-Args $Route) + @("run", "--rm", "--no-deps") + $DockerExtra + @("app", "python", "-m", "app.cli") + $CliArgs) | Out-Host
+        return $LASTEXITCODE
+    } finally { Pop-Location }
+}
+
+# Restores a backup: stops the app, restores (the current data is backed up first),
+# and starts the app again.
+function Do-Restore {
+    if (-not $Target) { Fail "Which backup? Usage: .\start.cmd restore <name or .zip file>. The console's Backups page lists them." }
+    $s = Read-Settings
+    if (-not $s.START_ROUTE) { Fail "Not set up yet: run .\start.cmd first." }
+    $route = $s.START_ROUTE
+    Step "Restoring $Target"
+    Info "Stopping the app first: a restore needs it stopped."
+    Stop-Route $route
+    $extra = @()
+    $arg = $Target
+    if (Test-Path $Target -PathType Leaf) {
+        $full = (Resolve-Path $Target).Path
+        if ($route -eq "C") { $arg = $full }
+        else { $extra = @("-v", "${full}:/restore/backup.zip:ro"); $arg = "/restore/backup.zip" }
+    }
+    $code = Invoke-Cli $route @("restore", $arg) $extra
+    if ($code -ne 0) { Fail "The restore didn't finish; see the messages above. Run .\start.cmd to start the app again." }
+    Ok "Restored. Starting the app again..."
+    Do-Start
+}
+
 function Do-Status {
     $s = Read-Settings
     if (-not $s.START_ROUTE) { Say "Not set up yet: run .\start.cmd"; return }
@@ -751,6 +817,8 @@ try {
     switch ($Command) {
         "stop" { Do-Stop }
         "status" { Do-Status }
+        "backup" { Do-Backup }
+        "restore" { Do-Restore }
         default { Do-Start }
     }
 } finally {

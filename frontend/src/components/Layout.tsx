@@ -1,4 +1,5 @@
 import {
+  Archive,
   AlertTriangle,
   Building2,
   Database,
@@ -34,6 +35,7 @@ const NAV: { to: string; label: string; icon: typeof LayoutDashboard; end?: bool
   { to: "/library", label: "Library", icon: FolderOpen, needs: "browse", partly: "process" },
   { to: "/collections", label: "Collections", icon: Database, needs: "browse", partly: "process" },
   { to: "/queue", label: "Queue", icon: ListTodo, needs: "browse", partly: "process" },
+  { to: "/backups", label: "Backups", icon: Archive, needs: "browse" },
 ];
 
 const PILL: Record<SystemState, { label: string; className: string; dot: string }> = {

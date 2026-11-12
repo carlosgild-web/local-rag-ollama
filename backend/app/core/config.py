@@ -46,6 +46,8 @@ class Settings(BaseSettings):
     job_poll_interval_seconds: float = 1.0
     job_max_retries: int = 2  # automatic retries before a job stays failed
     max_upload_mb: int = 100
+    # Automatic daily backups kept in DATA_DIR/backups (0 turns them off)
+    backup_keep: int = 7
 
     # File watching
     watch_polling: bool = False

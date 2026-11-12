@@ -4,6 +4,10 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Ver
 
 ## [Unreleased]
 
+## [0.8.0] - 2026-11-12
+
+Documents can be read, compared, edited and restored in the app, near-duplicates are caught when adding files, and the data can be backed up and restored.
+
 ### Added
 
 - **Document details** ([decision 0014](docs/decisions/0014-versions-history-and-feedback.md)). Click a file name in the Library to read the text the app searches (any version), see the version timeline, compare two versions with the changes highlighted, and restore an earlier version. A restore only switches the active version: nothing is re-embedded or deleted, and it's audited.

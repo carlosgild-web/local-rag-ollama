@@ -1,4 +1,5 @@
-import { FileText, RefreshCw, RotateCcw, Trash2 } from "lucide-react";
+import { Download, ExternalLink, FileText, RefreshCw, RotateCcw, Trash2 } from "lucide-react";
+import { API_BASE } from "@/api/client";
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import type { Document } from "@/api/types";
@@ -181,6 +182,7 @@ function DocumentRow({
         )}
         {!isTrashed && (
           <div className="flex justify-end gap-1">
+            <OpenOriginal doc={doc} />
             <Button
               variant="ghost"
               size="icon"
@@ -197,6 +199,18 @@ function DocumentRow({
         )}
       </td>
     </tr>
+  );
+}
+
+/** The file exactly as it was uploaded: PDFs and text open in a tab, Word files download. */
+function OpenOriginal({ doc }: { doc: Document }) {
+  const isWord = /\.docx$/i.test(doc.filename);
+  return (
+    <Button variant="ghost" size="icon" asChild title={isWord ? "Download the original (Word)" : "Open the original in a new tab"}>
+      <a href={`${API_BASE}/documents/${doc.id}/original`} target={isWord ? undefined : "_blank"} rel="noreferrer">
+        {isWord ? <Download /> : <ExternalLink />}
+      </a>
+    </Button>
   );
 }
 

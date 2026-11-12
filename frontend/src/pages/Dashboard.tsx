@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { Building2, CheckCircle2, ExternalLink, Globe, Loader2, MessageSquare, Sparkles, Upload, Wrench, XCircle } from "lucide-react";
+import { Building2, CheckCircle2, Download, ExternalLink, FolderOpen, Globe, Loader2, MessageSquare, Sparkles, Upload, Wrench, XCircle } from "lucide-react";
+import { API_BASE } from "@/api/client";
 import { Link } from "react-router-dom";
 import { useTroubleshooter } from "@/components/TroubleshooterContext";
 import type { ComponentHealth } from "@/api/types";
@@ -11,6 +12,7 @@ import {
   isActiveJob,
   useCollections,
   useDemo,
+  useDemoFiles,
   useDocuments,
   useHealth,
   useJobs,
@@ -19,7 +21,7 @@ import {
   useSeedDemo,
   useSessions,
 } from "@/hooks/queries";
-import { formatDate } from "@/lib/utils";
+import { formatBytes, formatDate } from "@/lib/utils";
 
 const COMPONENTS = [
   ["ollama", "Ollama"],
@@ -187,6 +189,7 @@ function DemoCard({ onTroubleshoot }: { onTroubleshoot: () => void }) {
   const seed = useSeedDemo();
   // Keep the card up after loading, until the page is left, to show the links.
   const [startedHere, setStartedHere] = useState(false);
+  const [showFiles, setShowFiles] = useState(false);
   const status = demo.data;
   if (!status?.available) return null;
 
@@ -211,7 +214,7 @@ function DemoCard({ onTroubleshoot }: { onTroubleshoot: () => void }) {
           <CardDescription>
             {done
               ? `${result?.ingested ?? 0} documents indexed${result?.skipped ? `, ${result.skipped} already there` : ""}. Open the company's website, sign in as an employee and ask Luna.`
-              : "Hilda & Luna Beadworks is a fictional bead maker with 11 documents: a handbook, safety training, a catalog, prices, an FAQ and more. Loading them takes a few minutes on a laptop."}
+              : "Hilda & Luna Beadworks is a fictional bead maker with 11 documents: a handbook, safety training, a catalog, prices, an FAQ and more. Look through them first if you like; loading them takes a few minutes on a laptop."}
           </CardDescription>
         </div>
       </CardHeader>
@@ -256,9 +259,61 @@ function DemoCard({ onTroubleshoot }: { onTroubleshoot: () => void }) {
               <Wrench /> Troubleshoot
             </Button>
           )}
+          <Button variant="outline" onClick={() => setShowFiles((v) => !v)} aria-expanded={showFiles}>
+            <FolderOpen /> {showFiles ? "Hide the documents" : "See the documents"}
+          </Button>
         </div>
+        {showFiles && <DemoFiles loaded={done} />}
       </CardContent>
     </Card>
+  );
+}
+
+/** The demo company's original documents, grouped by the shelf each loads into. */
+function DemoFiles({ loaded }: { loaded: boolean }) {
+  const files = useDemoFiles(true);
+  const shelves = new Map<string, NonNullable<typeof files.data>>();
+  for (const f of files.data ?? []) shelves.set(f.shelf, [...(shelves.get(f.shelf) ?? []), f]);
+  return (
+    <div className="rounded-md border bg-background">
+      <ErrorNote error={files.error} />
+      {files.isLoading && <p className="p-3 text-sm text-muted-foreground">Loading the list…</p>}
+      <ul className="divide-y text-sm">
+        {[...shelves.entries()].map(([shelf, list]) => (
+          <li key={shelf} className="px-3 py-2">
+            <p className="mb-1 text-xs font-medium uppercase tracking-wide text-muted-foreground">Shelf: {shelf}</p>
+            <ul className="space-y-1">
+              {list.map((f) => {
+                const href = `${API_BASE}/demo/files/${encodeURIComponent(f.shelf)}/${encodeURIComponent(f.name)}`;
+                return (
+                  <li key={f.name} className="flex items-center gap-3">
+                    <span className="w-10 shrink-0 rounded bg-muted px-1.5 py-0.5 text-center font-mono text-[11px] uppercase">{f.type}</span>
+                    <span className="truncate">{f.name}</span>
+                    <span className="ml-auto shrink-0 text-xs text-muted-foreground">{formatBytes(f.size)}</span>
+                    <Button variant="ghost" size="sm" asChild className="shrink-0">
+                      {f.opens_in_browser ? (
+                        <a href={href} target="_blank" rel="noreferrer">
+                          Open <ExternalLink className="size-3.5" />
+                        </a>
+                      ) : (
+                        <a href={href}>
+                          Download <Download className="size-3.5" />
+                        </a>
+                      )}
+                    </Button>
+                  </li>
+                );
+              })}
+            </ul>
+          </li>
+        ))}
+      </ul>
+      <p className="border-t px-3 py-2 text-xs text-muted-foreground">
+        {loaded
+          ? "These are the originals the answers come from. Each one also has an Open original button in the Library."
+          : "PDFs and text files open in a new tab; Word files download. They're also in your copy of the project, in backend/demo/hilda-luna. Nothing is indexed until you click Load the demo company."}
+      </p>
+    </div>
   );
 }
 

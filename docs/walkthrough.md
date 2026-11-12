@@ -7,13 +7,7 @@ This is a 10-minute tour of what the project does, in the order a visitor meets 
 ## Before you start
 
 1. Start the app ([Quick start](../README.md#quick-start)). You need Ollama with `bge-m3` and a chat model (`llama3.1`, or `qwen2.5:3b` on a machine with about 8 GB of RAM).
-2. Load the demo documents:
-
-   ```bash
-   cd backend && .venv/Scripts/python -m app.cli seed-demo     # Docker: docker compose exec app python -m app.cli seed-demo
-   ```
-
-   This creates four shelves (customer-support, hr, meetings, operations) from `backend/demo/hilda-luna/`.
+2. Load the demo documents: on the dashboard's *New here?* card, click **See the documents** to read the originals, then **Load the demo company**. This creates four shelves (customer-support, hr, meetings, operations) from `backend/demo/hilda-luna/`. Developers can run `python -m app.cli seed-demo` instead.
 3. Open **http://localhost:8000/site**.
 
 Answers take a while on a laptop CPU: the median was 44–59 seconds in the end-to-end tests ([latest report](test-reports/2026-11-09-e2e.md)).

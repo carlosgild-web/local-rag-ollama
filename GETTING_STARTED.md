@@ -42,7 +42,7 @@ It looks at your computer, then asks a few questions the first time:
    With **C**, the built web app is downloaded from the GitHub Release and checked against its SHA-256, so you don't need Node.
 3. **When something is installed but not running,** it starts it for you: the Ollama app, or Docker Desktop. If that doesn't work, it tells you why and lets you **wait/retry**, choose another way, or **quit**. It never switches to another way without asking.
 4. **Which chat model:** it lists the ones your Ollama already has, and downloads only what's missing, after asking.
-5. **It starts the app**, waits until it's healthy, offers to **load the demo company**, opens the website, and ends by saying how it's running, for example "Running in Docker (route B)", with the container names.
+5. **It starts the app**, waits until it's healthy, and opens it: the **dashboard** while the library is empty (step 4), the website after that. It ends by saying how it's running, for example "Running in Docker (route B)", with the container names.
 
 It never installs anything without asking, and it shows the exact command first. If port 8000 is taken, it uses the next free one and tells you. Your answers are saved in `.env`, so the next run starts straight away, and each run is logged to `data/start.log`.
 
@@ -113,12 +113,23 @@ If something is red, click **Troubleshoot**. It names the cause and the fix, for
 
 Hilda & Luna Beadworks is a fictional bead maker with 11 documents: a handbook, safety training, a catalog, a price sheet, an FAQ and more.
 
+While the library is empty, the **dashboard** shows a *New here?* card:
+
+1. **See the documents** lists the 11 originals by the shelf each goes into. PDFs and text files open in a new tab, and Word files download, so you can read exactly what the assistant will answer from. They're also in your copy of the project, in `backend/demo/hilda-luna/`.
+2. **Load the demo company** indexes them, with a progress bar. It takes a few minutes on a laptop.
+3. When it's done, the card links to the company website and the employee portal.
+
+It creates four shelves (customer-support, hr, meetings, operations). Loading again skips every file as a duplicate. Later, every document in the **Library** has an *Open original* button.
+
+<details><summary>For developers: the same from the command line</summary>
+
 ```bash
-docker compose exec app python -m app.cli seed-demo                 # ways A and B
-cd backend && .venv/Scripts/python -m app.cli seed-demo             # way C
+docker compose exec app python -m app.cli seed-demo                 # in Docker
+cd backend && .venv/Scripts/python -m app.cli seed-demo             # without Docker
 ```
 
-The start script offers to do this, and the dashboard shows a **Load the demo company** button while the library is empty. By hand, these commands create four shelves (customer-support, hr, meetings, operations) and end with `11 ingested, 0 skipped`. Running it again skips every file as a duplicate.
+It ends with `11 ingested, 0 skipped`.
+</details>
 
 ## 5. Take the tour
 

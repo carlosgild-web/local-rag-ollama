@@ -20,7 +20,7 @@ cd local-rag-ollama
 ./start.sh       # macOS / Linux
 ```
 
-It checks your computer, reuses the Ollama and models you already have, asks before downloading or installing anything, loads the demo company, and opens the website.
+It checks your computer, reuses the Ollama and models you already have, and asks before downloading or installing anything. Then it opens the dashboard, where you can read the demo company's documents and load them with one click.
 
 **[Getting started, step by step →](GETTING_STARTED.md)** ([as a web page](https://carlosgild-web.github.io/local-rag-ollama/getting-started.html)): install, load the demo company, try everything and run the tests.
 
@@ -61,12 +61,7 @@ The console above is for the person who manages the documents. The portal shows 
 
 ### Try the demo
 
-Start the app ([Quick start](#quick-start)), then load the demo company's 11 fictional documents with one command (Ollama must be running):
-
-```bash
-cd backend && .venv/Scripts/python -m app.cli seed-demo     # local: one shelf per folder in backend/demo/hilda-luna/
-docker compose exec app python -m app.cli seed-demo         # Docker
-```
+Start the app ([Quick start](#quick-start)). While the library is empty, the dashboard offers the demo company's 11 fictional documents: **See the documents** to read the originals first, then **Load the demo company**. Developers can use `python -m app.cli seed-demo` instead.
 
 Then follow the path a visitor would:
 
@@ -201,7 +196,7 @@ frontend/src/       React + Vite + TypeScript + Tailwind: pages/, components/, a
 frontend/src/portal/  The employee portal and Luna (lazy-loaded, own fonts)
 frontend/src/site/    The demo company's public website (lazy-loaded)
 scripts/            start.ps1, plus site image tools: Gemini prompts, Blender references, WebP prep
-backend/demo/       Fictional Hilda & Luna Beadworks documents for `seed-demo`
+backend/demo/       Fictional Hilda & Luna Beadworks documents (the dashboard's demo)
 e2e/                End-to-end test kit and a fictional sample corpus
 docs/decisions/     Why things are the way they are   docs/test-reports/  End-to-end reports
 docs/showcase/      Slide deck and screenshots

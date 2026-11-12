@@ -12,6 +12,7 @@ import type {
   Health,
   Job,
   DemoStatus,
+  DemoFile,
   JobQueued,
   Intake,
   IntakeConfirm,
@@ -135,6 +136,7 @@ export const api = {
 
   jobs: () => request<Job[]>(`/jobs${query({ limit: 200 })}`),
   demo: () => request<DemoStatus>("/demo"),
+  demoFiles: () => request<DemoFile[]>("/demo/files"),
   seedDemo: () => request<Job>("/demo/seed", json("POST")),
   retryJob: (id: number) => request<Job>(`/jobs/${id}/retry`, json("POST")),
   cancelJob: (id: number) => request<Job>(`/jobs/${id}/cancel`, json("POST")),

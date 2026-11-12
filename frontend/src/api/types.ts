@@ -226,6 +226,18 @@ export interface JobQueued {
 
 export type JobStatus = "pending" | "running" | "completed" | "failed" | "cancelled";
 
+/** GET /demo/files: one original demo document. */
+export interface DemoFile {
+  /** The shelf it loads into. */
+  shelf: string;
+  name: string;
+  /** File extension, e.g. "pdf". */
+  type: string;
+  size: number;
+  /** PDF and text open in a tab; Word files download. */
+  opens_in_browser: boolean;
+}
+
 /** GET /demo: whether the console should offer to load the demo company. */
 export interface DemoStatus {
   available: boolean;

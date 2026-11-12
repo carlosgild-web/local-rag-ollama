@@ -41,6 +41,8 @@ def handle_ingest(db: Session, payload: dict, runtime: Runtime, progress: Progre
         vector_store=runtime.vector_store,
         progress=progress,
         into_document_id=into,
+        edited_by=payload.get("edited_by"),
+        note=payload.get("note"),
     )
     discard_staged(staged, runtime.settings.uploads_dir)
     return {

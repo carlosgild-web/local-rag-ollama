@@ -12,6 +12,8 @@ blue/green collection rebuilds on embedding/chunking changes.
 
 import datetime as dt
 import difflib
+import hashlib
+import uuid
 from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
@@ -642,13 +644,16 @@ def ingest_document(
     tags: str | None = None,
     progress: ProgressCallback | None = None,
     into_document_id: int | None = None,
+    edited_by: str | None = None,
+    note: str | None = None,
 ) -> IngestResult:
     """`filename` overrides `source_path.name` (uploads are staged under a
     temporary name). `progress` is called once the slow work is done and
     before anything is written, so a cancelled job stops cleanly there.
     `into_document_id` adds the file as a new version of that document even if
     its name differs (a near-duplicate the user chose to merge); the version's
-    note records the name it was uploaded under."""
+    note records the name it was uploaded under. `edited_by` marks the version as
+    an edit made in the app (with `note` saying what changed)."""
     filename = filename or source_path.name
     sha256 = file_store.hash_file(source_path)
 
@@ -673,12 +678,11 @@ def ingest_document(
 
     _, stored_path = file_store.store_file(source_path, settings.files_dir)
 
-    note = None
     if into_document_id is not None:
         document = db.get(Document, into_document_id)
         if document is None or document.trashed_at is not None:
             raise NotFoundError(f"document {into_document_id} is gone; add the file again")
-        if filename != document.filename:
+        if filename != document.filename and edited_by is None:
             note = f"Uploaded as '{filename}'"
     else:
         document = db.execute(
@@ -703,6 +707,8 @@ def ingest_document(
         ext=source_path.suffix.lower(),
         extracted_text=parsed.full_text,
         note=note,
+        origin="edit" if edited_by else "upload",
+        edited_by=edited_by,
     )
     db.add(version)
     db.flush()
@@ -711,13 +717,12 @@ def ingest_document(
 
     document.active_version_id = version.id
     document.updated_at = utcnow()
-    record_audit(
-        db,
-        "upload",
-        "document",
-        document.id,
-        f"version {version.version_number}" + (f" ({note.lower()})" if note else ""),
-    )
+    if edited_by:
+        detail = f"version {version.version_number} edited by {edited_by}"
+        record_audit(db, "edit", "document", document.id, detail + (f": {note}" if note else ""))
+    else:
+        detail = f"version {version.version_number}" + (f" ({note.lower()})" if note else "")
+        record_audit(db, "upload", "document", document.id, detail)
     db.commit()
 
     return IngestResult(
@@ -857,6 +862,48 @@ def purge_expired_trash(
 # --- Diff (PLAN.md section 5) ----------------------------------------------
 
 
+TEXT_FILE_EXTENSIONS = {".txt", ".md"}
+
+
+def editable_text(settings: Settings, version: DocumentVersion) -> str:
+    """What the editor starts from: a text or Markdown file as it was written (so
+    tables and line breaks survive), or the text extracted from a PDF or Word file."""
+    if version.ext in TEXT_FILE_EXTENSIONS:
+        path = stored_path(settings, version)
+        if path.is_file():
+            return path.read_text(encoding="utf-8")
+    return version.extracted_text
+
+
+def stage_edit(db: Session, settings: Settings, document_id: int, text: str) -> Path:
+    """Checks an edit and writes it to a staging folder, ready to be ingested as the
+    document's next version: in the same format for text and Markdown files, as a
+    .txt file (which keeps the lines as typed) for text taken from a PDF or Word file."""
+    document = get_document(db, document_id)
+    if document.trashed_at is not None:
+        raise NotFoundError(f"document {document_id} is in the trash")
+    active = (
+        db.get(DocumentVersion, document.active_version_id) if document.active_version_id else None
+    )
+    if active is not None and text.strip() == editable_text(settings, active).strip():
+        raise ConflictError("nothing changed: the text is the same as the active version")
+    ext = active.ext if active is not None and active.ext in TEXT_FILE_EXTENSIONS else ".txt"
+    data = text.encode("utf-8")
+    sha256 = hashlib.sha256(data).hexdigest()
+    same = db.execute(
+        select(DocumentVersion).where(DocumentVersion.sha256 == sha256)
+    ).scalar_one_or_none()
+    if same is not None:
+        raise ConflictError(
+            f"this exact text is already version {same.version_number}: restore it instead"
+        )
+    staging = settings.uploads_dir / uuid.uuid4().hex
+    staging.mkdir(parents=True)
+    path = staging / (Path(document.filename).stem + ext)
+    path.write_bytes(data)
+    return path
+
+
 def get_version(db: Session, document_id: int, version_id: int) -> DocumentVersion:
     version = db.get(DocumentVersion, version_id)
     if version is None or version.document_id != document_id:
@@ -865,8 +912,15 @@ def get_version(db: Session, document_id: int, version_id: int) -> DocumentVersi
 
 
 def diff_versions(
-    db: Session, version_a_id: int, version_b_id: int, *, document_id: int | None = None
+    db: Session,
+    version_a_id: int,
+    version_b_id: int,
+    *,
+    document_id: int | None = None,
+    settings: Settings | None = None,
 ) -> list[str]:
+    """Line diff of two versions. With `settings`, text and Markdown files are compared
+    as written (tables and line breaks intact) rather than as extracted."""
     version_a = db.get(DocumentVersion, version_a_id)
     version_b = db.get(DocumentVersion, version_b_id)
     if version_a is None or version_b is None:
@@ -874,9 +928,12 @@ def diff_versions(
     if document_id is not None and {version_a.document_id, version_b.document_id} != {document_id}:
         raise NotFoundError(f"both versions must belong to document {document_id}")
 
+    def text(version: DocumentVersion) -> str:
+        return editable_text(settings, version) if settings else version.extracted_text
+
     return text_diff(
-        version_a.extracted_text,
-        version_b.extracted_text,
+        text(version_a),
+        text(version_b),
         f"v{version_a.version_number}",
         f"v{version_b.version_number}",
     )

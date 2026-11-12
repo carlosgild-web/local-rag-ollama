@@ -178,7 +178,7 @@ Total is about 30 working days; the MVP (through phase 4) is about 15.
 
 ### Phase 5 — Versions and history (3 d) — plan first, then code
 
-- [x] Version timeline per document, text diff, rollback (decision 0014); notes come with the quick editor
+- [x] Version timeline per document, text diff, rollback, notes, and a quick editor with who and what changed (decision 0014)
 - [ ] Trash view with restore and purge
 - [x] Chat history list and search (decision 0014)
 - [ ] Audit view

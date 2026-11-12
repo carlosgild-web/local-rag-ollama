@@ -48,3 +48,21 @@ The backend already had version listing, a text diff and rollback (Phase 3), but
 - The comparison is in-process and uncached. On a laptop that's fine for hundreds of documents. With thousands, it would need the embeddings (already computed) to pick a few candidates first.
 - 90% is a starting threshold. A file that only shares a long boilerplate section with another (for example, two contracts from one template) can be flagged. The user then chooses *Keep both*.
 
+## Addendum (2026-11-12): quick edit with an edit trail (part C)
+
+**Problem:** fixing one number in an indexed document meant editing the file elsewhere and uploading it again, and nothing recorded who changed what.
+
+**Decision:**
+- **Edit text** in the details panel (active version only, not in the trash). Saving queues the normal ingest job with the text and the target document (`POST /documents/{id}/edit`). The edit is re-embedded, becomes the active version, and the earlier versions, including the original file, stay. Restore works as for any version.
+- **What the editor shows:**
+  - **text and Markdown files: the file as written** (`?editable=true` on the version text), saved in the same format, so tables and line breaks survive
+  - **PDF and Word files: the extracted text**, saved as a `.txt` version; the original file stays in the earlier version
+- **Compare** uses the same as-written text for text and Markdown files, so a one-cell table change shows as one changed row, not the whole table.
+- **The edit trail:**
+  - `document_versions.origin` (`upload` or `edit`) and `edited_by` (migration 0007)
+  - the existing `note` holds "what changed"
+  - the timeline shows *Edited in the app by Carla: "New 2027 price for CH-2004"*
+  - the audit log records `edit` with the same detail
+- **No accounts**, so "edited by" is a typed name, required and remembered in the browser. It identifies, but doesn't authenticate. Real authentication is Phase 8 (optional password auth).
+- **Refused:** unchanged text ("nothing changed"), and text identical to an earlier version, which points to that version so it can be restored instead (versions are content-addressed).
+

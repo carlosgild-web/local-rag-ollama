@@ -127,6 +127,7 @@ class DocumentOut(BaseModel):
     version_count: int
     trashed_at: UtcDatetime | None
     created_at: UtcDatetime
+    updated_at: UtcDatetime  # last new version or restore
 
 
 class VersionOut(BaseModel):
@@ -138,6 +139,12 @@ class VersionOut(BaseModel):
     is_active: bool
     chunk_count: int
     created_at: UtcDatetime
+
+
+class VersionTextOut(BaseModel):
+    version_id: int
+    version_number: int
+    text: str  # what the app reads and searches, extracted from the original
 
 
 class DiffOut(BaseModel):
@@ -312,6 +319,23 @@ class SourceOut(BaseModel):
 class FeedbackIn(BaseModel):
     thumbs_up: bool
     comment: str | None = Field(default=None, max_length=2000)
+
+
+class FeedbackNegativeOut(BaseModel):
+    message_id: int
+    session_id: int
+    channel: Channel
+    question: str
+    answer: str
+    comment: str | None
+    sources: list[str]  # file names the answer cited
+    created_at: UtcDatetime
+
+
+class FeedbackSummaryOut(BaseModel):
+    helpful: int
+    not_helpful: int
+    recent_not_helpful: list[FeedbackNegativeOut]
 
 
 class FeedbackOut(ORMModel):

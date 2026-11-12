@@ -111,6 +111,7 @@ export const UI = {
     yes: { es: "Sí, me sirvió", en: "Yes, helpful" },
     no: { es: "No me sirvió", en: "Not helpful" },
     thanks: { es: "Gracias por tu opinión.", en: "Thanks for the feedback." },
+    whatWrong: { es: "¿Qué estuvo mal? (opcional)", en: "What was wrong? (optional)" },
     suggestions: { es: "Prueba con", en: "Try asking" },
     recent: { es: "Tus conversaciones recientes", en: "Your recent conversations" },
     recentNote: {

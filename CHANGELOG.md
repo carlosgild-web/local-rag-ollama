@@ -4,6 +4,13 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Ver
 
 ## [Unreleased]
 
+### Added
+
+- **Document details** ([decision 0014](docs/decisions/0014-versions-history-and-feedback.md)). Click a file name in the Library to read the text the app searches (any version), see the version timeline, compare two versions with the changes highlighted, and restore an earlier version. A restore only switches the active version: nothing is re-embedded or deleted, and it's audited.
+- **Updated** column and sort in the Library: `documents.updated_at` (migration 0006) changes on every new version and restore.
+- **Answer feedback** on the dashboard: the helpful %, and the latest "not helpful" answers with the question, the note, the cited files and a link. After 👎, Chat and Luna offer an optional "What was wrong?" note.
+- **Search** in the Chat history (`GET /sessions?q=`, title or message text).
+
 ## [0.7.1] - 2026-11-12
 
 The start script asks how to run the app and never switches ways silently, and testers can read the demo documents before loading them from the dashboard.

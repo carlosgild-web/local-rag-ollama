@@ -56,6 +56,8 @@ class Document(Base):
     active_version_id: Mapped[int | None] = mapped_column(Integer, default=None)
     trashed_at: Mapped[dt.datetime | None] = mapped_column(default=None)
     created_at: Mapped[dt.datetime] = mapped_column(default=utcnow)
+    # Last change to its content: a new version, or a restore of an earlier one.
+    updated_at: Mapped[dt.datetime] = mapped_column(default=utcnow)
 
     collection: Mapped["Collection"] = relationship(back_populates="documents")
     versions: Mapped[list["DocumentVersion"]] = relationship(back_populates="document")

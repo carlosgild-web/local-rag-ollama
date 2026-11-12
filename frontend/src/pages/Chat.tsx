@@ -5,7 +5,7 @@ import type { CitationStatus, Message, Source } from "@/api/types";
 import { CitedAnswer, SourceList } from "@/components/CitedAnswer";
 import { ErrorNote } from "@/components/common";
 import { Button } from "@/components/ui/button";
-import { Textarea } from "@/components/ui/input";
+import { Input, Textarea } from "@/components/ui/input";
 import { useCollections, useFeedback, useSession, useSessions } from "@/hooks/queries";
 import { endsWithQuestion, useChatStream } from "@/hooks/useChatStream";
 import { useSystemStatus } from "@/hooks/useSystemStatus";
@@ -17,7 +17,8 @@ export default function Chat() {
   const navigate = useNavigate();
   const sessionId = params.sessionId ? Number(params.sessionId) : null;
 
-  const sessions = useSessions();
+  const [historySearch, setHistorySearch] = useState("");
+  const sessions = useSessions(historySearch.trim());
   const system = useSystemStatus();
   const session = useSession(sessionId);
   const collections = useCollections();
@@ -74,6 +75,13 @@ export default function Chat() {
           >
             <MessageSquarePlus /> New chat
           </Button>
+          <Input
+            value={historySearch}
+            onChange={(e) => setHistorySearch(e.target.value)}
+            placeholder="Search conversations"
+            className="mt-2 h-8"
+            aria-label="Search conversations"
+          />
         </div>
         <nav className="flex-1 space-y-0.5 overflow-y-auto px-2 pb-3">
           {sessions.data?.map((s) => (
@@ -90,7 +98,9 @@ export default function Chat() {
             </Link>
           ))}
           {sessions.data?.length === 0 && (
-            <p className="px-3 py-2 text-xs text-muted-foreground">No conversations yet.</p>
+            <p className="px-3 py-2 text-xs text-muted-foreground">
+              {historySearch.trim() ? "No conversation mentions that." : "No conversations yet."}
+            </p>
           )}
         </nav>
       </aside>
@@ -285,6 +295,7 @@ function MessageView({ message, sessionId }: { message: Message; sessionId: numb
           >
             <ThumbsDown />
           </Button>
+          {vote === false && <WhatWasWrong message={message} onSend={(comment) => feedback.mutate({ messageId: message.id, thumbsUp: false, comment })} />}
           <span className="ml-auto">
             {message.rag_profile_id !== null && `profile #${message.rag_profile_id} · `}
             {formatDate(message.created_at)}
@@ -293,6 +304,34 @@ function MessageView({ message, sessionId }: { message: Message; sessionId: numb
         </>
       }
     />
+  );
+}
+
+/** After "not helpful": an optional note on what was wrong, shown on the dashboard. */
+function WhatWasWrong({ message, onSend }: { message: Message; onSend: (comment: string) => void }) {
+  const [text, setText] = useState("");
+  if (message.feedback?.comment) {
+    return <span className="truncate italic">“{message.feedback.comment}”</span>;
+  }
+  return (
+    <form
+      className="flex items-center gap-1"
+      onSubmit={(e) => {
+        e.preventDefault();
+        if (text.trim()) onSend(text.trim());
+      }}
+    >
+      <Input
+        value={text}
+        onChange={(e) => setText(e.target.value)}
+        placeholder="What was wrong? (optional)"
+        className="h-7 w-56 text-xs"
+        maxLength={2000}
+      />
+      <Button type="submit" variant="ghost" size="sm" className="h-7 px-2" disabled={!text.trim()}>
+        Send
+      </Button>
+    </form>
   );
 }
 

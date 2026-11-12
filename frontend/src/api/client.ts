@@ -13,6 +13,10 @@ import type {
   Job,
   DemoStatus,
   DemoFile,
+  DocumentVersion,
+  VersionText,
+  VersionDiff,
+  FeedbackSummary,
   JobQueued,
   Intake,
   IntakeConfirm,
@@ -141,11 +145,23 @@ export const api = {
   retryJob: (id: number) => request<Job>(`/jobs/${id}/retry`, json("POST")),
   cancelJob: (id: number) => request<Job>(`/jobs/${id}/cancel`, json("POST")),
 
-  sessions: (channel: Channel = "admin") =>
-    request<SessionSummary[]>(`/sessions${query({ limit: 100, channel })}`),
+  sessions: (channel: Channel = "admin", q?: string) =>
+    request<SessionSummary[]>(`/sessions${query({ limit: 100, channel, q: q || undefined })}`),
   session: (id: number) => request<Session>(`/sessions/${id}`),
-  feedback: (messageId: number, thumbsUp: boolean) =>
-    request<unknown>(`/messages/${messageId}/feedback`, json("POST", { thumbs_up: thumbsUp })),
+  feedback: (messageId: number, thumbsUp: boolean, comment?: string) =>
+    request<unknown>(
+      `/messages/${messageId}/feedback`,
+      json("POST", { thumbs_up: thumbsUp, comment: comment || null }),
+    ),
+  feedbackSummary: () => request<FeedbackSummary>("/feedback/summary"),
+
+  versions: (docId: number) => request<DocumentVersion[]>(`/documents/${docId}/versions`),
+  versionText: (docId: number, versionId: number) =>
+    request<VersionText>(`/documents/${docId}/versions/${versionId}/text`),
+  diff: (docId: number, a: number, b: number) =>
+    request<VersionDiff>(`/documents/${docId}/diff${query({ a, b })}`),
+  rollback: (docId: number, versionId: number) =>
+    request<DocumentVersion>(`/documents/${docId}/rollback`, json("POST", { version_id: versionId })),
 
   models: () => request<Model[]>("/models"),
   profiles: () => request<Profile[]>("/profiles"),

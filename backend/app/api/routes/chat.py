@@ -25,6 +25,7 @@ from app.api.schemas import (
     ChatIn,
     FeedbackIn,
     FeedbackOut,
+    FeedbackSummaryOut,
     MessageOut,
     SessionOut,
     SessionSummary,
@@ -211,9 +212,10 @@ def list_sessions(
     limit: Annotated[int, Query(ge=1, le=200)] = 50,
     offset: Annotated[int, Query(ge=0)] = 0,
     channel: Channel = "admin",
+    q: Annotated[str | None, Query(max_length=200, description="Text in a chat")] = None,
 ):
     """The console's chats by default; `channel=intranet` lists the
-    employee portal's."""
+    employee portal's. `q` keeps only chats with that text."""
     return [
         SessionSummary(
             id=s.id,
@@ -223,7 +225,7 @@ def list_sessions(
             collection_id=s.collection_id,
             channel=s.channel,
         )
-        for s, count in history.list_sessions(db, limit=limit, offset=offset, channel=channel)
+        for s, count in history.list_sessions(db, limit=limit, offset=offset, channel=channel, q=q)
     ]
 
 
@@ -289,6 +291,12 @@ def get_session(db: DbDep, session_id: int):
             for m in messages
         ],
     )
+
+
+@router.get("/feedback/summary", response_model=FeedbackSummaryOut)
+def feedback_summary(db: DbDep, limit: Annotated[int, Query(ge=1, le=50)] = 5):
+    """How answers were rated, and the latest "not helpful" ones to look at."""
+    return history.feedback_summary(db, limit=limit)
 
 
 @router.post("/messages/{message_id}/feedback", response_model=FeedbackOut)

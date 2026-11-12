@@ -19,6 +19,7 @@ from app.api.schemas import (
     UploadResponse,
     UploadRules,
     VersionOut,
+    VersionTextOut,
 )
 from app.db.models import Chunk, Document, DocumentVersion
 from app.ingest.parsers import SUPPORTED_EXTENSIONS
@@ -165,6 +166,7 @@ def _row_out(d: Document, count: int, number: int | None) -> DocumentOut:
         version_count=count,
         trashed_at=d.trashed_at,
         created_at=d.created_at,
+        updated_at=d.updated_at,
     )
 
 
@@ -245,6 +247,15 @@ def list_versions(db: DbDep, document_id: int):
         )
         for v, count in rows
     ]
+
+
+@router.get("/documents/{document_id}/versions/{version_id}/text", response_model=VersionTextOut)
+def version_text(db: DbDep, document_id: int, version_id: int):
+    """The text the app extracted from one version: what it actually searches."""
+    version = service.get_version(db, document_id, version_id)
+    return VersionTextOut(
+        version_id=version.id, version_number=version.version_number, text=version.extracted_text
+    )
 
 
 @router.get("/documents/{document_id}/diff", response_model=DiffOut)

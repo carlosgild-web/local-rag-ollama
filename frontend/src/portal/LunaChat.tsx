@@ -255,6 +255,31 @@ function Feedback({ message, sessionId }: { message: Message; sessionId: number 
   const t = useT();
   const feedback = useFeedback(sessionId);
   const given = message.feedback;
+  const [note, setNote] = useState("");
+  const [skipped, setSkipped] = useState(false);
+  if (given && !given.thumbs_up && !given.comment && !skipped) {
+    return (
+      <form
+        className="flex items-center gap-1 text-xs text-hl-muted"
+        onSubmit={(e) => {
+          e.preventDefault();
+          if (note.trim()) feedback.mutate({ messageId: message.id, thumbsUp: false, comment: note.trim() });
+          else setSkipped(true);
+        }}
+      >
+        <input
+          value={note}
+          onChange={(e) => setNote(e.target.value)}
+          placeholder={t(UI.luna.whatWrong)}
+          maxLength={2000}
+          className="h-7 w-56 rounded-full border border-hl-line bg-white px-3 text-xs outline-none focus:border-hl-cobalt"
+        />
+        <button type="submit" disabled={feedback.isPending} className="rounded-full px-2 py-1 font-medium text-hl-cobalt hover:bg-hl-cobalt-soft">
+          {t(UI.luna.send)}
+        </button>
+      </form>
+    );
+  }
   if (given) {
     return <p className="text-xs text-hl-muted">{t(UI.luna.thanks)}</p>;
   }

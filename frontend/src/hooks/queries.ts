@@ -70,8 +70,9 @@ export function useCollections(includeInactive = false) {
   });
 }
 
-export function useSessions() {
-  return useQuery({ queryKey: keys.sessions, queryFn: () => api.sessions() });
+/** The console's chats; `q` keeps only chats with that text. */
+export function useSessions(q = "") {
+  return useQuery({ queryKey: [...keys.sessions, "admin", q], queryFn: () => api.sessions("admin", q) });
 }
 
 /** Questions asked in the employee portal, for the dashboard. */
@@ -179,10 +180,11 @@ export function useCancelJob() {
 export function useFeedback(sessionId: number | null) {
   const client = useQueryClient();
   return useMutation({
-    mutationFn: (args: { messageId: number; thumbsUp: boolean }) =>
-      api.feedback(args.messageId, args.thumbsUp),
+    mutationFn: (args: { messageId: number; thumbsUp: boolean; comment?: string }) =>
+      api.feedback(args.messageId, args.thumbsUp, args.comment),
     onSuccess: () => {
       if (sessionId !== null) client.invalidateQueries({ queryKey: keys.session(sessionId) });
+      client.invalidateQueries({ queryKey: ["feedback"] });
     },
   });
 }
@@ -204,4 +206,38 @@ export function useSeedDemo() {
 /** The demo company's original documents; fetched when the list is opened. */
 export function useDemoFiles(enabled: boolean) {
   return useQuery({ queryKey: ["demo", "files"], queryFn: api.demoFiles, enabled, staleTime: Infinity });
+}
+
+/** A document's versions, newest first. */
+export function useVersions(docId: number | null) {
+  return useQuery({
+    queryKey: ["versions", docId],
+    queryFn: () => api.versions(docId as number),
+    enabled: docId !== null,
+  });
+}
+
+export function useVersionText(docId: number, versionId: number) {
+  return useQuery({
+    queryKey: ["version-text", docId, versionId],
+    queryFn: () => api.versionText(docId, versionId),
+    staleTime: Infinity,
+  });
+}
+
+export function useDiff(docId: number, a: number, b: number) {
+  return useQuery({ queryKey: ["diff", docId, a, b], queryFn: () => api.diff(docId, a, b), staleTime: Infinity });
+}
+
+/** Makes an earlier version the active one again (nothing is re-embedded). */
+export function useRollback(docId: number) {
+  const invalidate = useInvalidate();
+  return useMutation({
+    mutationFn: (versionId: number) => api.rollback(docId, versionId),
+    onSuccess: () => invalidate("versions", "documents"),
+  });
+}
+
+export function useFeedbackSummary() {
+  return useQuery({ queryKey: ["feedback", "summary"], queryFn: api.feedbackSummary });
 }

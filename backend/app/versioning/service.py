@@ -697,6 +697,7 @@ def ingest_document(
     chunk_count = _index_version(db, collection, document, version, prepared, vector_store)
 
     document.active_version_id = version.id
+    document.updated_at = utcnow()
     record_audit(db, "upload", "document", document.id, f"version {version.version_number}")
     db.commit()
 
@@ -740,6 +741,7 @@ def rollback_document(db: Session, document_id: int, version_id: int) -> Documen
         raise NotFoundError(f"version {version_id} does not belong to document {document_id}")
 
     document.active_version_id = version.id
+    document.updated_at = utcnow()
     record_audit(db, "rollback", "document", document.id, f"to version {version.version_number}")
     db.commit()
     return version
@@ -834,6 +836,13 @@ def purge_expired_trash(
 
 
 # --- Diff (PLAN.md section 5) ----------------------------------------------
+
+
+def get_version(db: Session, document_id: int, version_id: int) -> DocumentVersion:
+    version = db.get(DocumentVersion, version_id)
+    if version is None or version.document_id != document_id:
+        raise NotFoundError(f"version {version_id} does not belong to document {document_id}")
+    return version
 
 
 def diff_versions(

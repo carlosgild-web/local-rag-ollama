@@ -193,6 +193,49 @@ export interface Document {
   version_count: number;
   trashed_at: string | null;
   created_at: string;
+  /** Last new version or restore. */
+  updated_at: string;
+}
+
+/** GET /documents/{id}/versions */
+export interface DocumentVersion {
+  id: number;
+  version_number: number;
+  sha256: string;
+  ext: string;
+  note: string | null;
+  /** The version answers use. */
+  is_active: boolean;
+  chunk_count: number;
+  created_at: string;
+}
+
+export interface VersionText {
+  version_id: number;
+  version_number: number;
+  text: string;
+}
+
+export interface VersionDiff {
+  a: number;
+  b: number;
+  /** Unified diff lines: "+" added, "-" removed, " " unchanged, "@@" a gap. */
+  diff: string[];
+}
+
+export interface FeedbackSummary {
+  helpful: number;
+  not_helpful: number;
+  recent_not_helpful: {
+    message_id: number;
+    session_id: number;
+    channel: Channel;
+    question: string;
+    answer: string;
+    comment: string | null;
+    sources: string[];
+    created_at: string;
+  }[];
 }
 
 export interface Collection {

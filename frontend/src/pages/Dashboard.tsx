@@ -13,6 +13,7 @@ import {
   useCollections,
   useDemo,
   useDemoFiles,
+  useFeedbackSummary,
   useDocuments,
   useHealth,
   useJobs,
@@ -146,6 +147,8 @@ export default function Dashboard() {
         </section>
 
         <EmployeeQuestions />
+
+        <AnswerFeedback />
 
         <Card>
           <CardHeader className="flex-row items-center justify-between">
@@ -314,6 +317,54 @@ function DemoFiles({ loaded }: { loaded: boolean }) {
           : "PDFs and text files open in a new tab; Word files download. They're also in your copy of the project, in backend/demo/hilda-luna. Nothing is indexed until you click Load the demo company."}
       </p>
     </div>
+  );
+}
+
+/** How answers were rated, and the latest "not helpful" ones: what the documents may be missing. */
+function AnswerFeedback() {
+  const summary = useFeedbackSummary();
+  const s = summary.data;
+  const total = s ? s.helpful + s.not_helpful : 0;
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Answer feedback</CardTitle>
+        <CardDescription>
+          {total === 0
+            ? "When people rate answers in Chat or in Luna, the ratings show up here."
+            : `${Math.round((100 * (s?.helpful ?? 0)) / total)}% helpful · ${s?.helpful} helpful, ${s?.not_helpful} not helpful`}
+        </CardDescription>
+      </CardHeader>
+      {s && s.recent_not_helpful.length > 0 && (
+        <CardContent>
+          <p className="mb-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">Latest "not helpful"</p>
+          <ul className="divide-y text-sm">
+            {s.recent_not_helpful.map((item) => (
+              <li key={item.message_id} className="space-y-1 py-2">
+                <div className="flex items-center gap-2">
+                  <span className="font-medium">{item.question || "(question not found)"}</span>
+                  <span className="ml-auto shrink-0 text-xs text-muted-foreground">
+                    {item.channel === "intranet" ? "Luna" : "Chat"} · {formatDate(item.created_at)}
+                  </span>
+                </div>
+                <p className="line-clamp-2 text-muted-foreground">{item.answer}</p>
+                {item.comment && <p className="italic">“{item.comment}”</p>}
+                <div className="flex flex-wrap items-center gap-1">
+                  {item.sources.map((f) => (
+                    <span key={f} className="rounded bg-muted px-1.5 py-0.5 text-xs">
+                      {f}
+                    </span>
+                  ))}
+                  <Link to={`/chat/${item.session_id}`} className="ml-auto text-xs underline">
+                    Open the conversation
+                  </Link>
+                </div>
+              </li>
+            ))}
+          </ul>
+        </CardContent>
+      )}
+    </Card>
   );
 }
 

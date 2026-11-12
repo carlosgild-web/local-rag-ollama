@@ -16,6 +16,7 @@ import {
   useReindexDocument,
 } from "@/hooks/queries";
 import { UploadFlow } from "@/components/library/UploadFlow";
+import { DocumentDetails } from "@/components/library/DocumentDetails";
 import { useSystemStatus } from "@/hooks/useSystemStatus";
 import { Paused } from "@/components/Paused";
 import { cn, formatDate } from "@/lib/utils";
@@ -24,6 +25,8 @@ export default function Library() {
   const [search, setSearch] = useState("");
   const [tag, setTag] = useState("");
   const [trashed, setTrashed] = useState(false);
+  const [sort, setSort] = useState<"added" | "updated">("added");
+  const [openId, setOpenId] = useState<number | null>(null);
   const documents = useDocuments({ q: search.trim() || undefined, tag: tag || undefined, trashed });
   const collections = useCollections();
   const remove = useDeleteDocument();
@@ -34,6 +37,10 @@ export default function Library() {
 
   const collectionName = (id: number) =>
     collections.data?.find((c) => c.id === id)?.name ?? `#${id}`;
+  const rows = [...(documents.data ?? [])].sort((a, b) =>
+    sort === "updated" ? b.updated_at.localeCompare(a.updated_at) : b.id - a.id,
+  );
+  const openDoc = documents.data?.find((d) => d.id === openId) ?? null;
 
   return (
     <>
@@ -54,6 +61,17 @@ export default function Library() {
             onChange={(e) => setSearch(e.target.value)}
             className="max-w-xs"
           />
+          {!trashed && (
+            <select
+              value={sort}
+              onChange={(e) => setSort(e.target.value as "added" | "updated")}
+              className="h-9 rounded-md border bg-background px-2 text-sm"
+              aria-label="Sort documents"
+            >
+              <option value="added">Newest added first</option>
+              <option value="updated">Recently updated first</option>
+            </select>
+          )}
           {tag && (
             <Badge variant="secondary" className="cursor-pointer" onClick={() => setTag("")}>
               tag: {tag} ✕
@@ -100,14 +118,16 @@ export default function Library() {
                   <th className="px-4 py-2 font-medium">Collection</th>
                   <th className="px-4 py-2 font-medium">Version</th>
                   <th className="px-4 py-2 font-medium">{trashed ? "Deleted" : "Added"}</th>
+                  {!trashed && <th className="px-4 py-2 font-medium">Updated</th>}
                   <th className="px-4 py-2" />
                 </tr>
               </thead>
               <tbody className="divide-y">
-                {documents.data?.map((doc) => (
+                {rows.map((doc) => (
                   <DocumentRow
                     key={doc.id}
                     doc={doc}
+                    onOpen={() => setOpenId(doc.id)}
                     collection={collectionName(doc.collection_id)}
                     onTag={setTag}
                     onReindex={() => reindex.mutate(doc.id)}
@@ -125,12 +145,18 @@ export default function Library() {
           </div>
         )}
       </div>
+      <DocumentDetails
+        doc={openDoc}
+        collection={openDoc ? collectionName(openDoc.collection_id) : ""}
+        onClose={() => setOpenId(null)}
+      />
     </>
   );
 }
 
 function DocumentRow({
   doc,
+  onOpen,
   collection,
   onTag,
   onReindex,
@@ -140,6 +166,7 @@ function DocumentRow({
 }: {
   reindexBlocked: string | null;
   doc: Document;
+  onOpen: () => void;
   collection: string;
   onTag: (tag: string) => void;
   onReindex: () => void;
@@ -150,10 +177,15 @@ function DocumentRow({
   return (
     <tr>
       <td className="px-4 py-3">
-        <div className="flex items-center gap-2 font-medium">
+        <button
+          type="button"
+          onClick={onOpen}
+          title="See its text, versions and changes"
+          className="flex items-center gap-2 text-left font-medium hover:text-primary hover:underline"
+        >
           <FileText className="size-4 text-muted-foreground" />
           {doc.filename}
-        </div>
+        </button>
         {doc.tags.length > 0 && (
           <div className="mt-1 flex flex-wrap gap-1 pl-6">
             {doc.tags.map((t) => (
@@ -174,6 +206,11 @@ function DocumentRow({
       <td className="whitespace-nowrap px-4 py-3 text-muted-foreground">
         {formatDate(isTrashed ? doc.trashed_at : doc.created_at)}
       </td>
+      {!isTrashed && (
+        <td className="whitespace-nowrap px-4 py-3 text-muted-foreground">
+          {doc.updated_at !== doc.created_at && doc.version_count > 1 ? formatDate(doc.updated_at) : "–"}
+        </td>
+      )}
       <td className="px-4 py-3 text-right">
         {isTrashed && (
           <Button variant="outline" size="sm" title="Take it out of the trash" onClick={onRestore}>

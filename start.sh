@@ -464,7 +464,7 @@ do_backup() {
     while true; do
       sleep 2
       jobs="$(http_get "http://127.0.0.1:$port/api/jobs")"
-      status="$(printf '%s' "${jobs#*\"id\":$id,}" | json_field status)"
+      status="$(printf '%s' "${jobs#*\"id\":"$id",}" | json_field status)"
       case "$status" in
         completed) ok "Backup written (see the console's Backups page)"; return 0 ;;
         failed) fail "The backup failed; see the Queue page." ;;

@@ -13,6 +13,7 @@ import type {
   Job,
   DemoStatus,
   DemoFile,
+  Backup,
   DocumentVersion,
   VersionText,
   VersionDiff,
@@ -141,6 +142,9 @@ export const api = {
 
   jobs: () => request<Job[]>(`/jobs${query({ limit: 200 })}`),
   demo: () => request<DemoStatus>("/demo"),
+  backups: () => request<Backup[]>("/backups"),
+  createBackup: () => request<JobQueued>("/backups", json("POST")),
+  deleteBackup: (name: string) => request<void>(`/backups/${name}`, { method: "DELETE" }),
   demoFiles: () => request<DemoFile[]>("/demo/files"),
   seedDemo: () => request<Job>("/demo/seed", json("POST")),
   retryJob: (id: number) => request<Job>(`/jobs/${id}/retry`, json("POST")),

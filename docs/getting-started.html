@@ -231,6 +231,7 @@ cd ../frontend &amp;&amp; npm run build                         <span class="c">
     <tr><td>Start over with no documents</td><td>Ways A and B: <code>docker compose down -v</code> (<b>deletes</b> the app's data and the downloaded models). Way C: delete <code>backend/data/</code>.</td></tr>
   </table>
   <p>To stop the app, run <code>.\start.cmd stop</code> (or <code>./start.sh stop</code>), or <code>docker compose down</code> if you started it by hand. Your documents and models are kept.</p>
+  <p><strong>Backups.</strong> The console's <strong>Backups</strong> page makes one with <em>Back up now</em> (or run <code>.\start.cmd backup</code>), and one is made daily on start. To restore, run <code>.\start.cmd restore &lt;name&gt;</code> (or <code>./start.sh restore &lt;name&gt;</code>): it stops the app, saves the current data first, restores, and starts again.</p>
   <p class="note"><b>Security:</b> there are no logins. Run the app on your own computer or a private network only. See <a href="https://github.com/carlosgild-web/local-rag-ollama/blob/main/SECURITY.md">SECURITY.md</a>.</p>
 </section>
 </main>

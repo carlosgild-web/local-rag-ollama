@@ -26,6 +26,7 @@ JOB_TYPES = {
     "rebuild_collection",
     "analyze_intake",
     "seed_demo",
+    "backup",
 }
 TERMINAL = {"completed", "failed", "cancelled"}
 

@@ -100,6 +100,66 @@ def cmd_seed_demo(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_backup(args: argparse.Namespace) -> int:
+    """A backup while the app is stopped (when it runs, use Back up now in the console)."""
+    from app.db import backup
+
+    settings = get_settings()
+    if backup.app_is_running(settings) and not args.force:
+        print(
+            "The app is running: use Back up now in the console (Backups), or stop the app first."
+        )
+        return 1
+    path = backup.create_backup(settings, reason="manual")
+    print(f"Backup written: {path} ({path.stat().st_size // 1024} KB)")
+    return 0
+
+
+def cmd_backups(args: argparse.Namespace) -> int:
+    from app.db import backup
+
+    for item in backup.list_backups(get_settings()):
+        m = item["manifest"] or {}
+        counts = m.get("counts", {})
+        print(
+            f"{item['name']}  {item['size'] // 1024:>8} KB  "
+            f"{counts.get('documents', '?')} documents  {item['error'] or ''}"
+        )
+    return 0
+
+
+def cmd_restore(args: argparse.Namespace) -> int:
+    """Replaces the data with a backup's; the current data is backed up first."""
+    from app.db import backup
+    from app.db.migrate import known_revisions, upgrade_to_head
+
+    settings = get_settings()
+    path = Path(args.backup)
+    if not path.is_file():
+        path = settings.backups_dir / args.backup
+    if not path.is_file():
+        print(f"No backup at {args.backup}")
+        return 1
+    try:
+        result = backup.restore_backup(
+            settings, path, known_revisions=known_revisions(), force=args.force
+        )
+    except backup.BackupError as exc:
+        print(f"Not restored: {exc}")
+        return 1
+    upgrade_to_head(settings.db_path)  # an older backup gets the current schema
+    runtime = build_runtime(settings)
+    with runtime.session_factory() as db:
+        service.audit_event(db, "restore", "backup", None, f"from {path.name}")
+    restored = result["restored"]
+    counts = restored.get("counts", {})
+    made, docs = restored.get("created_at"), counts.get("documents")
+    print(f"Restored {path.name} (made {made}, {docs} documents).")
+    if result["safety_backup"]:
+        print(f"The data from before the restore is in {result['safety_backup']}.")
+    return 0
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="app.cli")
     subparsers = parser.add_subparsers(dest="command", required=True)
@@ -117,6 +177,20 @@ def main(argv: list[str] | None = None) -> int:
     )
     seed_parser.add_argument("path", nargs="?", help="Demo folder (default: demo/hilda-luna)")
     seed_parser.set_defaults(func=cmd_seed_demo)
+
+    backup_parser = subparsers.add_parser("backup", help="Back up the data (app stopped)")
+    backup_parser.add_argument("--force", action="store_true", help="even if the app seems to run")
+    backup_parser.set_defaults(func=cmd_backup)
+
+    backups_parser = subparsers.add_parser("backups", help="List the backups")
+    backups_parser.set_defaults(func=cmd_backups)
+
+    restore_parser = subparsers.add_parser(
+        "restore", help="Restore a backup (app stopped); the current data is backed up first"
+    )
+    restore_parser.add_argument("backup", help="A backup file, or its name in DATA_DIR/backups")
+    restore_parser.add_argument("--force", action="store_true", help="even if the app seems to run")
+    restore_parser.set_defaults(func=cmd_restore)
 
     args = parser.parse_args(argv)
     return args.func(args)

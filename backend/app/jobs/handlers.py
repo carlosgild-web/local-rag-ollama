@@ -8,6 +8,7 @@ from pathlib import Path
 from sqlalchemy.orm import Session
 
 from app.core.runtime import Runtime
+from app.db import backup
 from app.ingest import intake
 from app.ingest.uploads import discard_staged
 from app.versioning import demo, service
@@ -127,6 +128,19 @@ def handle_seed_demo(
     return {"ingested": ingested, "skipped": len(results) - ingested}
 
 
+def handle_backup(db: Session, payload: dict, runtime: Runtime, progress: ProgressCallback) -> dict:
+    """A backup zip (decision 0015). Running in the worker means no indexing writes
+    to the vector store while it's copied."""
+    progress(0.0)
+    reason = payload.get("reason", "manual")
+    path = backup.create_backup(runtime.settings, reason=reason)
+    removed = []
+    if reason == "auto":
+        removed = backup.prune_automatic(runtime.settings, runtime.settings.backup_keep)
+    service.audit_event(db, "backup", "backup", None, f"{path.name} ({reason})")
+    return {"name": path.name, "size": path.stat().st_size, "removed": removed}
+
+
 HANDLERS: dict[str, Handler] = {
     "ingest": handle_ingest,
     "analyze_intake": handle_analyze_intake,
@@ -134,4 +148,5 @@ HANDLERS: dict[str, Handler] = {
     "reindex_collection": handle_reindex_collection,
     "rebuild_collection": handle_rebuild_collection,
     "seed_demo": handle_seed_demo,
+    "backup": handle_backup,
 }

@@ -43,6 +43,8 @@ def _subject(job: IngestJob, payload: dict, names: _Names) -> str | None:
     """What the job is about, in words: a file name or a shelf name."""
     if payload.get("filename"):
         return payload["filename"]
+    if job.job_type == "backup":
+        return "automatic daily backup" if payload.get("reason") == "auto" else "backup"
     if job.job_type == "seed_demo":
         return "the demo company (Hilda & Luna Beadworks)"
     if job.job_type == "analyze_intake":

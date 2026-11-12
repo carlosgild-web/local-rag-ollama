@@ -16,6 +16,12 @@ def _config() -> Config:
     return config
 
 
+def known_revisions() -> set[str]:
+    """Every schema revision this version of the app knows (a backup from a newer app
+    has one it doesn't)."""
+    return {r.revision for r in ScriptDirectory.from_config(_config()).walk_revisions()}
+
+
 def head_revision() -> str:
     """The schema revision this version of the app expects."""
     return ScriptDirectory.from_config(_config()).get_current_head()

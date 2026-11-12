@@ -7,6 +7,7 @@ import Collections from "@/pages/Collections";
 import Dashboard from "@/pages/Dashboard";
 import Library from "@/pages/Library";
 import Queue from "@/pages/Queue";
+import Backups from "@/pages/Backups";
 
 // The employee portal (decision 0010) is its own bundle, with its own fonts.
 const PortalLayout = lazy(() => import("@/portal/PortalLayout"));
@@ -55,6 +56,7 @@ export default function App() {
         <Route path="library" element={<PageGate what="The Library"><Library /></PageGate>} />
         <Route path="collections" element={<PageGate what="Collections"><Collections /></PageGate>} />
         <Route path="queue" element={<PageGate what="The Queue"><Queue /></PageGate>} />
+        <Route path="backups" element={<PageGate what="Backups"><Backups /></PageGate>} />
         {/* One route, so starting a new chat keeps the page (and its stream) mounted. */}
         <Route path="chat/:sessionId?" element={<PageGate what="Chat"><Chat /></PageGate>} />
         <Route path="*" element={<Navigate to="/" replace />} />

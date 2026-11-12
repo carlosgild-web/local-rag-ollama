@@ -251,3 +251,20 @@ export function useEditText(docId: number) {
     onSuccess: () => invalidate("jobs"),
   });
 }
+
+/** Backups, refreshed while a backup job runs. */
+export function useBackups() {
+  const jobs = useJobs();
+  const busy = jobs.data?.some((j) => j.job_type === "backup" && isActiveJob(j));
+  return useQuery({ queryKey: ["backups", busy], queryFn: api.backups, refetchInterval: busy ? 2_000 : false });
+}
+
+export function useCreateBackup() {
+  const invalidate = useInvalidate();
+  return useMutation({ mutationFn: api.createBackup, onSuccess: () => invalidate("jobs", "backups") });
+}
+
+export function useDeleteBackup() {
+  const invalidate = useInvalidate();
+  return useMutation({ mutationFn: api.deleteBackup, onSuccess: () => invalidate("backups") });
+}

@@ -282,6 +282,23 @@ export interface JobQueued {
 
 export type JobStatus = "pending" | "running" | "completed" | "failed" | "cancelled";
 
+/** GET /backups: one backup zip (decision 0015). */
+export interface Backup {
+  name: string;
+  size: number;
+  manifest: {
+    app_version: string;
+    schema_revision: string | null;
+    created_at: string;
+    /** "manual", "auto" or "before-restore". */
+    reason: string;
+    embedding_models: string[];
+    counts: { documents: number; versions: number; shelves: number; chats: number };
+  } | null;
+  /** Set when the file can't be read as a backup. */
+  error: string | null;
+}
+
 /** GET /demo/files: one original demo document. */
 export interface DemoFile {
   /** The shelf it loads into. */

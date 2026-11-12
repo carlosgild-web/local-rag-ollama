@@ -210,7 +210,7 @@ Open quality items from the 2026-11-06 end-to-end test, to measure here (`docs/t
 
 ### Phase 8 — Hardening (2 d)
 
-- [ ] Backup and restore (zip of DB, vectors, files)
+- [x] Backup and restore (zip of DB, vectors, files; decision 0015)
 - [ ] Optional password auth (localhost-only by default)
 - [ ] Launcher scripts for Windows (`start.ps1`) and Linux/macOS
 - [ ] Test coverage on versioning and jobs; fix flaky tests

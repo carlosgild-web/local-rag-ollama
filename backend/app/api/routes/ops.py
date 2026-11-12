@@ -1,16 +1,27 @@
-"""Ops (PLAN.md section 8): audit log and health. Backup, restore and
-metrics come in later phases."""
+"""Ops (PLAN.md section 8): audit log, health, diagnostics and backups. Restoring a
+backup is offline (the start script or app.cli), see decision 0015."""
 
 from typing import Annotated
 
 from fastapi import APIRouter, Query, Request, Response, status
+from fastapi.responses import FileResponse
 from sqlalchemy import select, text
 
 from app.api.deps import DbDep, RuntimeDep
-from app.api.schemas import AuditOut, ComponentHealth, DiagnosticsOut, HealthOut
+from app.api.schemas import (
+    AuditOut,
+    BackupOut,
+    ComponentHealth,
+    DiagnosticsOut,
+    HealthOut,
+    JobQueued,
+)
 from app.core.diagnostics import run_diagnostics
 from app.core.faults import SimulatedFault, active_faults, simulate
+from app.db import backup
 from app.db.models import AuditLog
+from app.jobs import queue
+from app.versioning.service import NotFoundError, audit_event
 
 router = APIRouter(tags=["ops"])
 
@@ -95,3 +106,38 @@ def health(request: Request, response: Response, db: DbDep, runtime: RuntimeDep)
     elif not (result.ollama.ok and result.job_worker.ok):
         result.status = "degraded"
     return result
+
+
+# --- Backups (decision 0015) --------------------------------------------------
+
+
+@router.get("/backups", response_model=list[BackupOut])
+def list_backups(runtime: RuntimeDep):
+    """Backups in DATA_DIR/backups, newest first."""
+    return backup.list_backups(runtime.settings)
+
+
+@router.post("/backups", status_code=status.HTTP_202_ACCEPTED, response_model=JobQueued)
+def create_backup(db: DbDep):
+    """Queues a backup; the job worker makes it, so no indexing runs meanwhile."""
+    job = queue.enqueue(db, "backup", {"reason": "manual"})
+    return JobQueued(job_id=job.id)
+
+
+@router.get("/backups/{name}")
+def download_backup(runtime: RuntimeDep, name: str):
+    try:
+        path = backup.backup_path(runtime.settings, name)
+    except backup.BackupError as exc:
+        raise NotFoundError(str(exc)) from exc
+    return FileResponse(path, media_type="application/zip", filename=name)
+
+
+@router.delete("/backups/{name}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_backup(db: DbDep, runtime: RuntimeDep, name: str):
+    try:
+        backup.delete_backup(runtime.settings, name)
+    except backup.BackupError as exc:
+        raise NotFoundError(str(exc)) from exc
+    audit_event(db, "backup_delete", "backup", None, name)
+    return Response(status_code=status.HTTP_204_NO_CONTENT)

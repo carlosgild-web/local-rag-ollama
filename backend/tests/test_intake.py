@@ -326,3 +326,95 @@ def test_two_names_for_the_same_group_leave_the_other_group_a_keyword_name(clien
     staff, business = _shelf_of(result, "a.txt"), _shelf_of(result, "c.txt")
     assert staff["named_by"] == "model" and staff["name"] in {"employees", "staff-rules"}
     assert business["named_by"] == "keywords"
+
+
+# --- Near-duplicates: almost the same text under another name -------------------
+
+FAQ = (
+    b"Hilda and Luna customer FAQ. Questions about an order? Email help@hildaluna-sample.com "
+    b"and we answer within one business day. Retail orders ship in three business days. "
+    b"Returns are accepted within thirty days if the beads are unused. Wholesale accounts "
+    b"get trade pricing from twelve pieces. Gift wrapping is free on orders over fifty dollars. "
+    b"We ship to the United States, Canada and Mexico. Tracking numbers arrive by email."
+)
+FAQ_NEW_EMAIL = FAQ.replace(b"help@hildaluna-sample.com", b"care@hildaluna-sample.com")
+
+
+def test_similarity_is_word_based_and_rules_out_different_lengths():
+    assert intake.similarity(FAQ.decode(), FAQ.decode()) == 1.0
+    assert intake.similarity(FAQ.decode(), FAQ_NEW_EMAIL.decode()) > 0.95
+    assert intake.similarity(FAQ.decode(), BIZ_A.decode()) == 0.0
+    assert intake.similarity("", FAQ.decode()) == 0.0
+
+
+@pytest.fixture
+def support_shelf(client):
+    shelf = client.post(
+        "/api/collections",
+        json={
+            "name": "customer-support",
+            "embedding_model": client.runtime.settings.embedding_model,
+        },
+    ).json()["id"]
+    _upload(client, "customer-faq.txt", FAQ, shelf)
+    return shelf
+
+
+def test_a_copy_with_one_email_changed_is_flagged_with_its_original(client, support_shelf):
+    _, result = _analyze(
+        client, [("customer support_2.txt", FAQ_NEW_EMAIL), ("catalog.txt", BIZ_A)]
+    )
+    files = _by_name(result)
+    copy = files["customer support_2.txt"]
+    assert copy["status"] == "similar"
+    assert copy["include"] is True
+    assert copy["shelf"] == f"existing:{support_shelf}"
+    assert copy["similar_to"]["filename"] == "customer-faq.txt"
+    assert copy["similar_to"]["similarity"] > 0.95
+    assert "Almost the same as 'customer-faq.txt'" in copy["reason"]
+    assert files["catalog.txt"]["similar_to"] is None
+
+
+def test_the_differences_can_be_previewed(client, support_shelf):
+    batch_id, result = _analyze(client, [("customer support_2.txt", FAQ_NEW_EMAIL)])
+    key = result["files"][0]["key"]
+    diff = client.get(f"/api/intake/{batch_id}/files/{key}/diff").json()["diff"]
+    assert any(line.startswith("-") and "help@" in line for line in diff)
+    assert any(line.startswith("+") and "care@" in line for line in diff)
+
+
+def test_making_it_a_new_version_keeps_one_document(client, support_shelf):
+    batch_id, result = _analyze(client, [("customer support_2.txt", FAQ_NEW_EMAIL)])
+    original = client.get("/api/documents").json()[0]
+    response = _confirm(
+        client, batch_id, result, {}, **{"customer support_2.txt": {"version_of": original["id"]}}
+    )
+    assert response.status_code == 200, response.text
+    client.drain()
+
+    docs = client.get("/api/documents").json()
+    assert [(d["filename"], d["version_count"], d["active_version_number"]) for d in docs] == [
+        ("customer-faq.txt", 2, 2)
+    ]
+    newest = client.get(f"/api/documents/{original['id']}/versions").json()[0]
+    assert newest["note"] == "Uploaded as 'customer support_2.txt'"
+    text = client.get(f"/api/documents/{original['id']}/versions/{newest['id']}/text").json()
+    assert "care@hildaluna-sample.com" in text["text"]
+
+
+def test_keeping_both_adds_a_second_document(client, support_shelf):
+    batch_id, result = _analyze(client, [("customer support_2.txt", FAQ_NEW_EMAIL)])
+    assert _confirm(client, batch_id, result, {}).status_code == 200
+    client.drain()
+    names = sorted(d["filename"] for d in client.get("/api/documents").json())
+    assert names == ["customer support_2.txt", "customer-faq.txt"]
+
+
+def test_a_new_version_of_a_trashed_document_is_refused(client, support_shelf):
+    batch_id, result = _analyze(client, [("customer support_2.txt", FAQ_NEW_EMAIL)])
+    original = client.get("/api/documents").json()[0]
+    client.delete(f"/api/documents/{original['id']}")
+    response = _confirm(
+        client, batch_id, result, {}, **{"customer support_2.txt": {"version_of": original["id"]}}
+    )
+    assert response.status_code == 409

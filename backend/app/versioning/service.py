@@ -641,10 +641,14 @@ def ingest_document(
     filename: str | None = None,
     tags: str | None = None,
     progress: ProgressCallback | None = None,
+    into_document_id: int | None = None,
 ) -> IngestResult:
     """`filename` overrides `source_path.name` (uploads are staged under a
     temporary name). `progress` is called once the slow work is done and
-    before anything is written, so a cancelled job stops cleanly there."""
+    before anything is written, so a cancelled job stops cleanly there.
+    `into_document_id` adds the file as a new version of that document even if
+    its name differs (a near-duplicate the user chose to merge); the version's
+    note records the name it was uploaded under."""
     filename = filename or source_path.name
     sha256 = file_store.hash_file(source_path)
 
@@ -669,13 +673,21 @@ def ingest_document(
 
     _, stored_path = file_store.store_file(source_path, settings.files_dir)
 
-    document = db.execute(
-        select(Document).where(
-            Document.collection_id == collection.id,
-            Document.filename == filename,
-            Document.trashed_at.is_(None),
-        )
-    ).scalar_one_or_none()
+    note = None
+    if into_document_id is not None:
+        document = db.get(Document, into_document_id)
+        if document is None or document.trashed_at is not None:
+            raise NotFoundError(f"document {into_document_id} is gone; add the file again")
+        if filename != document.filename:
+            note = f"Uploaded as '{filename}'"
+    else:
+        document = db.execute(
+            select(Document).where(
+                Document.collection_id == collection.id,
+                Document.filename == filename,
+                Document.trashed_at.is_(None),
+            )
+        ).scalar_one_or_none()
     if document is None:
         document = Document(collection_id=collection.id, filename=filename)
         db.add(document)
@@ -690,6 +702,7 @@ def ingest_document(
         original_path=str(stored_path),
         ext=source_path.suffix.lower(),
         extracted_text=parsed.full_text,
+        note=note,
     )
     db.add(version)
     db.flush()
@@ -698,7 +711,13 @@ def ingest_document(
 
     document.active_version_id = version.id
     document.updated_at = utcnow()
-    record_audit(db, "upload", "document", document.id, f"version {version.version_number}")
+    record_audit(
+        db,
+        "upload",
+        "document",
+        document.id,
+        f"version {version.version_number}" + (f" ({note.lower()})" if note else ""),
+    )
     db.commit()
 
     return IngestResult(
@@ -855,13 +874,19 @@ def diff_versions(
     if document_id is not None and {version_a.document_id, version_b.document_id} != {document_id}:
         raise NotFoundError(f"both versions must belong to document {document_id}")
 
+    return text_diff(
+        version_a.extracted_text,
+        version_b.extracted_text,
+        f"v{version_a.version_number}",
+        f"v{version_b.version_number}",
+    )
+
+
+def text_diff(text_a: str, text_b: str, name_a: str, name_b: str) -> list[str]:
+    """Unified line diff of two extracted texts (what the app searches)."""
     return list(
         difflib.unified_diff(
-            version_a.extracted_text.splitlines(),
-            version_b.extracted_text.splitlines(),
-            fromfile=f"v{version_a.version_number}",
-            tofile=f"v{version_b.version_number}",
-            lineterm="",
+            text_a.splitlines(), text_b.splitlines(), fromfile=name_a, tofile=name_b, lineterm=""
         )
     )
 

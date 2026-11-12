@@ -17,6 +17,7 @@ corpus; see docs/decisions/0009-suggested-shelves-and-tags.md.
 """
 
 import datetime as dt
+import difflib
 import json
 import re
 import shutil
@@ -45,6 +46,10 @@ EMBED_BATCH = 16
 SHELF_MATCH_MIN = 0.60
 SHELF_MARGIN = 0.03
 DEPARTMENT_BONUS = 0.05  # same department tag as most of the shelf's documents
+# A file whose text is at least this similar to an existing document (by words) is
+# probably an updated copy under another name: offer to make it a new version.
+NEAR_DUPLICATE_MIN = 0.90
+NEAR_DUPLICATE_MAX_WORDS = 20_000  # compare at most this many words of each text
 TAG_MARGIN = 0.02
 NAMING_TIMEOUT_S = 60
 BATCH_TTL = dt.timedelta(hours=24)
@@ -116,6 +121,9 @@ class IntakeFile:
     reason: str = ""
     tags: list[str] = field(default_factory=list)
     alternatives: list[str] = field(default_factory=list)  # other good shelves
+    # Set when the text is almost the same as an existing document under another name:
+    # {"document_id", "filename", "shelf_id", "shelf", "similarity"} (similarity 0-1).
+    similar_to: dict | None = None
 
 
 @dataclass
@@ -471,6 +479,7 @@ def analyze_batch(db: Session, runtime, batch_id: str, progress=None) -> dict:
         SuggestedShelf(ref=f"existing:{c.id}", name=c.name, existing=True, named_by="existing")
         for c in shelves
     ]
+    _flag_near_duplicates(db, files, texts)
     unassigned = _match_existing(db, runtime, files, vectors, texts, shelves, embedder)
     if progress:
         progress(0.8)
@@ -525,6 +534,79 @@ def analyze_batch(db: Session, runtime, batch_id: str, progress=None) -> dict:
     return {"batch_id": batch_id, "files": len(files), "new_shelves": len(suggested) - len(shelves)}
 
 
+def _words(text: str) -> list[str]:
+    return text.lower().split()[:NEAR_DUPLICATE_MAX_WORDS]
+
+
+def similarity(text_a: str, text_b: str) -> float:
+    """How much of two texts is the same, from 0 to 1, compared word by word."""
+    a, b = _words(text_a), _words(text_b)
+    if not a or not b:
+        return 0.0
+    if 2 * min(len(a), len(b)) / (len(a) + len(b)) < NEAR_DUPLICATE_MIN:
+        return 0.0  # the lengths alone rule it out
+    matcher = difflib.SequenceMatcher(None, a, b, autojunk=False)
+    if matcher.quick_ratio() < NEAR_DUPLICATE_MIN:
+        return 0.0
+    return matcher.ratio()
+
+
+def _flag_near_duplicates(db, files, texts) -> None:
+    """Marks new files whose text is almost the same as a document already in the
+    library under another name, and suggests that document's shelf."""
+    candidates = [f for f in files if f.include and f.status == "new" and f.key in texts]
+    if not candidates:
+        return
+    rows = db.execute(
+        select(Document, DocumentVersion.extracted_text, Collection)
+        .join(DocumentVersion, DocumentVersion.id == Document.active_version_id)
+        .join(Collection, Collection.id == Document.collection_id)
+        .where(Document.trashed_at.is_(None), Collection.is_active)
+    ).all()
+    # Same name: the existing rule already makes it a new version of that document.
+    names = {doc.filename.lower() for doc, _, _ in rows}
+    for item in candidates:
+        if item.name.lower() in names:
+            continue
+        best = max(
+            ((similarity(texts[item.key], text), doc, shelf) for doc, text, shelf in rows),
+            key=lambda r: r[0],
+            default=(0.0, None, None),
+        )
+        score, doc, shelf = best
+        if doc is None or score < NEAR_DUPLICATE_MIN:
+            continue
+        percent = int(score * 100)
+        item.status = "similar"
+        item.similar_to = {
+            "document_id": doc.id,
+            "filename": doc.filename,
+            "shelf_id": shelf.id,
+            "shelf": shelf.name,
+            "similarity": round(score, 3),
+        }
+        item.shelf = f"existing:{shelf.id}"
+        item.reason = f"Almost the same as '{doc.filename}' ({percent}% the same text)"
+        item.message = (
+            f"It looks like an updated copy of '{doc.filename}' on shelf '{shelf.name}'. "
+            "Making it a new version of that document means answers use only the newer text."
+        )
+
+
+def near_duplicate_diff(db, settings: Settings, batch_id: str, key: str) -> list[str]:
+    """What differs between a flagged file and the existing document it resembles."""
+    manifest = load_batch(settings, batch_id)
+    item = next((f for f in manifest["files"] if f["key"] == key), None)
+    if item is None or not item.get("similar_to"):
+        raise service.NotFoundError("that file isn't flagged as almost the same as a document")
+    document = service.get_document(db, item["similar_to"]["document_id"])
+    version = db.get(DocumentVersion, document.active_version_id)
+    staged_text = service._parse(
+        _batch_dir(settings, batch_id) / item["stored"], settings
+    ).full_text  # noqa: SLF001
+    return service.text_diff(version.extracted_text, staged_text, document.filename, item["name"])
+
+
 def _match_existing(db, runtime, files, vectors, texts, shelves, default_embedder) -> list[str]:
     """Assigns files to existing shelves where they fit; returns the keys of
     files that fit none (to be grouped into new shelves)."""
@@ -545,7 +627,7 @@ def _match_existing(db, runtime, files, vectors, texts, shelves, default_embedde
     embedders = {runtime.settings.embedding_model: default_embedder}
 
     for item in files:
-        if not item.include or item.key not in vectors:
+        if not item.include or item.key not in vectors or item.similar_to:
             continue
         if item.name.lower() in names:
             shelf, doc = names[item.name.lower()]
@@ -644,6 +726,7 @@ class ConfirmedFile:
     include: bool
     shelf: str  # "existing:<id>" or "new:<key>"
     tags: list[str]
+    version_of: int | None = None  # add it as a new version of this document instead
 
 
 def confirm_batch(
@@ -662,6 +745,16 @@ def confirm_batch(
         raise service.ConflictError("this batch hasn't been analyzed yet, or was already processed")
     files = {f["key"]: f for f in manifest["files"]}
     chosen = [d for d in decisions if d.include and d.key in files]
+    merge_into: dict[str, Document] = {}
+    for d in chosen:
+        if d.version_of is not None:
+            document = db.get(Document, d.version_of)
+            if document is None or document.trashed_at is not None:
+                raise service.ConflictError(
+                    "the document to add a new version to is gone or in the trash"
+                )
+            merge_into[d.key] = document
+            d.shelf = f"existing:{document.collection_id}"
     used_refs = {d.shelf for d in chosen}
 
     for ref in used_refs:
@@ -709,15 +802,15 @@ def confirm_batch(
         target = staging / item["name"]
         shutil.move(str(folder / item["stored"]), target)
         tags = ",".join(t.strip() for t in decision.tags if t.strip() and "," not in t) or None
-        job = enqueue(
-            "ingest",
-            {
-                "staged_path": str(target),
-                "filename": item["name"],
-                "collection_id": collection_id,
-                "tags": tags,
-            },
-        )
+        payload = {
+            "staged_path": str(target),
+            "filename": item["name"],
+            "collection_id": collection_id,
+            "tags": tags,
+        }
+        if decision.key in merge_into:
+            payload["document_id"] = merge_into[decision.key].id
+        job = enqueue("ingest", payload)
         job_ids.append(job.id)
 
     service.audit_event(

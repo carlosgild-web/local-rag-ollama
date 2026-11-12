@@ -21,6 +21,9 @@ def handle_ingest(db: Session, payload: dict, runtime: Runtime, progress: Progre
     if not staged.exists():
         raise FileNotFoundError(f"staged upload {staged.name!r} is gone; upload it again")
 
+    into = payload.get("document_id")  # a near-duplicate merged into this document
+    if into is not None:
+        payload = {**payload, "collection_id": service.get_document(db, into).collection_id}
     collection = service.get_collection(db, payload["collection_id"])
     if not collection.is_active:
         # A blue/green swap happened while this job waited: use the live generation.
@@ -37,6 +40,7 @@ def handle_ingest(db: Session, payload: dict, runtime: Runtime, progress: Progre
         embedding_client=runtime.embedding_client_for(collection.embedding_model),
         vector_store=runtime.vector_store,
         progress=progress,
+        into_document_id=into,
     )
     discard_staged(staged, runtime.settings.uploads_dir)
     return {

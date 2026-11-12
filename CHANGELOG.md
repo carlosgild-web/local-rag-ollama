@@ -10,6 +10,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Ver
 - **Updated** column and sort in the Library: `documents.updated_at` (migration 0006) changes on every new version and restore.
 - **Answer feedback** on the dashboard: the helpful %, and the latest "not helpful" answers with the question, the note, the cited files and a link. After 👎, Chat and Luna offer an optional "What was wrong?" note.
 - **Search** in the Chat history (`GET /sessions?q=`, title or message text).
+- **Near-duplicate warning when adding files.** A file whose text is 90% or more the same as a document already in the library, under another name, is flagged "Almost the same as 'X' (97% the same text)". The review offers to make it a new version of X (suggested), keep both, or skip it, with a preview of the differences. A merged version notes the name it was uploaded under ([decision 0014 addendum](docs/decisions/0014-versions-history-and-feedback.md#addendum-2026-11-12-near-duplicates-under-another-name-part-b)).
 
 ## [0.7.1] - 2026-11-12
 

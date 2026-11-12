@@ -1,9 +1,10 @@
-import { useQueryClient } from "@tanstack/react-query";
-import { AlertTriangle, FolderPlus, Library, Loader2, Play, Plus, Sparkles, X } from "lucide-react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { AlertTriangle, Copy, FolderPlus, GitCompare, Library, Loader2, Play, Plus, Sparkles, X } from "lucide-react";
 import { type ReactNode, useState } from "react";
 import { api } from "@/api/client";
 import type { Collection, Intake, IntakeFile, IntakeStatus } from "@/api/types";
 import { ErrorNote } from "@/components/common";
+import { DiffLines } from "@/components/DiffLines";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -12,6 +13,7 @@ import { cn, formatBytes } from "@/lib/utils";
 const STATUS: Record<IntakeStatus, { label: string; variant: "success" | "default" | "secondary" | "warning" | "destructive" }> = {
   new: { label: "New", variant: "success" },
   new_version: { label: "New version", variant: "default" },
+  similar: { label: "Almost the same", variant: "warning" },
   name_in_trash: { label: "Name in trash", variant: "warning" },
   duplicate: { label: "Already in library", variant: "secondary" },
   unsupported: { label: "Can't be read", variant: "destructive" },
@@ -28,6 +30,8 @@ interface Decision {
   include: boolean;
   shelf: string;
   tags: string[];
+  /** Add it as a new version of this document (a near-duplicate under another name). */
+  versionOf: number | null;
 }
 
 interface NewShelf {
@@ -53,7 +57,10 @@ export function SuggestionsReview({
   const client = useQueryClient();
   const [decisions, setDecisions] = useState<Record<string, Decision>>(() =>
     Object.fromEntries(
-      batch.files.map((f) => [f.key, { include: f.include && !!f.shelf, shelf: f.shelf ?? "", tags: f.tags }]),
+      batch.files.map((f) => [
+        f.key,
+        { include: f.include && !!f.shelf, shelf: f.shelf ?? "", tags: f.tags, versionOf: f.similar_to?.document_id ?? null },
+      ]),
     ),
   );
   const [newShelves, setNewShelves] = useState<Record<string, NewShelf>>(() =>
@@ -124,7 +131,10 @@ export function SuggestionsReview({
     try {
       const result = await api.confirmIntake(batch.batch_id, {
         new_shelves: Object.fromEntries(usedNew.map((ref) => [ref, newShelves[ref].name.trim().toLowerCase()])),
-        files: offered.map((f) => ({ key: f.key, ...decisions[f.key] })),
+        files: offered.map((f) => {
+          const d = decisions[f.key];
+          return { key: f.key, include: d.include, shelf: d.shelf, tags: d.tags, version_of: d.include ? d.versionOf : null };
+        }),
       });
       client.invalidateQueries({ queryKey: ["collections"] });
       client.invalidateQueries({ queryKey: ["jobs"] });
@@ -224,6 +234,7 @@ export function SuggestionsReview({
               {files.map((file) => (
                 <FileRow
                   key={file.key}
+                  batchId={batch.batch_id}
                   file={file}
                   label={shown(file.path)}
                   decision={decisions[file.key]}
@@ -281,6 +292,7 @@ export function SuggestionsReview({
 }
 
 function FileRow({
+  batchId,
   file,
   label,
   decision,
@@ -289,6 +301,7 @@ function FileRow({
   onChange,
   onMove,
 }: {
+  batchId: string;
   file: IntakeFile;
   label: string;
   decision: Decision;
@@ -325,8 +338,10 @@ function FileRow({
           Shelf
           <select
             aria-label={`Shelf for ${file.path}`}
-            className="h-8 rounded-md border border-input bg-background px-2 text-foreground"
+            className="h-8 rounded-md border border-input bg-background px-2 text-foreground disabled:opacity-60"
             value={decision.shelf}
+            disabled={decision.include && decision.versionOf !== null}
+            title={decision.include && decision.versionOf !== null ? "A new version stays on its document's shelf" : undefined}
             onChange={(e) => onMove(e.target.value)}
           >
             {shelfOptions}
@@ -334,10 +349,11 @@ function FileRow({
         </label>
       </div>
       <p className="text-xs text-muted-foreground">
-        {file.reason}
-        {file.status !== "new" && file.message && ` · ${file.message}`}
+        {file.status !== "similar" && file.reason}
+        {file.status !== "new" && file.status !== "similar" && file.message && ` · ${file.message}`}
         {alternativeNames.length > 0 && file.confidence === "low" && ` (alternative: ${alternativeNames.join(", ")})`}
       </p>
+      {file.similar_to && <SimilarChoice batchId={batchId} file={file} decision={decision} onChange={onChange} />}
       <div className="flex flex-wrap items-center gap-1.5">
         {decision.tags.map((tag) => (
           <span
@@ -380,5 +396,83 @@ function FileRow({
         </form>
       </div>
     </li>
+  );
+}
+
+/** A file that is almost the same as a document already in the library, under another name:
+ * merge it as a new version (suggested), keep both, or skip it, with a preview of the differences. */
+function SimilarChoice({
+  batchId,
+  file,
+  decision,
+  onChange,
+}: {
+  batchId: string;
+  file: IntakeFile;
+  decision: Decision;
+  onChange: (change: Partial<Decision>) => void;
+}) {
+  const [showDiff, setShowDiff] = useState(false);
+  const similar = file.similar_to!;
+  const diff = useQuery({
+    queryKey: ["intake-diff", batchId, file.key],
+    queryFn: () => api.intakeDiff(batchId, file.key),
+    enabled: showDiff,
+    staleTime: Infinity,
+  });
+  const choice = !decision.include ? "skip" : decision.versionOf !== null ? "version" : "keep";
+  const options = [
+    {
+      value: "version",
+      label: (
+        <>
+          <b>Make it a new version of “{similar.filename}”</b> (suggested). Answers use only the newer text; the old one stays in
+          its history.
+        </>
+      ),
+      change: { include: true, versionOf: similar.document_id, shelf: `existing:${similar.shelf_id}` },
+    },
+    { value: "keep", label: <>Keep both as separate documents.</>, change: { include: true, versionOf: null } },
+    { value: "skip", label: <>Skip this file.</>, change: { include: false, versionOf: null } },
+  ] as const;
+  return (
+    <div className="space-y-2 rounded-md border border-warning/40 bg-warning/5 p-3">
+      <p className="flex items-start gap-2">
+        <Copy className="mt-0.5 size-4 shrink-0 text-warning" />
+        <span>
+          <b>{Math.floor(similar.similarity * 100)}% the same text</b> as “{similar.filename}” on shelf “{similar.shelf}”. It
+          looks like an updated copy. With both in the library, answers could quote either one.
+        </span>
+      </p>
+      <div className="space-y-1 pl-6" role="radiogroup" aria-label={`What to do with ${file.name}`}>
+        {options.map((o) => (
+          <label key={o.value} className="flex cursor-pointer items-start gap-2">
+            <input
+              type="radio"
+              name={`similar-${file.key}`}
+              className="mt-1"
+              checked={choice === o.value}
+              onChange={() => onChange(o.change)}
+            />
+            <span>{o.label}</span>
+          </label>
+        ))}
+      </div>
+      <div className="pl-6">
+        <Button variant="ghost" size="sm" onClick={() => setShowDiff((v) => !v)}>
+          <GitCompare /> {showDiff ? "Hide the differences" : "See the differences"}
+        </Button>
+        {showDiff &&
+          (diff.isLoading ? (
+            <p className="flex items-center gap-2 text-xs text-muted-foreground">
+              <Loader2 className="size-3.5 animate-spin" /> Comparing…
+            </p>
+          ) : diff.error ? (
+            <ErrorNote error={diff.error} />
+          ) : (
+            <DiffLines diff={diff.data?.diff ?? []} empty="The text is the same; only the file differs." />
+          ))}
+      </div>
+    </div>
   );
 }

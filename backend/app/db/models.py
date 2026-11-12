@@ -75,6 +75,9 @@ class DocumentVersion(Base):
     ext: Mapped[str]
     extracted_text: Mapped[str] = mapped_column(Text)
     note: Mapped[str | None] = mapped_column(default=None)
+    # "upload" (a file was added) or "edit" (its text changed in the app's editor)
+    origin: Mapped[str] = mapped_column(default="upload", server_default="upload")
+    edited_by: Mapped[str | None] = mapped_column(default=None)  # a typed name: no accounts
     created_at: Mapped[dt.datetime] = mapped_column(default=utcnow)
 
     document: Mapped["Document"] = relationship(back_populates="versions")

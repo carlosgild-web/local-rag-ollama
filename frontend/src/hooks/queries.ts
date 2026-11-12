@@ -217,10 +217,11 @@ export function useVersions(docId: number | null) {
   });
 }
 
-export function useVersionText(docId: number, versionId: number) {
+/** A version's searchable text; `editable` gives a text or Markdown file as written. */
+export function useVersionText(docId: number, versionId: number, editable = false) {
   return useQuery({
-    queryKey: ["version-text", docId, versionId],
-    queryFn: () => api.versionText(docId, versionId),
+    queryKey: ["version-text", docId, versionId, editable],
+    queryFn: () => api.versionText(docId, versionId, editable),
     staleTime: Infinity,
   });
 }
@@ -240,4 +241,13 @@ export function useRollback(docId: number) {
 
 export function useFeedbackSummary() {
   return useQuery({ queryKey: ["feedback", "summary"], queryFn: api.feedbackSummary });
+}
+
+/** Saves edited text as a new version; returns the queued job. */
+export function useEditText(docId: number) {
+  const invalidate = useInvalidate();
+  return useMutation({
+    mutationFn: (body: { text: string; edited_by: string; note?: string }) => api.editText(docId, body),
+    onSuccess: () => invalidate("jobs"),
+  });
 }

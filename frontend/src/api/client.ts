@@ -157,8 +157,10 @@ export const api = {
   feedbackSummary: () => request<FeedbackSummary>("/feedback/summary"),
 
   versions: (docId: number) => request<DocumentVersion[]>(`/documents/${docId}/versions`),
-  versionText: (docId: number, versionId: number) =>
-    request<VersionText>(`/documents/${docId}/versions/${versionId}/text`),
+  editText: (docId: number, body: { text: string; edited_by: string; note?: string }) =>
+    request<JobQueued>(`/documents/${docId}/edit`, json("POST", body)),
+  versionText: (docId: number, versionId: number, editable = false) =>
+    request<VersionText>(`/documents/${docId}/versions/${versionId}/text${query({ editable: editable || undefined })}`),
   diff: (docId: number, a: number, b: number) =>
     request<VersionDiff>(`/documents/${docId}/diff${query({ a, b })}`),
   rollback: (docId: number, versionId: number) =>

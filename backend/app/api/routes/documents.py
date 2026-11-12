@@ -11,6 +11,7 @@ from app.api.originals import original_response
 from app.api.schemas import (
     DiffOut,
     DocumentOut,
+    EditTextIn,
     JobQueued,
     QueuedUpload,
     RollbackIn,
@@ -241,6 +242,8 @@ def list_versions(db: DbDep, document_id: int):
             sha256=v.sha256,
             ext=v.ext,
             note=v.note,
+            origin=v.origin,
+            edited_by=v.edited_by,
             is_active=v.id == document.active_version_id,
             chunk_count=count,
             created_at=v.created_at,
@@ -249,24 +252,58 @@ def list_versions(db: DbDep, document_id: int):
     ]
 
 
-@router.get("/documents/{document_id}/versions/{version_id}/text", response_model=VersionTextOut)
-def version_text(db: DbDep, document_id: int, version_id: int):
-    """The text the app extracted from one version: what it actually searches."""
-    version = service.get_version(db, document_id, version_id)
-    return VersionTextOut(
-        version_id=version.id, version_number=version.version_number, text=version.extracted_text
+@router.post(
+    "/documents/{document_id}/edit",
+    status_code=status.HTTP_202_ACCEPTED,
+    response_model=JobQueued,
+)
+def edit_text(db: DbDep, runtime: RuntimeDep, document_id: int, body: EditTextIn):
+    """Saves edited text as a new version (queued like an upload): re-embedded,
+    marked as an edit with who and what changed. Earlier versions, including the
+    original file, are kept."""
+    staged = service.stage_edit(db, runtime.settings, document_id, body.text)
+    job = queue.enqueue(
+        db,
+        "ingest",
+        {
+            "staged_path": str(staged),
+            "filename": staged.name,
+            "collection_id": service.get_document(db, document_id).collection_id,
+            "document_id": document_id,
+            "edited_by": body.edited_by.strip(),
+            "note": (body.note or "").strip() or None,
+        },
+        document_id=document_id,
     )
+    return JobQueued(job_id=job.id)
+
+
+@router.get("/documents/{document_id}/versions/{version_id}/text", response_model=VersionTextOut)
+def version_text(
+    db: DbDep,
+    runtime: RuntimeDep,
+    document_id: int,
+    version_id: int,
+    editable: Annotated[bool, Query(description="The editor's starting text")] = False,
+):
+    """The text the app extracted from one version: what it actually searches. With
+    `editable`, a text or Markdown file as written (what the editor starts from)."""
+    version = service.get_version(db, document_id, version_id)
+    text = service.editable_text(runtime.settings, version) if editable else version.extracted_text
+    return VersionTextOut(version_id=version.id, version_number=version.version_number, text=text)
 
 
 @router.get("/documents/{document_id}/diff", response_model=DiffOut)
 def diff_versions(
     db: DbDep,
+    runtime: RuntimeDep,
     document_id: int,
     a: Annotated[int, Query(description="Version id (from)")],
     b: Annotated[int, Query(description="Version id (to)")],
 ):
     service.get_document(db, document_id)
-    return DiffOut(a=a, b=b, diff=service.diff_versions(db, a, b, document_id=document_id))
+    lines = service.diff_versions(db, a, b, document_id=document_id, settings=runtime.settings)
+    return DiffOut(a=a, b=b, diff=lines)
 
 
 @router.post("/documents/{document_id}/rollback", response_model=VersionOut)

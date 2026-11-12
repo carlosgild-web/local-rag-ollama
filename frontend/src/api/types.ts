@@ -213,6 +213,10 @@ export interface DocumentVersion {
   sha256: string;
   ext: string;
   note: string | null;
+  /** "upload": a file was added; "edit": its text was changed in the app's editor. */
+  origin: "upload" | "edit";
+  /** Who edited it (a typed name: there are no accounts). */
+  edited_by: string | null;
   /** The version answers use. */
   is_active: boolean;
   chunk_count: number;

@@ -139,9 +139,17 @@ class VersionOut(BaseModel):
     sha256: str
     ext: str
     note: str | None
+    origin: str = "upload"  # upload | edit
+    edited_by: str | None = None
     is_active: bool
     chunk_count: int
     created_at: UtcDatetime
+
+
+class EditTextIn(BaseModel):
+    text: str = Field(min_length=1, max_length=2_000_000)
+    edited_by: str = Field(min_length=1, max_length=80)
+    note: str | None = Field(default=None, max_length=500)  # what changed
 
 
 class VersionTextOut(BaseModel):

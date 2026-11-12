@@ -109,7 +109,7 @@ export type UploadCheckStatus =
   | "empty"
   | "too_large";
 
-export type IntakeStatus = UploadCheckStatus | "unreadable" | "pending";
+export type IntakeStatus = UploadCheckStatus | "unreadable" | "pending" | "similar";
 
 /** One dropped file with the app's suggestions (GET /api/intake/{id}). */
 export interface IntakeFile {
@@ -127,6 +127,15 @@ export interface IntakeFile {
   reason: string;
   tags: string[];
   alternatives: string[];
+  /** Almost the same text as an existing document under another name. */
+  similar_to?: {
+    document_id: number;
+    filename: string;
+    shelf_id: number;
+    shelf: string;
+    /** 0–1, compared word by word. */
+    similarity: number;
+  } | null;
 }
 
 export interface IntakeShelf {
@@ -153,7 +162,7 @@ export interface IntakeStarted {
 
 export interface IntakeConfirm {
   new_shelves: Record<string, string>;
-  files: { key: string; include: boolean; shelf: string; tags: string[] }[];
+  files: { key: string; include: boolean; shelf: string; tags: string[]; version_of?: number | null }[];
 }
 
 export interface IntakeConfirmed {

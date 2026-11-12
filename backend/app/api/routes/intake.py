@@ -12,7 +12,7 @@ from typing import Annotated
 from fastapi import APIRouter, File, Form, Response, UploadFile, status
 
 from app.api.deps import DbDep, RuntimeDep
-from app.api.schemas import IntakeConfirmed, IntakeConfirmIn, IntakeOut, IntakeStarted
+from app.api.schemas import DiffOut, IntakeConfirmed, IntakeConfirmIn, IntakeOut, IntakeStarted
 from app.ingest import intake
 from app.jobs import queue
 
@@ -60,10 +60,17 @@ def confirm_intake(db: DbDep, runtime: RuntimeDep, batch_id: str, body: IntakeCo
         runtime,
         batch_id,
         body.new_shelves,
-        [intake.ConfirmedFile(f.key, f.include, f.shelf, f.tags) for f in body.files],
+        [intake.ConfirmedFile(f.key, f.include, f.shelf, f.tags, f.version_of) for f in body.files],
         enqueue=lambda job_type, payload: queue.enqueue(db, job_type, payload),
     )
     return IntakeConfirmed(job_ids=job_ids, created_shelves=created)
+
+
+@router.get("/intake/{batch_id}/files/{key}/diff", response_model=DiffOut)
+def near_duplicate_diff(db: DbDep, runtime: RuntimeDep, batch_id: str, key: str):
+    """How a file flagged as almost the same differs from the existing document."""
+    lines = intake.near_duplicate_diff(db, runtime.settings, batch_id, key)
+    return DiffOut(a=0, b=0, diff=lines)
 
 
 @router.delete("/intake/{batch_id}", status_code=status.HTTP_204_NO_CONTENT)

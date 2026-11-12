@@ -55,6 +55,8 @@ class IntakeFileOut(BaseModel):
     reason: str
     tags: list[str]
     alternatives: list[str]
+    # Almost the same text as an existing document under another name
+    similar_to: dict[str, Any] | None = None
 
 
 class IntakeShelfOut(BaseModel):
@@ -77,6 +79,7 @@ class IntakeDecisionIn(BaseModel):
     include: bool
     shelf: str = Field(min_length=1, max_length=40)
     tags: list[str] = Field(default_factory=list, max_length=10)
+    version_of: int | None = None  # add it as a new version of this document
 
 
 class IntakeConfirmIn(BaseModel):

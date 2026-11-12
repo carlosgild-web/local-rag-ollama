@@ -122,6 +122,7 @@ export const api = {
     return request<IntakeStarted>("/intake", { method: "POST", body: form });
   },
   intake: (batchId: string) => request<Intake>(`/intake/${batchId}`),
+  intakeDiff: (batchId: string, key: string) => request<VersionDiff>(`/intake/${batchId}/files/${key}/diff`),
   confirmIntake: (batchId: string, body: IntakeConfirm) =>
     request<IntakeConfirmed>(`/intake/${batchId}/confirm`, json("POST", body)),
   cancelIntake: (batchId: string) => request<void>(`/intake/${batchId}`, { method: "DELETE" }),

@@ -3,6 +3,7 @@ import { Download, ExternalLink, FileText, GitCompare, History, Loader2, RotateC
 import { API_BASE } from "@/api/client";
 import type { Document, DocumentVersion } from "@/api/types";
 import { ErrorNote } from "@/components/common";
+import { DiffLines } from "@/components/DiffLines";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Dialog } from "@/components/ui/dialog";
@@ -250,9 +251,6 @@ function CompareView({
 }) {
   const [a, b] = pair;
   const diff = useDiff(docId, a, b);
-  const lines = (diff.data?.diff ?? []).filter((l) => !l.startsWith("---") && !l.startsWith("+++"));
-  const added = lines.filter((l) => l.startsWith("+")).length;
-  const removed = lines.filter((l) => l.startsWith("-")).length;
   const picker = (value: number, set: (id: number) => void) => (
     <select
       value={value}
@@ -279,36 +277,8 @@ function CompareView({
         <p className="flex items-center gap-2 text-sm text-muted-foreground">
           <Loader2 className="size-4 animate-spin" /> Comparing…
         </p>
-      ) : lines.length === 0 ? (
-        <p className="rounded-md border bg-muted/30 p-3 text-sm">The text is the same in both versions.</p>
       ) : (
-        <>
-          <p className="text-sm">
-            <span className="text-success">{added} line{added === 1 ? "" : "s"} added</span> ·{" "}
-            <span className="text-destructive">{removed} removed</span>
-          </p>
-          <div className="max-h-[60vh] overflow-auto rounded-md border font-mono text-xs leading-relaxed">
-            {lines.map((line, i) =>
-              line.startsWith("@@") ? (
-                <div key={i} className="border-y bg-muted px-3 py-0.5 text-muted-foreground">
-                  ⋯
-                </div>
-              ) : (
-                <div
-                  key={i}
-                  className={cn(
-                    "whitespace-pre-wrap px-3",
-                    line.startsWith("+") && "bg-green-50 text-green-900",
-                    line.startsWith("-") && "bg-red-50 text-red-900 line-through decoration-red-300",
-                  )}
-                >
-                  <span className="mr-2 select-none opacity-60">{line[0] === " " ? " " : line[0]}</span>
-                  {line.slice(1)}
-                </div>
-              ),
-            )}
-          </div>
-        </>
+        <DiffLines diff={diff.data?.diff ?? []} empty="The text is the same in both versions." />
       )}
     </div>
   );

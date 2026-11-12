@@ -4,6 +4,10 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Ver
 
 ## [Unreleased]
 
+## [0.7.1] - 2026-11-12
+
+The start script asks how to run the app and never switches ways silently, and testers can read the demo documents before loading them from the dashboard.
+
 ### Added
 
 - **Read the demo documents before loading them.** The dashboard's demo card has **See the documents**: the 11 originals by shelf. PDFs and text open in a tab, and Word files download (`GET /api/demo/files`, and `/api/demo/files/{shelf}/{name}`, which serves only listed files).

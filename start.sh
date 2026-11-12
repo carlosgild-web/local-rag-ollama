@@ -395,29 +395,18 @@ wait_healthy() {
 
 json_field() { grep -o "\"$1\":[^,}]*" | head -1 | sed "s/\"$1\"://; s/\"//g"; }
 
-load_demo() {
-  local port="$1" demo docs status pct last=-1
-  demo="$(http_get "http://127.0.0.1:$port/api/demo")"
-  printf '%s' "$demo" | grep -q '"available":true' || return 0
+# Prints the page to open first: the dashboard while the library is empty, so
+# people can look at the demo documents and load them there; the website after.
+first_page() {
+  local demo docs
+  demo="$(http_get "http://127.0.0.1:$1/api/demo")"
   docs="$(printf '%s' "$demo" | json_field documents)"
-  if [ "${docs:-0}" != "0" ]; then ok "Your library already has $docs documents"; return 0; fi
-  if ! ask "Load the demo company now? (11 documents, a few minutes)"; then
-    info "You can load it later from the dashboard."; return 0
+  if [ -n "$docs" ] && [ "$docs" != "0" ]; then
+    ok "Your library has $docs documents" >&2; echo "/site"
+  else
+    info "The library is empty. The dashboard lets you look through the demo company's documents, then load them with one click." >&2
+    echo "/"
   fi
-  curl -s -m 10 -X POST "http://127.0.0.1:$port/api/demo/seed" >/dev/null
-  while true; do
-    sleep 2
-    demo="$(http_get "http://127.0.0.1:$port/api/demo")"
-    # The job object comes after "job":; its own fields are what we need.
-    status="$(printf '%s' "${demo#*\"job\":}" | json_field status)"
-    pct="$(printf '%s' "${demo#*\"job\":}" | json_field progress)"
-    pct="$(awk -v p="${pct:-0}" 'BEGIN { printf "%d", p * 100 + 0.5 }')"
-    [ "$pct" != "$last" ] && { printf '\r  Loading the demo company... %s%%   ' "$pct"; last="$pct"; }
-    case "$status" in
-      completed) printf '\n'; ok "Demo company loaded"; return 0 ;;
-      failed|cancelled) printf '\n'; warn "Loading stopped. Open the dashboard and click Troubleshoot."; return 0 ;;
-    esac
-  done
 }
 
 # --- Commands --------------------------------------------------------------------
@@ -653,7 +642,8 @@ do_start() {
   wait_healthy "$port" || warn "The app isn't fully healthy yet. Open http://localhost:$port and click Troubleshoot."
 
   step "6. The demo company"
-  load_demo "$port"
+  local first
+  first="$(first_page "$port")"
 
   step "Ready"
   say "  Running $(describe_route "$route")."
@@ -666,7 +656,8 @@ do_start() {
   say ""
   say "  Stop: ./start.sh stop   Status: ./start.sh status   Choose another way: ./start.sh --reconfigure"
   say "  Your answers are saved in .env. This run's log: data/start.log"
-  open_url "http://localhost:$port/site"
+  [ "$first" = "/" ] && say "  Opening the dashboard: click 'See the documents', then 'Load the demo company'."
+  open_url "http://localhost:$port$first"
 }
 
 case "$COMMAND" in

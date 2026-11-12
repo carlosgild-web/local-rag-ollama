@@ -216,6 +216,14 @@ class JobOut(BaseModel):
     updated_at: UtcDatetime
 
 
+class DemoFileOut(BaseModel):
+    shelf: str  # the folder it loads into
+    name: str
+    type: str  # file extension, e.g. "pdf"
+    size: int  # bytes
+    opens_in_browser: bool  # PDF and text open in a tab; Word files download
+
+
 class DemoStatusOut(BaseModel):
     available: bool  # the demo corpus ships with this install
     documents: int  # documents in the library, not counting the trash

@@ -113,7 +113,7 @@ cd local-rag-ollama</code></pre></div>
       With <b>C</b>, the built web app is downloaded from the GitHub Release and checked against its SHA-256, so you don't need Node.</li>
     <li><b>When something is installed but not running,</b> it starts it for you: the Ollama app, or Docker Desktop. If that doesn't work, it tells you why and lets you <b>wait/retry</b>, choose another way, or <b>quit</b>. It never switches to another way without asking.</li>
     <li><b>Which chat model:</b> it lists the ones your Ollama already has, and downloads only what's missing, after asking.</li>
-    <li><b>It starts the app</b>, waits until it's healthy, offers to <b>load the demo company</b>, opens the website, and ends by saying how it's running, for example "Running in Docker (route B)", with the container names.</li>
+    <li><b>It starts the app</b>, waits until it's healthy, and opens it: the <b>dashboard</b> while the library is empty (step 4), the website after that. It ends by saying how it's running, for example "Running in Docker (route B)", with the container names.</li>
   </ol>
   <p>It never installs anything without asking, and it shows the exact command first. If port 8000 is taken, it uses the next free one. Your answers are saved in <code>.env</code>, so the next run starts straight away, and each run is logged to <code>data/start.log</code>. <code>stop</code> stops the app (your documents and models are kept), <code>status</code> shows how it's running and its health, <code>--check</code> only explains what it would do, and <code>--reconfigure</code> asks again (switching ways stops the old one first; each way keeps its own library).</p>
 
@@ -167,9 +167,17 @@ python -m venv .venv
 <section id="demo">
   <h2><span class="n">4</span>Load the demo company</h2>
   <p><b>Hilda &amp; Luna Beadworks</b> is a fictional bead maker with 11 documents: a handbook, safety training, a catalog, a price sheet, an FAQ and more.</p>
-  <div class="code"><pre><code>docker compose exec app python -m app.cli seed-demo             <span class="c"># ways A and B</span>
-cd backend &amp;&amp; .venv/Scripts/python -m app.cli seed-demo         <span class="c"># way C</span></code></pre></div>
-  <p>The start script offers to do this, and the dashboard shows a <b>Load the demo company</b> button while the library is empty. By hand, these commands create four shelves (customer-support, hr, meetings, operations) and end with <code>11 ingested, 0 skipped</code>. Running it again skips every file as a duplicate.</p>
+  <p>While the library is empty, the <b>dashboard</b> shows a <i>New here?</i> card:</p>
+  <ol>
+    <li><b>See the documents</b> lists the 11 originals by the shelf each goes into. PDFs and text files open in a new tab, and Word files download, so you can read exactly what the assistant will answer from. They're also in your copy of the project, in <code>backend/demo/hilda-luna/</code>.</li>
+    <li><b>Load the demo company</b> indexes them, with a progress bar. It takes a few minutes on a laptop.</li>
+    <li>When it's done, the card links to the company website and the employee portal.</li>
+  </ol>
+  <p>It creates four shelves (customer-support, hr, meetings, operations). Loading again skips every file as a duplicate. Later, every document in the <b>Library</b> has an <i>Open original</i> button.</p>
+  <details><summary>For developers: the same from the command line</summary>
+  <div class="code"><pre><code>docker compose exec app python -m app.cli seed-demo             <span class="c"># in Docker</span>
+cd backend &amp;&amp; .venv/Scripts/python -m app.cli seed-demo         <span class="c"># without Docker</span></code></pre></div>
+  </details>
 </section>
 
 <section id="tour">

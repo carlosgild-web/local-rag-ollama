@@ -449,28 +449,16 @@ function Wait-Healthy([int]$Port) {
     return $false
 }
 
-function Load-Demo([int]$Port) {
+# Returns the page to open first: the dashboard while the library is empty, so
+# people can look at the demo documents and load them there; the website after.
+function First-Page([int]$Port) {
     $demo = HttpJson "http://127.0.0.1:$Port/api/demo"
-    if (-not $demo -or -not $demo.available) { return }
-    if ($demo.documents -gt 0) { Ok "Your library already has $($demo.documents) documents"; return }
-    if (-not (Ask "Load the demo company now? (11 documents, a few minutes)")) {
-        Info "You can load it later from the dashboard."
-        return
+    if ($demo -and $demo.documents -gt 0) {
+        Ok "Your library has $($demo.documents) documents"
+        return "/site"
     }
-    & curl.exe -s -m 10 -X POST "http://127.0.0.1:$Port/api/demo/seed" *> $null
-    $last = -1
-    while ($true) {
-        Start-Sleep -Seconds 2
-        $d = HttpJson "http://127.0.0.1:$Port/api/demo"
-        $job = $d.job
-        if (-not $job) { continue }
-        $pct = [int][math]::Round($job.progress * 100)
-        if ($pct -ne $last) { Write-Host "`r  Loading the demo company... $pct%   " -NoNewline; $last = $pct }
-        if ($job.status -eq "completed") { Write-Host ""; Ok "Demo company loaded: $($job.result.ingested) documents"; return }
-        if ($job.status -eq "failed" -or $job.status -eq "cancelled") {
-            Write-Host ""; Warn "Loading stopped: $($job.error). Open the dashboard and click Troubleshoot."; return
-        }
-    }
+    Info "The library is empty. The dashboard lets you look through the demo company's documents, then load them with one click."
+    return "/"
 }
 
 # --- Commands --------------------------------------------------------------------
@@ -725,7 +713,7 @@ function Do-Start {
     }
 
     Step "6. The demo company"
-    Load-Demo $port
+    $firstPage = First-Page $port
 
     Step "Ready"
     Say "  Running $(Describe-Route $route)."
@@ -741,7 +729,8 @@ function Do-Start {
     Say ""
     Say "  Stop: .\start.cmd stop   Status: .\start.cmd status   Choose another way: .\start.cmd --reconfigure"
     Say "  Your answers are saved in .env. This run's log: data\start.log"
-    Start-Process "http://localhost:$port/site" | Out-Null
+    if ($firstPage -eq "/") { Say "  Opening the dashboard: click 'See the documents', then 'Load the demo company'." }
+    Start-Process "http://localhost:$port$firstPage" | Out-Null
 }
 
 function Started-FromExplorer {

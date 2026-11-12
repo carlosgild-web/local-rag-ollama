@@ -200,3 +200,8 @@ export function useSeedDemo() {
   const invalidate = useInvalidate();
   return useMutation({ mutationFn: api.seedDemo, onSuccess: () => invalidate("demo", "jobs") });
 }
+
+/** The demo company's original documents; fetched when the list is opened. */
+export function useDemoFiles(enabled: boolean) {
+  return useQuery({ queryKey: ["demo", "files"], queryFn: api.demoFiles, enabled, staleTime: Infinity });
+}

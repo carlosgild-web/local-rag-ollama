@@ -111,7 +111,8 @@ def _parse(path: Path, settings: Settings) -> ParsedDocument:
     )
 
 
-def _stored_path(settings: Settings, version: DocumentVersion) -> Path:
+def stored_path(settings: Settings, version: DocumentVersion) -> Path:
+    """Where a version's original file is kept (content-addressed, invariant 2)."""
     return file_store.files_path_for(settings.files_dir, version.sha256, version.ext)
 
 
@@ -332,7 +333,7 @@ def build_collection(
         if progress:
             progress(i / max(len(documents), 1))
         for version in document.versions:
-            parsed = _parse(_stored_path(settings, version), settings)
+            parsed = _parse(stored_path(settings, version), settings)
             prepared = _prepare(parsed, target, embedding_client)
             _clear_chunks(db, vector_store, target, version.id)
             total_chunks += _index_version(db, target, document, version, prepared, vector_store)
@@ -873,7 +874,7 @@ def reindex_document(
     collection = get_collection(db, document.collection_id)
     active_version = db.get(DocumentVersion, document.active_version_id)
 
-    parsed = _parse(_stored_path(settings, active_version), settings)
+    parsed = _parse(stored_path(settings, active_version), settings)
     prepared = _prepare(parsed, collection, embedding_client)
     _clear_chunks(db, vector_store, collection, active_version.id)
     chunk_count = _index_version(db, collection, document, active_version, prepared, vector_store)

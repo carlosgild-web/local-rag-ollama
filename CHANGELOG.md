@@ -4,7 +4,14 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Ver
 
 ## [Unreleased]
 
+### Added
+
+- **Read the demo documents before loading them.** The dashboard's demo card has **See the documents**: the 11 originals by shelf. PDFs and text open in a tab, and Word files download (`GET /api/demo/files`, and `/api/demo/files/{shelf}/{name}`, which serves only listed files).
+- **Open original** on every document in the Library (`GET /api/documents/{id}/original`), the file exactly as it was uploaded.
+
 ### Changed
+
+- **The start script no longer loads the demo company.** With an empty library it opens the dashboard, where people can read the documents first and then load them. The `seed-demo` command stays for developers.
 
 - **The start script asks how to run the app instead of deciding alone** ([decision 0013 addendum](docs/decisions/0013-one-command-start.md#addendum-2026-11-10-ask-never-fall-back-silently)):
   - *Run the app in Docker?* and *Run Ollama inside Docker?*, each with a recommended default

@@ -7,6 +7,7 @@ from fastapi import APIRouter, File, Form, Query, Response, UploadFile, status
 from sqlalchemy import func, select
 
 from app.api.deps import DbDep, RuntimeDep
+from app.api.originals import original_response
 from app.api.schemas import (
     DiffOut,
     DocumentOut,
@@ -196,6 +197,22 @@ def reindex_document(db: DbDep, document_id: int):
         db, "reindex_document", {"document_id": document.id}, document_id=document.id
     )
     return JobQueued(job_id=job.id)
+
+
+@router.get("/documents/{document_id}/original")
+def open_original(db: DbDep, runtime: RuntimeDep, document_id: int):
+    """The active version's file exactly as it was uploaded (PDFs and text open in
+    the browser; Word files download). Not for documents in the trash."""
+    document = service.get_document(db, document_id)
+    version = (
+        db.get(DocumentVersion, document.active_version_id) if document.active_version_id else None
+    )
+    if document.trashed_at is not None or version is None:
+        raise service.NotFoundError(f"document {document_id} has no original to open")
+    path = service.stored_path(runtime.settings, version)
+    if not path.is_file():
+        raise service.NotFoundError(f"the original file of document {document_id} is missing")
+    return original_response(path, document.filename)
 
 
 @router.get("/documents/{document_id}/versions", response_model=list[VersionOut])

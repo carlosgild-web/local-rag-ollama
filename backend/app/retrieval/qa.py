@@ -12,6 +12,7 @@ from sqlalchemy.orm import Session
 from app.core.config import Settings
 from app.db.models import Collection
 from app.llm.base import EmbeddingClient, LLMClient
+from app.retrieval.glossary import expand_with_glossary
 from app.retrieval.prompt import NOT_FOUND_PHRASE, build_prompt, format_sources
 from app.retrieval.reranker import NoOpReranker, Reranker
 from app.retrieval.retrieve import RetrievedChunk, retrieve, retrieve_many
@@ -36,7 +37,9 @@ def prepare_context(
     system_instructions: str | None = None,
     reranker: Reranker | None = None,
 ) -> AnswerContext | None:
-    """Returns None when there is nothing to retrieve (empty knowledge base)."""
+    """Returns None when there is nothing to retrieve (empty knowledge base).
+    The question is expanded with the glossary for both search and prompt."""
+    question = expand_with_glossary(db, question)
     chunks = retrieve(
         db,
         question,
@@ -62,6 +65,7 @@ def prepare_context_many(
     reranker: Reranker | None = None,
 ) -> AnswerContext | None:
     """Like `prepare_context`, searching several shelves (the employee portal)."""
+    question = expand_with_glossary(db, question)
     chunks = retrieve_many(
         db,
         question,

@@ -38,6 +38,7 @@ from app.jobs import queue
 from app.llm.base import EmbeddingClient, LLMClient
 from app.retrieval.citation_repair import repair_citations
 from app.retrieval.citations import citation_status
+from app.retrieval.glossary import Term, expand_question, load_terms
 from app.retrieval.prompt import NOT_FOUND_PHRASE, build_prompt
 from app.retrieval.retrieve import RETRIEVAL_MODES, retrieve_many
 from app.retrieval.vector_store import VectorStore
@@ -295,6 +296,8 @@ def default_label(config: dict, profile: RagProfile) -> str:
         parts.append("judged")
     if config["answers"] and not config.get("repair_citations", True):
         parts.append("no citation repair")
+    if not config.get("use_glossary", True):
+        parts.append("no glossary")
     return ", ".join(parts)
 
 
@@ -310,6 +313,7 @@ def start_run(
     judge: bool = False,
     judge_model: str | None = None,
     repair: bool = True,
+    glossary: bool = True,
     label: str = "",
     queue_job: bool = True,
 ) -> EvalRun:
@@ -341,6 +345,11 @@ def start_run(
         "judge_model": (judge_model or profile.chat_model) if judge else None,
         # Citation repair, as the chat does (decision 0020); off to measure without it.
         "repair_citations": repair,
+        # The glossary as it was when the run started (decision 0021).
+        "use_glossary": glossary,
+        "glossary": [
+            {"term": t.term, "means": t.means} for t in (load_terms(db) if glossary else [])
+        ],
     }
     run = EvalRun(
         eval_set_id=set_id,
@@ -462,6 +471,7 @@ def execute_run(
     run.index_snapshot = index_snapshot(db, _shelves_for(db, cases))
     db.commit()
 
+    terms = [Term(**t) for t in config.get("glossary", [])]
     llm = llm_client_for(profile.chat_model) if config["answers"] else None
     judge_llm = llm_client_for(config["judge_model"]) if config.get("judge") else None
     if progress is not None:
@@ -478,6 +488,7 @@ def execute_run(
                 vector_store=vector_store,
                 llm=llm,
                 judge_llm=judge_llm,
+                terms=terms,
             )
         )
         db.commit()
@@ -510,6 +521,7 @@ def _run_case(
     vector_store: VectorStore,
     llm: LLMClient | None,
     judge_llm: LLMClient | None,
+    terms: list[Term],
 ) -> EvalResult:
     result = EvalResult(
         eval_case_id=case.id,
@@ -532,11 +544,12 @@ def _run_case(
         result.passed = False
         return result
 
+    question = expand_question(case.question, terms)
     start = time.perf_counter()
     # All candidates, so the rank of the right file is known even past top-k.
     chunks = retrieve_many(
         db,
-        case.question,
+        question,
         collections=collections,
         settings=settings,
         embedding_client_for=embedding_client_for,
@@ -557,7 +570,7 @@ def _run_case(
         start = time.perf_counter()
         if sent:
             answer = llm.generate(
-                build_prompt(case.question, sent, profile.system_prompt),
+                build_prompt(question, sent, profile.system_prompt),
                 temperature=profile.temperature,
                 num_ctx=settings.ollama_num_ctx,
             )

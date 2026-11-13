@@ -17,6 +17,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Ver
   - Each run records the profile version and a fingerprint of the index, and `GET /api/eval/compare` shows two runs case by case.
   - From the command line, with the app stopped: `python -m app.cli eval` and `eval-compare`.
 
+- **Glossary** ([decision 0021](docs/decisions/0021-glossary.md)), on the Collections page. Each entry is a word people use and the words the documents use, e.g. *vacation* → *PTO, paid time off*. Every question is asked with the meaning written in after the word, for the search and the model, in the chat, the portal and evaluation runs. The demo company's words load with the demo. On the golden set, questions passed went from 85% to 89% (both Spanish questions over English documents fixed, none broken).
+
 ### Fixed
 
 - The demo golden set expected only the catalog for the Tiny Honeybee's finish, but the wholesale pricing sheet lists it too.

@@ -49,6 +49,16 @@ Six questions were fixed and none broke:
 - the outbound spot checks
 - the Quality Register retention (`[7]` became `[1]`)
 
+A live run with answers then confirmed it (run #5):
+
+| | Passed | Citations to the right file | Facts |
+|---|---|---|---|
+| Live run with repair | 85% (45/53) | 95% | 86% |
+
+That's two questions more than the replay:
+- **Tiny Honeybee** passes because of the golden-set correction.
+- **Metal casting** passes because the answer named the face shield this time. Answers vary a little between runs even at temperature 0 on the CPU, so the replay's +6 is the repair's own effect.
+
 ## Consequences
 
 - What's saved isn't exactly what streamed: a citation number can change when the answer finishes. Every change moves a citation to a passage that contains the claim's figures or words.

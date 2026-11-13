@@ -14,7 +14,7 @@ from sqlalchemy.orm import Session
 from app.core.config import Settings
 from app.llm.base import EmbeddingClient
 from app.retrieval.vector_store import VectorStore
-from app.versioning import service
+from app.versioning import glossary, service
 
 DEMO_DIR = Path(__file__).resolve().parents[2] / "demo" / "hilda-luna"
 
@@ -67,6 +67,9 @@ def seed_demo(
             results.append(SeededFile(shelf, path, result.status, result.chunk_count))
             if progress is not None:
                 progress(len(results) / total)
+    # The demo company's words (decision 0021), unless someone has a glossary already.
+    if glossary.demo_glossary_available() and not glossary.list_terms(db):
+        glossary.load_demo_glossary(db)
     return results
 
 

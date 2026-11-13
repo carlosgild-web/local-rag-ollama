@@ -1,0 +1,13 @@
+{
+  "_comment": "Words Hilda & Luna staff and customers use, and the words the documents use (decision 0021). The documents are in English; many people ask in Spanish.",
+  "terms": [
+    {"term": "vacation", "means": "PTO, paid time off"},
+    {"term": "time off", "means": "PTO, paid time off"},
+    {"term": "vacaciones", "means": "PTO, paid time off"},
+    {"term": "quit", "means": "voluntary resignation"},
+    {"term": "cuentas", "means": "beads"},
+    {"term": "devolver", "means": "return"},
+    {"term": "recargo", "means": "surcharge"},
+    {"term": "urgente", "means": "rush"}
+  ]
+}

@@ -601,6 +601,8 @@ class EvalRunIn(BaseModel):
     judge_model: str | None = None
     # Check citation numbers against the passages, as the chat does (decision 0020).
     repair_citations: bool = True
+    # Expand questions with the glossary, as the chat does (decision 0021).
+    glossary: bool = True
     label: str = ""
 
 
@@ -688,3 +690,23 @@ class EvalCompareOut(BaseModel):
 class EvalDemoStatus(BaseModel):
     available: bool
     loaded_set_id: int | None
+
+
+# --- Glossary (decision 0021) -----------------------------------------------
+
+
+class GlossaryIn(BaseModel):
+    term: str = Field(min_length=1, max_length=100)
+    means: str = Field(min_length=1, max_length=300)
+
+
+class GlossaryOut(ORMModel):
+    id: int
+    term: str
+    means: str
+    created_at: UtcDatetime
+
+
+class GlossaryPreviewOut(BaseModel):
+    question: str
+    expanded: str

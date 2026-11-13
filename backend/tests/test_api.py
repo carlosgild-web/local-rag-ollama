@@ -423,14 +423,18 @@ def test_empty_upload_is_refused(client):
 
 def test_answers_without_valid_citations_are_flagged(client, runtime):
     _upload(client, "coffee.txt", (CORPUS / "coffee-brewing-methods.txt").read_bytes())
-    runtime.fake_llm._responses.extend(["Espresso uses pressure.", "Espresso uses pressure [9]."])
+    # Claims no passage supports keep their status; a supported one is
+    # repaired to a valid citation (decision 0020).
+    runtime.fake_llm._responses.extend(
+        ["Zebras gallop quickly.", "Zebras gallop quickly [9].", "Espresso uses pressure [9]."]
+    )
 
     statuses = []
-    for _ in range(2):
+    for _ in range(3):
         events = _events(client.post("/api/chat", json={"question": "How is espresso brewed?"}))
         statuses.append(events[-1][1]["citation_status"])
 
-    assert statuses == ["missing", "invalid"]
+    assert statuses == ["missing", "invalid", "ok"]
 
 
 # --- UI improvements, step 1 -----------------------------------------------

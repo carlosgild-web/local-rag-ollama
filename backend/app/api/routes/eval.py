@@ -175,6 +175,7 @@ def start_run(db: DbDep, runtime: RuntimeDep, body: EvalRunIn):
         answers=body.answers,
         judge=body.judge,
         judge_model=body.judge_model,
+        repair=body.repair_citations,
         label=body.label,
     )
     return run_out(db, run)

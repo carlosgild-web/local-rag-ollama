@@ -311,7 +311,14 @@ def test_answer_run_scores_facts_citations_traps_and_faithfulness(client, runtim
         ]
     )
     run = _run(
-        client, {"eval_set_id": eval_set["id"], "mode": "keyword", "answers": True, "judge": True}
+        client,
+        {
+            "eval_set_id": eval_set["id"],
+            "mode": "keyword",
+            "answers": True,
+            "judge": True,
+            "repair_citations": False,  # score the model's own citations
+        },
     )
     assert run["status"] == "completed"
     results = [r for r in run["results"]]

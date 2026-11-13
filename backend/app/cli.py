@@ -221,6 +221,7 @@ def cmd_eval(args: argparse.Namespace) -> int:
             top_k=args.top_k,
             answers=args.answers or args.judge,
             judge=args.judge,
+            repair=not args.no_repair,
             label=args.label or "",
             queue_job=False,
         )
@@ -317,6 +318,9 @@ def main(argv: list[str] | None = None) -> int:
     eval_parser.add_argument("--top-k", type=int, help="Chunks sent to the model")
     eval_parser.add_argument("--answers", action="store_true", help="Also generate answers")
     eval_parser.add_argument("--judge", action="store_true", help="LLM-judged faithfulness")
+    eval_parser.add_argument(
+        "--no-repair", action="store_true", help="Keep the model's citation numbers as written"
+    )
     eval_parser.add_argument("--label", help="A name for the run")
     eval_parser.add_argument("--force", action="store_true", help="even if the app seems to run")
     eval_parser.set_defaults(func=cmd_eval)

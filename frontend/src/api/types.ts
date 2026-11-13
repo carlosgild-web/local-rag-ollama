@@ -519,6 +519,8 @@ export interface EvalRunConfig {
   answers: boolean;
   judge: boolean;
   judge_model: string | null;
+  /** citation numbers checked against the passages (decision 0020); missing on older runs */
+  repair_citations?: boolean;
 }
 
 export interface EvalShelfSnapshot {
@@ -592,6 +594,7 @@ export interface EvalRunIn {
   top_k?: number;
   answers: boolean;
   judge: boolean;
+  repair_citations: boolean;
   label?: string;
 }
 

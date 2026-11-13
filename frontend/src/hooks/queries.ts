@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useRef } from "react";
 import { api, type DocumentFilters } from "@/api/client";
-import type { CollectionCreate, CollectionReindex, Job } from "@/api/types";
+import type { AuditFilters, CollectionCreate, CollectionReindex, Job } from "@/api/types";
 
 export const keys = {
   health: ["health"] as const,
@@ -257,6 +257,16 @@ export function useBackups() {
   const jobs = useJobs();
   const busy = jobs.data?.some((j) => j.job_type === "backup" && isActiveJob(j));
   return useQuery({ queryKey: ["backups", busy], queryFn: api.backups, refetchInterval: busy ? 2_000 : false });
+}
+
+export function useAudit(filters: AuditFilters) {
+  return useQuery({ queryKey: ["audit", filters], queryFn: () => api.audit(filters), placeholderData: (prev) => prev });
+}
+
+/** Delete permanently from the trash; the job's end refreshes the library (useJobs). */
+export function usePurgeDocument() {
+  const invalidate = useInvalidate();
+  return useMutation({ mutationFn: api.purgeDocument, onSuccess: () => invalidate("jobs", "audit") });
 }
 
 export function useCreateBackup() {

@@ -125,31 +125,31 @@ Total is about 30 working days; the MVP (through phase 4) is about 15.
 
 ### Phase 0 — Setup (0.75 d)
 
-- [ ] Install Ollama; pull `bge-m3` and `qwen2.5:7b` (or `llama3.1:8b`)
-- [ ] Create repo, layout from `CLAUDE.md`, dependencies, `ruff`, `pytest`, pre-commit
-- [ ] `core/config.py` with pydantic-settings; `.env.example`
-- [ ] Add `CLAUDE.md` and this `PLAN.md` to the repo root
-- [ ] Open-license test corpus of 20 to 30 mixed files (Spanish and English) in `backend/tests/corpus/`
+- [x] Install Ollama; pull `bge-m3` and `qwen2.5:7b` (or `llama3.1:8b`). On the 8 GB laptop: `qwen2.5:3b` (decision 0004)
+- [x] Create repo, layout from `CLAUDE.md`, dependencies, `ruff`, `pytest`, pre-commit
+- [x] `core/config.py` with pydantic-settings; `.env.example`
+- [x] Add `CLAUDE.md` and this `PLAN.md` to the repo root
+- [x] Open-license test corpus of 20 to 30 mixed files (Spanish and English) in `backend/tests/corpus/`
 
 **Done when:** `ollama run` answers, `pytest` runs, config loads from environment variables.
 
 ### Phase 1 — Ingestion core, CLI (2–3 d)
 
-- [ ] Interfaces `LLMClient`, `EmbeddingClient`, `VectorStore` with Ollama/Chroma implementations and fakes
-- [ ] Parsers for txt, md, docx, pdf; detect pages with low text yield and queue OCR
-- [ ] Structure-aware chunker (600 tokens, 12% overlap)
-- [ ] Content-addressed file store under `DATA_DIR/files`
-- [ ] Write chunks to SQLite, FTS5 and Chroma
-- [ ] CLI `ingest <path>`; skip unchanged files
+- [x] Interfaces `LLMClient`, `EmbeddingClient`, `VectorStore` with Ollama/Chroma implementations and fakes
+- [x] Parsers for txt, md, docx, pdf; detect pages with low text yield and queue OCR
+- [x] Structure-aware chunker (600 tokens, 12% overlap)
+- [x] Content-addressed file store under `DATA_DIR/files`
+- [x] Write chunks to SQLite, FTS5 and Chroma
+- [x] CLI `ingest <path>`; skip unchanged files
 
 **Done when:** the test corpus ingests, a second run skips everything, unit tests pass with fakes.
 
 ### Phase 2 — Retrieval and answers, CLI (2 d)
 
-- [ ] Vector search + FTS5 search + RRF fusion
-- [ ] Optional reranker behind a flag
-- [ ] Prompt template with citations and the "not found" rule
-- [ ] Streaming generation; CLI `ask`
+- [x] Vector search + FTS5 search + RRF fusion
+- [x] Optional reranker behind a flag
+- [x] Prompt template with citations and the "not found" rule
+- [x] Streaming generation; CLI `ask`
 
 **Done when:** answers cite file and page, and an unanswerable question returns "not found in the documents".
 
@@ -179,11 +179,13 @@ Total is about 30 working days; the MVP (through phase 4) is about 15.
 ### Phase 5 — Versions and history (3 d) — plan first, then code
 
 - [x] Version timeline per document, text diff, rollback, notes, and a quick editor with who and what changed (decision 0014)
-- [ ] Trash view with restore and purge
+- [x] Trash view with restore and purge: the 30-day purge runs at app start, and *Delete permanently* empties one document (decision 0018)
 - [x] Chat history list and search (decision 0014)
-- [ ] Audit view
+- [x] Audit view
 
 **Done when:** you can edit a file, re-upload, roll back, and see answers change accordingly.
+
+✅ **Done 2026-11-13.** Released as 0.8.0 on 2026-11-12. The trash purge and the audit view were finished afterwards (they had been left unticked).
 
 ### Phase 6 — Control panel (about 3 d)
 
@@ -217,7 +219,7 @@ Found in manual tests on 2026-11-12/13 (temperature 0), to add to the golden set
 
 - [x] Backup and restore (zip of DB, vectors, files; decision 0015)
 - [ ] Optional password auth (localhost-only by default)
-- [ ] Launcher scripts for Windows (`start.ps1`) and Linux/macOS
+- [x] Launcher scripts for Windows (`start.ps1`) and Linux/macOS: `start.cmd` / `start.sh` (decision 0013; macOS not tried on a real Mac yet)
 - [ ] Test coverage on versioning and jobs; fix flaky tests
 
 **Done when:** a fresh machine goes from clone to working app in under 15 minutes (excluding model downloads).
@@ -226,8 +228,8 @@ Found in manual tests on 2026-11-12/13 (temperature 0), to add to the golden set
 
 - [ ] Prometheus `/metrics` (query latency, retrieval count, job durations) and request-id logging
 - [ ] `demo` compose profile with small models (`llama3.2:3b` plus `bge-m3`)
-- [ ] Public open-license demo corpus (Spanish and English)
-- [ ] README: architecture diagram, 3–5 screenshots, 2–3 minute demo video, "how it works", hardware notes
+- [x] Public open-license demo corpus (Spanish and English): the Hilda & Luna demo company in `backend/demo/`
+- [ ] README: architecture diagram, 3–5 screenshots, 2–3 minute demo video, "how it works", hardware notes. Done except the video, which is on hold
 - [ ] Eval results table in the README (hit rate@5 and MRR per profile)
 - [ ] `docs/decisions/`: why Chroma behind an interface, why active-version pointer, why blue/green reindex
 - [ ] License (MIT or Apache-2.0), changelog, tag `v0.1`

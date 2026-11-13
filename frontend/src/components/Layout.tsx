@@ -2,6 +2,7 @@ import {
   Archive,
   AlertTriangle,
   Building2,
+  ClipboardList,
   Database,
   ExternalLink,
   FolderOpen,
@@ -36,6 +37,7 @@ const NAV: { to: string; label: string; icon: typeof LayoutDashboard; end?: bool
   { to: "/collections", label: "Collections", icon: Database, needs: "browse", partly: "process" },
   { to: "/queue", label: "Queue", icon: ListTodo, needs: "browse", partly: "process" },
   { to: "/backups", label: "Backups", icon: Archive, needs: "browse" },
+  { to: "/audit", label: "Audit", icon: ClipboardList, needs: "browse" },
 ];
 
 const PILL: Record<SystemState, { label: string; className: string; dot: string }> = {

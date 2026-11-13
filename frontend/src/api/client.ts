@@ -1,4 +1,6 @@
 import type {
+  AuditEntry,
+  AuditFilters,
   Channel,
   Collection,
   CollectionCreate,
@@ -131,6 +133,8 @@ export const api = {
   restoreDocument: (id: number) => request<Document>(`/documents/${id}/restore`, json("POST")),
   chunk: (id: number) => request<ChunkDetail>(`/chunks/${id}`),
   reindexDocument: (id: number) => request<JobQueued>(`/documents/${id}/reindex`, json("POST")),
+  /** Delete permanently, from the trash only. Cannot be undone. */
+  purgeDocument: (id: number) => request<{ job_id: number }>(`/documents/${id}/purge`, json("POST")),
 
   collections: (includeInactive = false) =>
     request<Collection[]>(`/collections${query({ include_inactive: includeInactive })}`),
@@ -143,6 +147,7 @@ export const api = {
   jobs: () => request<Job[]>(`/jobs${query({ limit: 200 })}`),
   demo: () => request<DemoStatus>("/demo"),
   backups: () => request<Backup[]>("/backups"),
+  audit: (filters: AuditFilters) => request<AuditEntry[]>(`/audit${query({ ...filters })}`),
   createBackup: () => request<JobQueued>("/backups", json("POST")),
   deleteBackup: (name: string) => request<void>(`/backups/${name}`, { method: "DELETE" }),
   demoFiles: () => request<DemoFile[]>("/demo/files"),

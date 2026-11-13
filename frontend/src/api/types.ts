@@ -274,6 +274,22 @@ export interface CollectionCreate {
 
 export type CollectionReindex = Omit<CollectionCreate, "name">;
 
+/** One audit log row (invariant 7): uploads, deletes, purges, rollbacks, settings. */
+export interface AuditEntry {
+  id: number;
+  action: string;
+  entity_type: string;
+  entity_id: number | null;
+  detail: string;
+  created_at: string;
+}
+
+export interface AuditFilters {
+  action?: string;
+  entity_type?: string;
+  limit?: number;
+}
+
 export interface JobQueued {
   job_id: number;
   mode: "in_place" | "blue_green" | null;

@@ -4,6 +4,26 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Ver
 
 ## [Unreleased]
 
+## [0.8.1] - 2026-11-13
+
+Answers are repeatable, the console chat can search every shelf, the Library sorts by any column, and Phase 5 is complete: the 30-day trash now empties itself, and there's an Audit page.
+
+### Added
+
+- **All shelves** in the console chat ([decision 0017](docs/decisions/0017-console-all-shelves.md)). The shelf picker's first option searches every active shelf, including those hidden from the portal, the same way the portal does (`all_shelves: true` on `POST /api/chat`). The conversation keeps searching all shelves until one is picked.
+- **Sort the Library by any column.** Click a header to sort and again to flip the direction. Documents open sorted by *Updated*, newest first, and the Trash by *Deleted*, newest first. This replaces the two-option sort menu.
+- **Delete permanently** in the Trash view, behind a confirmation that it cannot be undone (`POST /api/documents/{id}/purge`; 409 for a document that isn't in the trash). Each trashed document shows the date after which it's removed.
+- **Audit page** in the console: every upload, edit, rollback, delete, purge, reindex and settings change, newest first, filtered by action and item type.
+
+### Changed
+
+- **Answers use temperature 0** ([decision 0016](docs/decisions/0016-temperature-zero.md)), so the same question over the same documents gets the same answer. Before, at 0.2, one answer could drop a detail that the next one included. This makes answers repeatable, not more correct. New installs get it by default (`LLM_TEMPERATURE=0`). Existing installs save a new version of the `default` profile with `{"temperature": 0}` (`POST /api/profiles`).
+- **The console chat shows the shelf it searches** in a bar at the top, instead of the footer. A remembered shelf could be searched without anyone noticing.
+
+### Fixed
+
+- **The 30-day trash never emptied** ([decision 0018](docs/decisions/0018-trash-purge.md)). The purge existed but nothing ran it, so trashed documents stayed forever. The app start now queues it, after the daily backup, when something has been in the trash for over 30 days. Each purge is recorded in the audit log with the file's name.
+
 ## [0.8.0] - 2026-11-12
 
 Documents can be read, compared, edited and restored in the app, near-duplicates are caught when adding files, and the data can be backed up and restored.

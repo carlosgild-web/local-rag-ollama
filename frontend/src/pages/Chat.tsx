@@ -106,6 +106,34 @@ export default function Chat() {
       </aside>
 
       <section className="flex min-w-0 flex-1 flex-col">
+        {/* The shelf decides what can be found; keep it in plain sight, not in the footer. */}
+        <div className="border-b px-6 py-2">
+          <div className="mx-auto flex max-w-3xl items-center gap-2 text-sm">
+            {collections.isSuccess && shelves.length === 0 ? (
+              <span className="text-warning">
+                No shelves yet: <Link to="/library" className="underline">upload documents</Link> first.
+              </span>
+            ) : (
+              <label className={cn("flex items-center gap-2", needsShelfChoice ? "text-warning" : "text-muted-foreground")}>
+                {needsShelfChoice ? "Choose a shelf to search:" : "Searching shelf:"}
+                <select
+                  className="rounded-md border bg-background px-2 py-1 font-medium text-foreground"
+                  value={shelfId ?? ""}
+                  onChange={(e) => chooseShelf(Number(e.target.value))}
+                  aria-label="Shelf to search"
+                >
+                  {shelfId === undefined && <option value="">—</option>}
+                  {shelves.map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {c.name}
+                    </option>
+                  ))}
+                </select>
+                <span className="text-xs text-muted-foreground">Only this shelf's documents are used.</span>
+              </label>
+            )}
+          </div>
+        </div>
         <div className="flex-1 overflow-y-auto">
           <div className="mx-auto max-w-3xl space-y-6 px-6 py-8">
             {messages.length === 0 && !pending && <Welcome />}
@@ -174,30 +202,9 @@ export default function Chat() {
                 </Button>
               )}
             </div>
-            <div className="flex items-center justify-between text-xs text-muted-foreground">
-              <span>Answers use only your documents and cite them. Each question is answered on its own.</span>
-              {collections.isSuccess && shelves.length === 0 ? (
-                <span className="text-warning">
-                  No shelves yet: <Link to="/library" className="underline">upload documents</Link> first.
-                </span>
-              ) : (
-                <label className={cn("flex items-center gap-1.5", needsShelfChoice && "text-warning")}>
-                  {needsShelfChoice ? "Choose a shelf:" : "Shelf:"}
-                  <select
-                    className="rounded border bg-background px-1 py-0.5 text-foreground"
-                    value={shelfId ?? ""}
-                    onChange={(e) => chooseShelf(Number(e.target.value))}
-                  >
-                    {shelfId === undefined && <option value="">—</option>}
-                    {shelves.map((c) => (
-                      <option key={c.id} value={c.id}>
-                        {c.name}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-              )}
-            </div>
+            <p className="text-xs text-muted-foreground">
+              Answers use only your documents and cite them. Each question is answered on its own.
+            </p>
           </div>
         </div>
         </Paused>

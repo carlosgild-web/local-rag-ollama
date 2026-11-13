@@ -7,25 +7,14 @@ the case's expected files. That's what a reader checks when they open a
 citation, and it doesn't break when a reindex renumbers the chunks.
 """
 
-import re
-import unicodedata
 from collections.abc import Iterable, Sequence
 from dataclasses import dataclass
 
 from app.retrieval.citations import cited_numbers
 from app.retrieval.prompt import NOT_FOUND_PHRASE
+from app.retrieval.textnorm import normalize
 
 HIT_K = 5  # hit rate@5 (PLAN.md Phase 7)
-
-
-def normalize(text: str) -> str:
-    """Lowercase, no accents, one kind of dash and space, no Markdown bold:
-    "3–5 business days" and "3-5 **business** days" compare equal."""
-    text = unicodedata.normalize("NFKD", text)
-    text = "".join(c for c in text if not unicodedata.combining(c))
-    text = re.sub(r"[‐-―−]", "-", text.lower())
-    text = text.replace(" ", " ").replace("**", "")
-    return re.sub(r"\s+", " ", text)
 
 
 def is_not_found(answer: str) -> bool:

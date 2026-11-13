@@ -6,6 +6,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Ver
 
 ### Added
 
+- **Citation repair** ([decision 0020](docs/decisions/0020-citation-repair.md)). After an answer is written, each `[n]` is checked against the passages sent to the model and moved to the one that has the claim's figures or words, only when the evidence is clear. Words never change. On the golden set this lifted questions passed from 70% to 81% and citations to the right file from 79% to 93%, with none broken. Evaluation runs repair by default; `repair_citations: false` or `--no-repair` measures without it.
+
 - **Evaluation backend** ([decision 0019](docs/decisions/0019-evaluation.md)), the start of Phase 7, taken before Phase 6.
   - Golden sets: each case has a shelf, expected files, required facts, a "should be not found" flag and wording groups. Sets can be created, edited, imported and exported as JSON under `/api/eval/sets`.
   - The demo company's set has 53 cases (`backend/demo/eval/hilda-luna-golden.json`, `POST /api/eval/demo`).
@@ -14,6 +16,10 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Ver
   - Retrieval can be hybrid (the chat's), vectors only or keywords only.
   - Each run records the profile version and a fingerprint of the index, and `GET /api/eval/compare` shows two runs case by case.
   - From the command line, with the app stopped: `python -m app.cli eval` and `eval-compare`.
+
+### Fixed
+
+- The demo golden set expected only the catalog for the Tiny Honeybee's finish, but the wholesale pricing sheet lists it too.
 
 ## [0.8.1] - 2026-11-13
 

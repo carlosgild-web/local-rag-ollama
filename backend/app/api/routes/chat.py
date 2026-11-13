@@ -35,6 +35,7 @@ from app.api.sse import SSE_HEADERS, drive_sync_stream, sse
 from app.core.runtime import Runtime
 from app.db.models import Chunk, Document, DocumentVersion, Feedback, Message, MessageSource
 from app.llm.ollama_client import OllamaError
+from app.retrieval.citation_repair import repair_citations
 from app.retrieval.citations import citation_status
 from app.retrieval.prompt import NOT_FOUND_PHRASE, with_answer_language
 from app.retrieval.qa import AnswerContext, prepare_context, prepare_context_many
@@ -161,6 +162,11 @@ def _answer_stream(
     parts: list[str] = []
     saved = False
 
+    def final_text() -> str:
+        """The answer with its citation numbers checked against the passages
+        (decision 0020). The UI shows this saved text once the stream ends."""
+        return repair_citations("".join(parts), [c.text for c in chunks]).text
+
     def save() -> int:
         nonlocal saved
         saved = True
@@ -169,7 +175,7 @@ def _answer_stream(
                 db,
                 session_id,
                 "assistant",
-                "".join(parts),
+                final_text(),
                 rag_profile_id=profile_id,
                 sources=[
                     SourceRef(chunk_id=c.chunk_id, rank=rank, score=c.score)
@@ -198,7 +204,7 @@ def _answer_stream(
                 "message_id": message_id,
                 "rag_profile_id": profile_id,
                 "not_found": context is None,
-                "citation_status": citation_status("".join(parts), len(chunks)),
+                "citation_status": citation_status(final_text(), len(chunks)),
             },
         )
     except Exception as exc:

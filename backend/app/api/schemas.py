@@ -599,6 +599,8 @@ class EvalRunIn(BaseModel):
     answers: bool = False  # also generate answers (slow on a CPU)
     judge: bool = False  # LLM-judged faithfulness; needs answers
     judge_model: str | None = None
+    # Check citation numbers against the passages, as the chat does (decision 0020).
+    repair_citations: bool = True
     label: str = ""
 
 

@@ -36,6 +36,7 @@ from app.db.models import (
 from app.eval import judge, metrics
 from app.jobs import queue
 from app.llm.base import EmbeddingClient, LLMClient
+from app.retrieval.citation_repair import repair_citations
 from app.retrieval.citations import citation_status
 from app.retrieval.prompt import NOT_FOUND_PHRASE, build_prompt
 from app.retrieval.retrieve import RETRIEVAL_MODES, retrieve_many
@@ -292,6 +293,8 @@ def default_label(config: dict, profile: RagProfile) -> str:
         parts.append(profile.chat_model)
     if config["judge"]:
         parts.append("judged")
+    if config["answers"] and not config.get("repair_citations", True):
+        parts.append("no citation repair")
     return ", ".join(parts)
 
 
@@ -306,6 +309,7 @@ def start_run(
     answers: bool = False,
     judge: bool = False,
     judge_model: str | None = None,
+    repair: bool = True,
     label: str = "",
     queue_job: bool = True,
 ) -> EvalRun:
@@ -335,6 +339,8 @@ def start_run(
         "answers": answers,
         "judge": judge,
         "judge_model": (judge_model or profile.chat_model) if judge else None,
+        # Citation repair, as the chat does (decision 0020); off to measure without it.
+        "repair_citations": repair,
     }
     run = EvalRun(
         eval_set_id=set_id,
@@ -555,6 +561,8 @@ def _run_case(
                 temperature=profile.temperature,
                 num_ctx=settings.ollama_num_ctx,
             )
+            if config.get("repair_citations", True):
+                answer = repair_citations(answer, [c.text for c in sent]).text
         else:
             answer = NOT_FOUND_PHRASE  # what the chat says with nothing retrieved
         result.answer_ms = _ms(start)

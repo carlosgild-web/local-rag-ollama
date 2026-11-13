@@ -15,6 +15,9 @@ decision 0010). Scores are only compared where they mean the same thing:
   never compared (invariant 4).
 Merging per shelf instead would put every shelf's best chunk near the top,
 however weak: a one-document shelf would win a slot for every question.
+
+`mode` keeps only one side, for the evaluation's comparison (decision 0019):
+"vector" skips FTS5 and "keyword" skips the vectors. Chat always uses hybrid.
 """
 
 from collections.abc import Callable
@@ -33,6 +36,8 @@ from app.retrieval.vector_store import VectorStore
 # Chroma can't filter on "is this the active version" (that changes on
 # rollback without touching vectors), so over-fetch and filter in SQLite.
 VECTOR_OVERFETCH = 3
+
+RETRIEVAL_MODES = ("hybrid", "vector", "keyword")
 
 
 @dataclass
@@ -56,6 +61,7 @@ def retrieve(
     embedding_client: EmbeddingClient,
     vector_store: VectorStore,
     top_k: int | None = None,
+    mode: str = "hybrid",
 ) -> list[RetrievedChunk]:
     return retrieve_many(
         db,
@@ -65,6 +71,7 @@ def retrieve(
         embedding_client_for=lambda _model: embedding_client,
         vector_store=vector_store,
         top_k=top_k,
+        mode=mode,
     )
 
 
@@ -77,9 +84,12 @@ def retrieve_many(
     embedding_client_for: Callable[[str], EmbeddingClient],
     vector_store: VectorStore,
     top_k: int | None = None,
+    mode: str = "hybrid",
 ) -> list[RetrievedChunk]:
     """Hybrid retrieval over one or more shelves. With one shelf this is
     exactly the single-shelf search: its vector and FTS lists, fused."""
+    if mode not in RETRIEVAL_MODES:
+        raise ValueError(f"unknown retrieval mode {mode!r}")
     top_k = top_k or settings.retrieval_top_k
     candidates = settings.retrieval_candidates
 
@@ -94,11 +104,14 @@ def retrieve_many(
     for collection in collections:
         by_model.setdefault(collection.embedding_model, []).append(collection)
 
-    ranked_lists = [
-        _vector_candidate_ids(db, shelves, lambda m=model: embed(m), vector_store, candidates)
-        for model, shelves in by_model.items()
-    ]
-    ranked_lists.append(_fts_candidate_ids(db, question, collections, candidates))
+    ranked_lists = []
+    if mode != "keyword":
+        ranked_lists += [
+            _vector_candidate_ids(db, shelves, lambda m=model: embed(m), vector_store, candidates)
+            for model, shelves in by_model.items()
+        ]
+    if mode != "vector":
+        ranked_lists.append(_fts_candidate_ids(db, question, collections, candidates))
 
     fused = fuse_rrf_scored(ranked_lists)[:top_k]
     if not fused:

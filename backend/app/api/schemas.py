@@ -518,3 +518,171 @@ class HealthOut(BaseModel):
     sqlite: ComponentHealth
     vector_store: ComponentHealth
     job_worker: ComponentHealth
+
+
+# --- Evaluation (decision 0019) ---------------------------------------------
+
+RetrievalMode = Literal["hybrid", "vector", "keyword"]
+
+
+class EvalSetIn(BaseModel):
+    name: str = Field(min_length=1, max_length=200)
+    description: str = ""
+
+
+class EvalSetPatch(BaseModel):
+    name: str | None = Field(default=None, min_length=1, max_length=200)
+    description: str | None = None
+
+
+class EvalSetOut(ORMModel):
+    id: int
+    name: str
+    description: str
+    case_count: int
+    run_count: int
+    created_at: UtcDatetime
+
+
+class EvalCaseIn(BaseModel):
+    question: str = Field(min_length=1)
+    shelf: str | None = None  # None searches every shelf
+    expected_sources: list[str] = []
+    required_facts: list[list[str]] = []
+    expect_not_found: bool = False
+    kind: str = ""
+    variant_group: str | None = None
+    expected_answer_notes: str | None = None
+
+
+class EvalCasePatch(BaseModel):
+    question: str | None = Field(default=None, min_length=1)
+    shelf: str | None = None
+    expected_sources: list[str] | None = None
+    required_facts: list[list[str]] | None = None
+    expect_not_found: bool | None = None
+    kind: str | None = None
+    variant_group: str | None = None
+    expected_answer_notes: str | None = None
+
+
+class EvalCaseOut(ORMModel):
+    id: int
+    eval_set_id: int
+    question: str
+    shelf: str | None
+    expected_sources: list[str]
+    required_facts: list[list[str]]
+    expect_not_found: bool
+    kind: str
+    variant_group: str | None
+    expected_answer_notes: str | None
+
+
+class EvalSetDetail(EvalSetOut):
+    cases: list[EvalCaseOut]
+
+
+class EvalImportIn(BaseModel):
+    """The file format of backend/demo/eval/*.json."""
+
+    name: str | None = None
+    description: str = ""
+    cases: list[dict[str, Any]]
+
+
+class EvalRunIn(BaseModel):
+    eval_set_id: int
+    profile_id: int | None = None  # the active default profile when omitted
+    mode: RetrievalMode = "hybrid"
+    top_k: int | None = Field(default=None, ge=1)
+    answers: bool = False  # also generate answers (slow on a CPU)
+    judge: bool = False  # LLM-judged faithfulness; needs answers
+    judge_model: str | None = None
+    label: str = ""
+
+
+class EvalRunOut(BaseModel):
+    id: int
+    eval_set_id: int
+    eval_set_name: str
+    rag_profile_id: int | None
+    profile: str | None  # "default v2"
+    chat_model: str | None
+    label: str
+    config: dict[str, Any]
+    index_snapshot: list[dict[str, Any]]
+    metrics: dict[str, Any] | None
+    status: str  # pending | running | completed | failed | cancelled
+    progress: float
+    error: str | None
+    job_id: int | None
+    created_at: UtcDatetime
+    finished_at: UtcDatetime | None
+
+
+class EvalResultOut(ORMModel):
+    id: int
+    eval_case_id: int | None
+    question: str
+    shelf: str | None
+    kind: str
+    variant_group: str | None
+    expect_not_found: bool
+    expected_sources: list[str]
+    required_facts: list[list[str]]
+    retrieved: list[dict[str, Any]]
+    first_relevant_rank: int | None
+    answer: str | None
+    not_found: bool | None
+    missing_facts: list[list[str]] | None
+    citation_status: str | None
+    cited_sources: list[str] | None
+    faithfulness: float | None
+    judge_note: str | None
+    passed: bool | None
+    retrieval_ms: int
+    answer_ms: int | None
+    error: str | None
+
+
+class EvalRunDetail(EvalRunOut):
+    results: list[EvalResultOut]
+
+
+class EvalCompareSide(BaseModel):
+    result_id: int
+    first_relevant_rank: int | None
+    top_source: str | None
+    answer: str | None
+    not_found: bool | None
+    missing_facts: list[list[str]] | None
+    cited_sources: list[str] | None
+    faithfulness: float | None
+    passed: bool | None
+    error: str | None
+
+
+class EvalCompareRow(BaseModel):
+    case_id: int | None
+    question: str
+    shelf: str | None
+    kind: str
+    variant_group: str | None
+    expect_not_found: bool
+    a: EvalCompareSide | None
+    b: EvalCompareSide | None
+    # fixed | broken (pass changed), better | worse (rank changed), same, only_a, only_b
+    change: str
+
+
+class EvalCompareOut(BaseModel):
+    a: EvalRunOut
+    b: EvalRunOut
+    same_index: bool
+    cases: list[EvalCompareRow]
+
+
+class EvalDemoStatus(BaseModel):
+    available: bool
+    loaded_set_id: int | None

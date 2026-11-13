@@ -24,12 +24,16 @@ from app.api.routes import (
     support,
 )
 from app.api.routes import (
+    eval as eval_routes,
+)
+from app.api.routes import (
     intake as intake_routes,
 )
 from app.api.static import find_static_dir, mount_frontend
 from app.core.config import get_settings
 from app.core.logging import RequestIdMiddleware, configure_logging
 from app.core.runtime import Runtime, build_runtime
+from app.eval.service import InvalidEvalError
 from app.ingest import intake
 from app.ingest.uploads import EmptyUploadError, UnsupportedUploadError, UploadTooLargeError
 from app.jobs.worker import JobWorker
@@ -42,6 +46,7 @@ _ERROR_STATUS = {
     NotFoundError: 404,
     ConflictError: 409,
     InvalidProfileError: 422,
+    InvalidEvalError: 422,
     UploadTooLargeError: 413,
     EmptyUploadError: 422,
     UnsupportedUploadError: 415,
@@ -143,6 +148,7 @@ def create_app(runtime: Runtime | None = None, *, start_worker: bool = True) -> 
         ops,
         support,
         demo,
+        eval_routes,
     ):
         api.include_router(module.router)
     app.include_router(api)

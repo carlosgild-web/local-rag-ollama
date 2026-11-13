@@ -8,7 +8,8 @@ writes to them (CLAUDE.md invariant 1).
 
 import datetime as dt
 
-from sqlalchemy import Float, ForeignKey, Integer, Text, UniqueConstraint
+from sqlalchemy import JSON, Float, ForeignKey, Integer, Text, UniqueConstraint
+from sqlalchemy import false as sa_false
 from sqlalchemy import true as sa_true
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
@@ -206,13 +207,18 @@ class Feedback(Base):
 
 
 class EvalSet(Base):
+    """A golden set: questions with what a good answer needs (Phase 7, decision 0019)."""
+
     __tablename__ = "eval_sets"
 
     id: Mapped[int] = mapped_column(primary_key=True)
     name: Mapped[str] = mapped_column(unique=True)
+    description: Mapped[str] = mapped_column(Text, default="", server_default="")
     created_at: Mapped[dt.datetime] = mapped_column(default=utcnow)
 
-    cases: Mapped[list["EvalCase"]] = relationship(back_populates="eval_set")
+    cases: Mapped[list["EvalCase"]] = relationship(
+        back_populates="eval_set", cascade="all, delete-orphan", order_by="EvalCase.id"
+    )
 
 
 class EvalCase(Base):
@@ -221,21 +227,82 @@ class EvalCase(Base):
     id: Mapped[int] = mapped_column(primary_key=True)
     eval_set_id: Mapped[int] = mapped_column(ForeignKey("eval_sets.id"), index=True)
     question: Mapped[str] = mapped_column(Text)
-    expected_source: Mapped[str | None] = mapped_column(default=None)
+    # The shelf to search, by name so a blue/green swap doesn't break it.
+    # None searches every shelf, like the console's "All shelves".
+    shelf: Mapped[str | None] = mapped_column(default=None)
+    # Filenames a good answer comes from; any of them counts as a hit.
+    expected_sources: Mapped[list[str]] = mapped_column(JSON, default=list)
+    # Groups of alternatives: the answer must contain one alternative of each group.
+    required_facts: Mapped[list[list[str]]] = mapped_column(JSON, default=list)
+    # The answer isn't on this shelf: the right reply is "not found".
+    expect_not_found: Mapped[bool] = mapped_column(default=False, server_default=sa_false())
+    kind: Mapped[str] = mapped_column(default="", server_default="")
+    # Cases with the same group ask the same thing in other words.
+    variant_group: Mapped[str | None] = mapped_column(default=None)
     expected_answer_notes: Mapped[str | None] = mapped_column(Text, default=None)
 
     eval_set: Mapped["EvalSet"] = relationship(back_populates="cases")
 
 
 class EvalRun(Base):
+    """One run of a set with one profile and retrieval config. Unfinished
+    while `finished_at` is empty; the job tells whether it waits, runs,
+    failed or was cancelled."""
+
     __tablename__ = "eval_runs"
 
     id: Mapped[int] = mapped_column(primary_key=True)
     eval_set_id: Mapped[int] = mapped_column(ForeignKey("eval_sets.id"), index=True)
     rag_profile_id: Mapped[int | None] = mapped_column(ForeignKey("rag_profiles.id"), default=None)
+    job_id: Mapped[int | None] = mapped_column(ForeignKey("ingest_jobs.id"), default=None)
+    label: Mapped[str] = mapped_column(default="", server_default="")
+    # mode, top_k, answers, judge, judge_model: see app/eval/service.py.
+    config: Mapped[dict] = mapped_column(JSON, default=dict)
+    # Per shelf: generation, embedding model, chunk count and a fingerprint
+    # of the active versions, so two runs show whether the index changed.
+    index_snapshot: Mapped[list[dict]] = mapped_column(JSON, default=list)
+    metrics: Mapped[dict | None] = mapped_column(JSON, default=None)
     hit_rate_at_5: Mapped[float | None] = mapped_column(default=None)
     mrr: Mapped[float | None] = mapped_column(default=None)
     created_at: Mapped[dt.datetime] = mapped_column(default=utcnow)
+    finished_at: Mapped[dt.datetime | None] = mapped_column(default=None)
+
+    results: Mapped[list["EvalResult"]] = relationship(
+        cascade="all, delete-orphan", order_by="EvalResult.id"
+    )
+
+
+class EvalResult(Base):
+    """One case in one run. The case is copied in, so editing the golden set
+    later doesn't change what an old run measured."""
+
+    __tablename__ = "eval_results"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    eval_run_id: Mapped[int] = mapped_column(ForeignKey("eval_runs.id"), index=True)
+    eval_case_id: Mapped[int | None] = mapped_column(ForeignKey("eval_cases.id"), default=None)
+    question: Mapped[str] = mapped_column(Text)
+    shelf: Mapped[str | None] = mapped_column(default=None)
+    kind: Mapped[str] = mapped_column(default="")
+    variant_group: Mapped[str | None] = mapped_column(default=None)
+    expect_not_found: Mapped[bool] = mapped_column(default=False)
+    expected_sources: Mapped[list[str]] = mapped_column(JSON, default=list)
+    required_facts: Mapped[list[list[str]]] = mapped_column(JSON, default=list)
+    # Up to `retrieval_candidates` chunks: {"chunk_id", "filename", "score"}.
+    retrieved: Mapped[list[dict]] = mapped_column(JSON, default=list)
+    # 1-based rank of the first chunk from an expected source; None if absent.
+    first_relevant_rank: Mapped[int | None] = mapped_column(default=None)
+    answer: Mapped[str | None] = mapped_column(Text, default=None)
+    not_found: Mapped[bool | None] = mapped_column(default=None)
+    missing_facts: Mapped[list[list[str]] | None] = mapped_column(JSON, default=None)
+    citation_status: Mapped[str | None] = mapped_column(default=None)
+    cited_sources: Mapped[list[str] | None] = mapped_column(JSON, default=None)
+    faithfulness: Mapped[float | None] = mapped_column(default=None)
+    judge_note: Mapped[str | None] = mapped_column(Text, default=None)
+    passed: Mapped[bool | None] = mapped_column(default=None)
+    retrieval_ms: Mapped[int] = mapped_column(default=0)
+    answer_ms: Mapped[int | None] = mapped_column(default=None)
+    error: Mapped[str | None] = mapped_column(Text, default=None)
 
 
 class AuditLog(Base):

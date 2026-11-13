@@ -47,6 +47,8 @@ def _subject(job: IngestJob, payload: dict, names: _Names) -> str | None:
         return "automatic daily backup" if payload.get("reason") == "auto" else "backup"
     if job.job_type == "purge_trash":
         return "documents in the trash for over 30 days"
+    if job.job_type == "run_eval":
+        return f"evaluation run #{payload.get('run_id')}"
     if job.job_type == "seed_demo":
         return "the demo company (Hilda & Luna Beadworks)"
     if job.job_type == "analyze_intake":

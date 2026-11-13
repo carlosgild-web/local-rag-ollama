@@ -3,6 +3,7 @@ import { type ReactNode, useState } from "react";
 import { Link } from "react-router-dom";
 import type { Collection, CollectionReindex, Model } from "@/api/types";
 import { ErrorNote, PageHeader } from "@/components/common";
+import { GlossaryCard } from "@/components/GlossaryCard";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -93,6 +94,7 @@ export default function Collections() {
             />
           ))}
         </div>
+        <GlossaryCard />
       </div>
       {pending && <ConfirmDialog pending={pending} onClose={() => setPending(null)} />}
     </>

@@ -330,3 +330,14 @@ export function useEvalMutation<A, R>(mutationFn: (args: A) => Promise<R>) {
   const invalidate = useInvalidate();
   return useMutation({ mutationFn, onSuccess: () => invalidate("eval", "jobs", "audit") });
 }
+
+// --- Glossary (decision 0021) -------------------------------------------------
+
+export function useGlossary() {
+  return useQuery({ queryKey: ["glossary"], queryFn: api.glossary });
+}
+
+export function useGlossaryMutation<A, R>(mutationFn: (args: A) => Promise<R>) {
+  const invalidate = useInvalidate();
+  return useMutation({ mutationFn, onSuccess: () => invalidate("glossary", "audit") });
+}

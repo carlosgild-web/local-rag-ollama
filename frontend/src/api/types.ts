@@ -521,6 +521,9 @@ export interface EvalRunConfig {
   judge_model: string | null;
   /** citation numbers checked against the passages (decision 0020); missing on older runs */
   repair_citations?: boolean;
+  /** missing on older runs */
+  use_glossary?: boolean;
+  glossary?: { term: string; means: string }[];
 }
 
 export interface EvalShelfSnapshot {
@@ -595,6 +598,7 @@ export interface EvalRunIn {
   answers: boolean;
   judge: boolean;
   repair_citations: boolean;
+  glossary: boolean;
   label?: string;
 }
 
@@ -635,4 +639,13 @@ export interface EvalCompare {
 export interface EvalDemoStatus {
   available: boolean;
   loaded_set_id: number | null;
+}
+
+// --- Glossary (decision 0021) -------------------------------------------------
+
+export interface GlossaryTerm {
+  id: number;
+  term: string;
+  means: string;
+  created_at: string;
 }

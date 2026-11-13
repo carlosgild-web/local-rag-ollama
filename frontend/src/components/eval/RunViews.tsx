@@ -36,6 +36,7 @@ export function RunForm({ setId, busy }: { setId: number; busy: boolean }) {
   const [answers, setAnswers] = useState(false);
   const [judge, setJudge] = useState(false);
   const [repair, setRepair] = useState(true);
+  const [glossary, setGlossary] = useState(true);
   const [label, setLabel] = useState("");
   const start = useEvalMutation((body: EvalRunIn) => api.startEvalRun(body));
 
@@ -48,6 +49,7 @@ export function RunForm({ setId, busy }: { setId: number; busy: boolean }) {
       answers: answers || judge,
       judge,
       repair_citations: repair,
+      glossary,
       label: label.trim() || undefined,
     });
 
@@ -120,6 +122,10 @@ export function RunForm({ setId, busy }: { setId: number; busy: boolean }) {
           <label className="flex items-center gap-2" title="As the chat does. Turn off to measure the model's own citations.">
             <input type="checkbox" checked={repair} onChange={(e) => setRepair(e.target.checked)} />
             Check citation numbers
+          </label>
+          <label className="flex items-center gap-2" title="As the chat does. Turn off to measure without it.">
+            <input type="checkbox" checked={glossary} onChange={(e) => setGlossary(e.target.checked)} />
+            Use the glossary
           </label>
           <Button className="ml-auto" onClick={submit} disabled={busy || start.isPending}>
             {busy ? "A run is going" : "Start run"}
@@ -246,7 +252,13 @@ export function RunDetail({ runId }: { runId: number }) {
           {data.profile ?? "?"}
           {data.config.answers ? `, answers by ${data.chat_model}` : ", retrieval only"}
           {data.config.judge && `, judged by ${data.config.judge_model}`}
-          {data.config.answers && data.config.repair_citations === false && ", citation numbers as the model wrote them"}.{" "}
+          {data.config.answers && data.config.repair_citations === false && ", citation numbers as the model wrote them"}
+          {data.config.use_glossary === false
+            ? ", without the glossary"
+            : data.config.glossary?.length
+              ? `, glossary of ${data.config.glossary.length} words`
+              : ""}
+          .{" "}
           {data.index_snapshot.map((s) => `${s.shelf}: ${s.documents} docs, ${s.chunks} passages`).join(" · ")}
         </CardDescription>
       </CardHeader>

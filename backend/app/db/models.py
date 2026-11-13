@@ -305,6 +305,18 @@ class EvalResult(Base):
     error: Mapped[str | None] = mapped_column(Text, default=None)
 
 
+class GlossaryTerm(Base):
+    """A word people use and the words the documents use for it (decision 0021):
+    "vacation" -> "PTO, paid time off". Company-wide: one list for every shelf."""
+
+    __tablename__ = "glossary_terms"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    term: Mapped[str] = mapped_column(unique=True)
+    means: Mapped[str]
+    created_at: Mapped[dt.datetime] = mapped_column(default=utcnow)
+
+
 class AuditLog(Base):
     """Every upload, delete, rollback, reindex, and settings change
     (invariant 7)."""

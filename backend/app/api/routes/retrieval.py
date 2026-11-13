@@ -8,6 +8,7 @@ from app.api.deps import DbDep, RuntimeDep
 from app.api.schemas import ChunkDetail, ChunkOut, RetrieveIn, RetrieveOut
 from app.core.runtime import Runtime
 from app.db.models import Collection
+from app.retrieval.glossary import expand_with_glossary
 from app.retrieval.retrieve import RetrievedChunk, retrieve
 from app.versioning import service
 
@@ -42,7 +43,7 @@ def retrieve_chunks(db: DbDep, runtime: RuntimeDep, body: RetrieveIn):
     collection = resolve_collection(db, runtime, body.collection_id)
     chunks = retrieve(
         db,
-        body.question,
+        expand_with_glossary(db, body.question),
         collection=collection,
         settings=runtime.settings,
         embedding_client=runtime.embedding_client_for(collection.embedding_model),

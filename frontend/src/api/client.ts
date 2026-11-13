@@ -23,6 +23,7 @@ import type {
   EvalRunIn,
   EvalSet,
   EvalSetDetail,
+  GlossaryTerm,
   DemoFile,
   Backup,
   DocumentVersion,
@@ -206,4 +207,11 @@ export const api = {
   startEvalRun: (body: EvalRunIn) => request<EvalRun>("/eval/runs", json("POST", body)),
   deleteEvalRun: (id: number) => request<void>(`/eval/runs/${id}`, { method: "DELETE" }),
   evalCompare: (a: number, b: number) => request<EvalCompare>(`/eval/compare${query({ a, b })}`),
+
+  glossary: () => request<GlossaryTerm[]>("/glossary"),
+  addGlossaryTerm: (body: { term: string; means: string }) => request<GlossaryTerm>("/glossary", json("POST", body)),
+  deleteGlossaryTerm: (id: number) => request<void>(`/glossary/${id}`, { method: "DELETE" }),
+  loadDemoGlossary: () => request<GlossaryTerm[]>("/glossary/demo", json("POST")),
+  glossaryPreview: (question: string) =>
+    request<{ question: string; expanded: string }>(`/glossary/preview${query({ question })}`),
 };

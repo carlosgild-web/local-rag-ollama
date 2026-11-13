@@ -222,6 +222,7 @@ def cmd_eval(args: argparse.Namespace) -> int:
             answers=args.answers or args.judge,
             judge=args.judge,
             repair=not args.no_repair,
+            glossary=not args.no_glossary,
             label=args.label or "",
             queue_job=False,
         )
@@ -320,6 +321,9 @@ def main(argv: list[str] | None = None) -> int:
     eval_parser.add_argument("--judge", action="store_true", help="LLM-judged faithfulness")
     eval_parser.add_argument(
         "--no-repair", action="store_true", help="Keep the model's citation numbers as written"
+    )
+    eval_parser.add_argument(
+        "--no-glossary", action="store_true", help="Ask the questions without the glossary"
     )
     eval_parser.add_argument("--label", help="A name for the run")
     eval_parser.add_argument("--force", action="store_true", help="even if the app seems to run")

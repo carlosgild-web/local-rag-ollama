@@ -27,6 +27,9 @@ from app.api.routes import (
     eval as eval_routes,
 )
 from app.api.routes import (
+    glossary as glossary_routes,
+)
+from app.api.routes import (
     intake as intake_routes,
 )
 from app.api.static import find_static_dir, mount_frontend
@@ -37,6 +40,7 @@ from app.eval.service import InvalidEvalError
 from app.ingest import intake
 from app.ingest.uploads import EmptyUploadError, UnsupportedUploadError, UploadTooLargeError
 from app.jobs.worker import JobWorker
+from app.versioning.glossary import InvalidGlossaryError
 from app.versioning.profiles import InvalidProfileError
 from app.versioning.service import ConflictError, NotFoundError
 
@@ -47,6 +51,7 @@ _ERROR_STATUS = {
     ConflictError: 409,
     InvalidProfileError: 422,
     InvalidEvalError: 422,
+    InvalidGlossaryError: 422,
     UploadTooLargeError: 413,
     EmptyUploadError: 422,
     UnsupportedUploadError: 415,
@@ -149,6 +154,7 @@ def create_app(runtime: Runtime | None = None, *, start_worker: bool = True) -> 
         support,
         demo,
         eval_routes,
+        glossary_routes,
     ):
         api.include_router(module.router)
     app.include_router(api)

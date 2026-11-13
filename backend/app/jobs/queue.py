@@ -29,6 +29,7 @@ JOB_TYPES = {
     "backup",
     "purge_trash",
     "purge_document",
+    "run_eval",
 }
 TERMINAL = {"completed", "failed", "cancelled"}
 

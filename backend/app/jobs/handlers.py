@@ -9,6 +9,7 @@ from sqlalchemy.orm import Session
 
 from app.core.runtime import Runtime
 from app.db import backup
+from app.eval import service as eval_service
 from app.ingest import intake
 from app.ingest.uploads import discard_staged
 from app.versioning import demo, service
@@ -157,6 +158,22 @@ def handle_purge_document(
     return {"purged": 1, "filename": filename}
 
 
+def handle_run_eval(
+    db: Session, payload: dict, runtime: Runtime, progress: ProgressCallback
+) -> dict:
+    """One evaluation run (decision 0019). In the worker so it never competes with
+    indexing for the CPU and Ollama, and so it can be cancelled between cases."""
+    return eval_service.execute_run(
+        db,
+        payload["run_id"],
+        settings=runtime.settings,
+        embedding_client_for=runtime.embedding_client_for,
+        vector_store=runtime.vector_store,
+        llm_client_for=runtime.llm_client_for,
+        progress=progress,
+    )
+
+
 HANDLERS: dict[str, Handler] = {
     "ingest": handle_ingest,
     "analyze_intake": handle_analyze_intake,
@@ -167,4 +184,5 @@ HANDLERS: dict[str, Handler] = {
     "backup": handle_backup,
     "purge_trash": handle_purge_trash,
     "purge_document": handle_purge_document,
+    "run_eval": handle_run_eval,
 }

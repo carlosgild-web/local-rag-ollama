@@ -4,6 +4,8 @@ Usage:
     python -m app.cli ingest <path>
     python -m app.cli ask "<question>"
     python -m app.cli seed-demo [path]
+    python -m app.cli eval [--set NAME] [--mode hybrid|vector|keyword] [--answers] [--judge]
+    python -m app.cli eval-compare <run a> <run b>
 """
 
 import argparse
@@ -160,6 +162,118 @@ def cmd_restore(args: argparse.Namespace) -> int:
     return 0
 
 
+_METRICS = (
+    ("hit_rate_at_5", "hit rate@5", "pct"),
+    ("mrr", "MRR", "num"),
+    ("pass_rate", "cases passed", "pct"),
+    ("answered_rate", "answered (not 'not found')", "pct"),
+    ("facts_rate", "required facts present", "pct"),
+    ("trap_rate", "'not found' when it should be", "pct"),
+    ("citation_rate", "citations to the right file", "pct"),
+    ("faithfulness", "faithfulness (LLM judge)", "num"),
+    ("variant_rate", "wording groups all passed", "pct"),
+    ("retrieval_ms", "retrieval ms per question", "ms"),
+    ("answer_ms", "answer ms per question", "ms"),
+)
+
+
+def _fmt(value, kind: str) -> str:
+    if value is None:
+        return "-"
+    if kind == "pct":
+        return f"{value:.0%}"
+    if kind == "ms":
+        return f"{value:.0f}"
+    return f"{value:.3f}"
+
+
+def cmd_eval(args: argparse.Namespace) -> int:
+    """Runs a golden set in this process (app stopped). With the app running,
+    use the console's Evaluation page, which queues the run as a job."""
+    from app.db import backup
+    from app.eval import service as eval_service
+    from app.versioning import profiles
+
+    settings = get_settings()
+    if backup.app_is_running(settings) and not args.force:
+        print("The app is running: start the run from the console (Evaluation), or stop the app.")
+        return 1
+    runtime = build_runtime(settings)
+    with runtime.session_factory() as db:
+        sets = {s.name: s for s in eval_service.list_sets(db)}
+        if args.set is None and not sets:
+            eval_set = eval_service.load_demo_set(db)
+            print(f"loaded the demo golden set {eval_set.name!r}")
+        elif args.set is None:
+            eval_set = next(iter(sets.values()))
+        elif args.set in sets:
+            eval_set = sets[args.set]
+        else:
+            print(f"no golden set named {args.set!r}; there are: {', '.join(sets) or 'none'}")
+            return 1
+        profile = profiles.get_active_profile(db, settings, args.profile)
+        run = eval_service.start_run(
+            db,
+            settings,
+            eval_set.id,
+            profile_id=profile.id,
+            mode=args.mode,
+            top_k=args.top_k,
+            answers=args.answers or args.judge,
+            judge=args.judge,
+            label=args.label or "",
+            queue_job=False,
+        )
+        print(f"run #{run.id}: {eval_set.name}, {run.label}, {len(eval_set.cases)} cases")
+
+        def progress(fraction: float) -> None:
+            print(f"\r{fraction:.0%}", end="", flush=True)
+
+        eval_service.execute_run(
+            db,
+            run.id,
+            settings=settings,
+            embedding_client_for=runtime.embedding_client_for,
+            vector_store=runtime.vector_store,
+            llm_client_for=runtime.llm_client_for,
+            progress=progress,
+        )
+        print()
+        _print_metrics([run])
+        for result in run.results:
+            if result.passed is False:
+                why = result.error or (
+                    "not found" if result.not_found else f"rank {result.first_relevant_rank}"
+                )
+                print(f"  failed  [{result.shelf or 'all'}] {result.question}  ({why})")
+    return 0
+
+
+def cmd_eval_compare(args: argparse.Namespace) -> int:
+    from app.eval import service as eval_service
+
+    runtime = build_runtime(get_settings())
+    with runtime.session_factory() as db:
+        comparison = eval_service.compare_runs(db, args.a, args.b)
+        _print_metrics([comparison["a"], comparison["b"]])
+        if not comparison["same_index"]:
+            print("\nThe two runs searched different indexes (documents or versions changed).")
+        for row in comparison["cases"]:
+            if row["change"] != "same":
+                print(f"  {row['change']:<7} [{row['shelf'] or 'all'}] {row['question']}")
+    return 0
+
+
+def _print_metrics(runs) -> None:
+    header = f"{'':<32}" + "".join(f"{'#' + str(r.id):>12}" for r in runs)
+    print(header)
+    for key, name, kind in _METRICS:
+        values = [(r.metrics or {}).get(key) for r in runs]
+        if all(v is None for v in values):
+            continue
+        print(f"{name:<32}" + "".join(f"{_fmt(v, kind):>12}" for v in values))
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="app.cli")
     subparsers = parser.add_subparsers(dest="command", required=True)
@@ -191,6 +305,26 @@ def main(argv: list[str] | None = None) -> int:
     restore_parser.add_argument("backup", help="A backup file, or its name in DATA_DIR/backups")
     restore_parser.add_argument("--force", action="store_true", help="even if the app seems to run")
     restore_parser.set_defaults(func=cmd_restore)
+
+    eval_parser = subparsers.add_parser(
+        "eval", help="Run a golden set (app stopped); loads the demo set if there is none"
+    )
+    eval_parser.add_argument("--set", help="Golden set name (default: the first one)")
+    eval_parser.add_argument("--profile", default="default", help="RAG profile name")
+    eval_parser.add_argument(
+        "--mode", choices=["hybrid", "vector", "keyword"], default="hybrid", help="Retrieval"
+    )
+    eval_parser.add_argument("--top-k", type=int, help="Chunks sent to the model")
+    eval_parser.add_argument("--answers", action="store_true", help="Also generate answers")
+    eval_parser.add_argument("--judge", action="store_true", help="LLM-judged faithfulness")
+    eval_parser.add_argument("--label", help="A name for the run")
+    eval_parser.add_argument("--force", action="store_true", help="even if the app seems to run")
+    eval_parser.set_defaults(func=cmd_eval)
+
+    compare_parser = subparsers.add_parser("eval-compare", help="Compare two evaluation runs")
+    compare_parser.add_argument("a", type=int, help="Run id")
+    compare_parser.add_argument("b", type=int, help="Run id")
+    compare_parser.set_defaults(func=cmd_eval_compare)
 
     args = parser.parse_args(argv)
     return args.func(args)

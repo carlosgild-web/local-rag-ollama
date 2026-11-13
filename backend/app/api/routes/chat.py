@@ -80,6 +80,25 @@ def chat(db: DbDep, runtime: RuntimeDep, body: ChatIn):
             if shelves
             else None
         )
+    elif body.all_shelves or (
+        # A console session saved without a shelf searches all of them.
+        body.collection_id is None and existing is not None and existing.collection_id is None
+    ):
+        shelves = service.active_collections(db)
+        session = existing or history.create_session(db, body.question)
+        if session.collection_id is not None:  # remember "all shelves" for follow-ups
+            session.collection_id = None
+            db.commit()
+        context = prepare_context_many(
+            db,
+            body.question,
+            collections=shelves,
+            settings=settings,
+            embedding_client_for=runtime.embedding_client_for,
+            vector_store=runtime.vector_store,
+            top_k=profile.retrieval_top_k,
+            system_instructions=instructions,
+        )
     else:
         collection = resolve_collection(
             db,

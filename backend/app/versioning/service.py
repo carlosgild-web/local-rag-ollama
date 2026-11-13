@@ -229,6 +229,18 @@ def collection_for_question(
     raise ConflictError(f"choose a collection to search ({names})")
 
 
+def active_collections(db: Session) -> list[Collection]:
+    """Every shelf a console question can search with "All shelves"."""
+    shelves = list(
+        db.execute(
+            select(Collection).where(Collection.is_active.is_(True)).order_by(Collection.name)
+        ).scalars()
+    )
+    if not shelves:
+        raise ConflictError("there are no collections yet: upload documents first")
+    return shelves
+
+
 def portal_collections(db: Session) -> list[Collection]:
     """The shelves Luna, the employee portal assistant, searches: every
     active one the admin left visible in the portal (decision 0010)."""

@@ -277,11 +277,13 @@ def load_demo_set(db: Session) -> EvalSet:
 
 
 def run_status(db: Session, run: EvalRun) -> str:
-    """completed once results are in; before that, its job's status."""
+    """completed once results are in; before that, its job's status. A run
+    without a job came from the CLI, which only runs while the app is stopped:
+    seen from the app, an unfinished one was interrupted."""
     if run.finished_at is not None:
         return "completed"
     job = db.get(IngestJob, run.job_id) if run.job_id else None
-    return job.status if job is not None else "pending"
+    return job.status if job is not None else "cancelled"
 
 
 def default_label(config: dict, profile: RagProfile) -> str:

@@ -32,7 +32,11 @@ class Settings(BaseSettings):
     chunk_overlap_pct: float = 0.12
     retrieval_candidates: int = 20  # from each of vector search and FTS5, before RRF fusion
     retrieval_top_k: int = 5  # sent to the LLM, after fusion
-    rerank_enabled: bool = False  # off in MVP; hook point for bge-reranker-v2-m3 later
+    # bge-reranker-v2-m3 rescoring the fused candidates in the chat (decision 0023).
+    # Off by default: it adds seconds per question on a CPU. Evaluation runs
+    # can turn it on per run either way.
+    rerank_enabled: bool = False
+    rerank_model_dir: Path | None = None  # default DATA_DIR/hf/bge-reranker-v2-m3-onnx
     llm_temperature: float = 0.0  # repeatable answers (decision 0016)
     ollama_num_ctx: int = 8192
 
@@ -91,6 +95,10 @@ class Settings(BaseSettings):
     @property
     def hf_home(self) -> Path:
         return self.data_dir / "hf"
+
+    @property
+    def reranker_dir(self) -> Path:
+        return self.rerank_model_dir or self.hf_home / "bge-reranker-v2-m3-onnx"
 
     def ensure_data_dirs(self) -> None:
         """Create DATA_DIR and its subdirectories if they don't exist."""

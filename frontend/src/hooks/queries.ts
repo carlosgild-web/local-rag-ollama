@@ -295,6 +295,10 @@ export function useEvalSet(id: number | null) {
   });
 }
 
+export function useEvalOptions() {
+  return useQuery({ queryKey: ["eval", "options"], queryFn: api.evalOptions });
+}
+
 export function useEvalDemo() {
   return useQuery({ queryKey: ["eval", "demo"], queryFn: api.evalDemo });
 }

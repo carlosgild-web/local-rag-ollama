@@ -223,6 +223,7 @@ def cmd_eval(args: argparse.Namespace) -> int:
             judge=args.judge,
             repair=not args.no_repair,
             glossary=not args.no_glossary,
+            rerank=args.rerank,
             label=args.label or "",
             queue_job=False,
         )
@@ -239,6 +240,7 @@ def cmd_eval(args: argparse.Namespace) -> int:
             vector_store=runtime.vector_store,
             llm_client_for=runtime.llm_client_for,
             progress=progress,
+            reranker=runtime.reranker,
         )
         print()
         _print_metrics([run])
@@ -274,6 +276,17 @@ def _print_metrics(runs) -> None:
         if all(v is None for v in values):
             continue
         print(f"{name:<32}" + "".join(f"{_fmt(v, kind):>12}" for v in values))
+
+
+def cmd_reranker_download(args: argparse.Namespace) -> int:
+    """Fetches the pinned bge-reranker-v2-m3 ONNX files (about 588 MB) into DATA_DIR/hf."""
+    from app.retrieval import onnx_reranker
+
+    settings = get_settings()
+    print(f"{onnx_reranker.REPO} @ {onnx_reranker.REVISION[:7]} -> {settings.reranker_dir}")
+    onnx_reranker.download(settings.reranker_dir)
+    print("Ready. Turn it on for the chat with RERANK_ENABLED=true, or per evaluation run.")
+    return 0
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -325,6 +338,9 @@ def main(argv: list[str] | None = None) -> int:
     eval_parser.add_argument(
         "--no-glossary", action="store_true", help="Ask the questions without the glossary"
     )
+    eval_parser.add_argument(
+        "--rerank", action="store_true", help="Rescore candidates with bge-reranker-v2-m3"
+    )
     eval_parser.add_argument("--label", help="A name for the run")
     eval_parser.add_argument("--force", action="store_true", help="even if the app seems to run")
     eval_parser.set_defaults(func=cmd_eval)
@@ -333,6 +349,11 @@ def main(argv: list[str] | None = None) -> int:
     compare_parser.add_argument("a", type=int, help="Run id")
     compare_parser.add_argument("b", type=int, help="Run id")
     compare_parser.set_defaults(func=cmd_eval_compare)
+
+    download_parser = subparsers.add_parser(
+        "reranker-download", help="Download the reranker model (about 588 MB) to DATA_DIR/hf"
+    )
+    download_parser.set_defaults(func=cmd_reranker_download)
 
     args = parser.parse_args(argv)
     return args.func(args)

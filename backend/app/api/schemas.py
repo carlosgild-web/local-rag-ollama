@@ -603,6 +603,8 @@ class EvalRunIn(BaseModel):
     repair_citations: bool = True
     # Expand questions with the glossary, as the chat does (decision 0021).
     glossary: bool = True
+    # bge-reranker-v2-m3 rescores the candidates (decision 0023); needs the model.
+    rerank: bool = False
     label: str = ""
 
 
@@ -685,6 +687,10 @@ class EvalCompareOut(BaseModel):
     b: EvalRunOut
     same_index: bool
     cases: list[EvalCompareRow]
+
+
+class EvalOptionsOut(BaseModel):
+    reranker_available: bool
 
 
 class EvalDemoStatus(BaseModel):

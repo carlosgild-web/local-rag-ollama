@@ -12,6 +12,7 @@ from app.db.migrate import upgrade_to_head
 from app.db.session import make_engine, make_session_factory
 from app.llm.base import EmbeddingClient, LLMClient
 from app.llm.ollama_admin import OllamaAdmin
+from app.retrieval.reranker import Reranker
 from app.retrieval.vector_store import VectorStore
 
 
@@ -25,6 +26,8 @@ class Runtime:
     embedding_client_for: Callable[[str], EmbeddingClient]
     llm_client_for: Callable[[str], LLMClient]
     ollama: OllamaAdmin
+    # Loads its model on first use (decision 0023); None in tests unless set.
+    reranker: Reranker | None = None
 
 
 def build_runtime(settings: Settings) -> Runtime:
@@ -32,6 +35,7 @@ def build_runtime(settings: Settings) -> Runtime:
     # Imported here so test runs never import chromadb unless they need it.
     from app.llm.ollama_client import OllamaEmbeddingClient, OllamaLLMClient
     from app.retrieval.chroma_store import ChromaVectorStore
+    from app.retrieval.onnx_reranker import OnnxReranker
 
     settings.ensure_data_dirs()
     upgrade_to_head(settings.db_path)
@@ -58,4 +62,5 @@ def build_runtime(settings: Settings) -> Runtime:
         embedding_client_for=embedding_client_for,
         llm_client_for=llm_client_for,
         ollama=OllamaAdmin(settings.ollama_base_url),
+        reranker=OnnxReranker(settings.reranker_dir),
     )

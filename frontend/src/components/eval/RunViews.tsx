@@ -12,6 +12,7 @@ import {
   useCancelJob,
   useEvalCompare,
   useEvalMutation,
+  useEvalOptions,
   useEvalRun,
   useProfiles,
 } from "@/hooks/queries";
@@ -37,6 +38,9 @@ export function RunForm({ setId, busy }: { setId: number; busy: boolean }) {
   const [judge, setJudge] = useState(false);
   const [repair, setRepair] = useState(true);
   const [glossary, setGlossary] = useState(true);
+  const [rerank, setRerank] = useState(false);
+  const options = useEvalOptions();
+  const rerankReady = options.data?.reranker_available ?? false;
   const [label, setLabel] = useState("");
   const start = useEvalMutation((body: EvalRunIn) => api.startEvalRun(body));
 
@@ -50,6 +54,7 @@ export function RunForm({ setId, busy }: { setId: number; busy: boolean }) {
       judge,
       repair_citations: repair,
       glossary,
+      rerank: rerank && rerankReady,
       label: label.trim() || undefined,
     });
 
@@ -126,6 +131,22 @@ export function RunForm({ setId, busy }: { setId: number; busy: boolean }) {
           <label className="flex items-center gap-2" title="As the chat does. Turn off to measure without it.">
             <input type="checkbox" checked={glossary} onChange={(e) => setGlossary(e.target.checked)} />
             Use the glossary
+          </label>
+          <label
+            className={cn("flex items-center gap-2", !rerankReady && "text-muted-foreground")}
+            title={
+              rerankReady
+                ? "bge-reranker-v2-m3 rescores the 20 candidates before the top passages are chosen. A few seconds per question."
+                : "Download the model first: python -m app.cli reranker-download (about 588 MB)"
+            }
+          >
+            <input
+              type="checkbox"
+              checked={rerank && rerankReady}
+              disabled={!rerankReady}
+              onChange={(e) => setRerank(e.target.checked)}
+            />
+            Rerank{!rerankReady && " (model not downloaded)"}
           </label>
           <Button className="ml-auto" onClick={submit} disabled={busy || start.isPending}>
             {busy ? "A run is going" : "Start run"}
@@ -248,7 +269,7 @@ export function RunDetail({ runId }: { runId: number }) {
           Run #{data.id}: {data.label}
         </CardTitle>
         <CardDescription>
-          {MODE_LABEL[data.config.mode]} retrieval, {data.config.top_k} passages to the model, profile{" "}
+          {MODE_LABEL[data.config.mode]} retrieval{data.config.rerank ? " + reranker" : ""}, {data.config.top_k} passages to the model, profile{" "}
           {data.profile ?? "?"}
           {data.config.answers ? `, answers by ${data.chat_model}` : ", retrieval only"}
           {data.config.judge && `, judged by ${data.config.judge_model}`}

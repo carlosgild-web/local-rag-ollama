@@ -515,6 +515,8 @@ export interface EvalMetrics {
 
 export interface EvalRunConfig {
   mode: RetrievalMode;
+  /** bge-reranker-v2-m3 rescored the candidates (decision 0023); missing on older runs */
+  rerank?: boolean;
   top_k: number;
   answers: boolean;
   judge: boolean;
@@ -599,6 +601,7 @@ export interface EvalRunIn {
   judge: boolean;
   repair_citations: boolean;
   glossary: boolean;
+  rerank: boolean;
   label?: string;
 }
 

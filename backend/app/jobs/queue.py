@@ -27,6 +27,8 @@ JOB_TYPES = {
     "analyze_intake",
     "seed_demo",
     "backup",
+    "purge_trash",
+    "purge_document",
 }
 TERMINAL = {"completed", "failed", "cancelled"}
 

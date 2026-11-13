@@ -819,56 +819,78 @@ def restore_document(db: Session, document_id: int) -> None:
     db.commit()
 
 
+def _expired_trash_query(older_than_days: int):
+    cutoff = utcnow() - dt.timedelta(days=older_than_days)
+    return select(Document).where(Document.trashed_at.isnot(None), Document.trashed_at < cutoff)
+
+
+def has_expired_trash(db: Session, *, older_than_days: int = DEFAULT_TRASH_DAYS) -> bool:
+    """Whether the app start should queue a purge (decision 0018)."""
+    return db.execute(_expired_trash_query(older_than_days).limit(1)).first() is not None
+
+
+def _purge(db: Session, vector_store: VectorStore, document: Document, reason: str) -> None:
+    """Hard-deletes one trashed document with its chunks in every collection
+    generation, and audits it. The caller commits."""
+    versions = list(document.versions)
+    unlinked = 0
+    for version in versions:
+        chunks = db.execute(select(Chunk).where(Chunk.version_id == version.id)).scalars().all()
+        # Retired chunks are already out of Chroma and FTS; deleting an
+        # FTS row that isn't there would corrupt the index.
+        live = [c for c in chunks if c.retired_at is None]
+        by_collection: dict[int, list[Chunk]] = {}
+        for chunk in live:
+            by_collection.setdefault(chunk.collection_id, []).append(chunk)
+        for collection_id, collection_chunks in by_collection.items():
+            collection = db.get(Collection, collection_id)
+            vector_store.delete(
+                collection.chroma_collection, [_vector_id(c) for c in collection_chunks]
+            )
+        for chunk in live:
+            fts.remove_chunk(db, chunk.id, chunk.text)
+        # Purge is the deliberate permanent delete: answers keep their
+        # text but lose the links to the purged chunks.
+        unlinked += db.execute(
+            delete(MessageSource).where(MessageSource.chunk_id.in_([c.id for c in chunks]))
+        ).rowcount
+        for chunk in chunks:
+            db.delete(chunk)
+        db.delete(version)
+    db.delete(document)
+    # The document row is gone, so the audit entry keeps its name.
+    detail = f"{document.filename} ({reason}): {len(versions)} version(s)"
+    if unlinked:
+        detail += f", {unlinked} answer source link(s) removed"
+    record_audit(db, "purge", "document", document.id, detail)
+
+
 def purge_expired_trash(
     db: Session, vector_store: VectorStore, *, older_than_days: int = DEFAULT_TRASH_DAYS
 ) -> list[int]:
-    """Hard-deletes documents trashed more than `older_than_days` ago, with
-    their chunks in every collection generation. Returns the purged ids."""
-    cutoff = utcnow() - dt.timedelta(days=older_than_days)
-    documents = (
-        db.execute(
-            select(Document).where(Document.trashed_at.isnot(None), Document.trashed_at < cutoff)
-        )
-        .scalars()
-        .all()
-    )
-
+    """Hard-deletes documents trashed more than `older_than_days` ago.
+    Returns the purged ids."""
+    documents = db.execute(_expired_trash_query(older_than_days)).scalars().all()
     purged_ids = []
     for document in documents:
-        versions = list(document.versions)
-        unlinked = 0
-        for version in versions:
-            chunks = db.execute(select(Chunk).where(Chunk.version_id == version.id)).scalars().all()
-            # Retired chunks are already out of Chroma and FTS; deleting an
-            # FTS row that isn't there would corrupt the index.
-            live = [c for c in chunks if c.retired_at is None]
-            by_collection: dict[int, list[Chunk]] = {}
-            for chunk in live:
-                by_collection.setdefault(chunk.collection_id, []).append(chunk)
-            for collection_id, collection_chunks in by_collection.items():
-                collection = db.get(Collection, collection_id)
-                vector_store.delete(
-                    collection.chroma_collection, [_vector_id(c) for c in collection_chunks]
-                )
-            for chunk in live:
-                fts.remove_chunk(db, chunk.id, chunk.text)
-            # Purge is the deliberate permanent delete: answers keep their
-            # text but lose the links to the purged chunks.
-            unlinked += db.execute(
-                delete(MessageSource).where(MessageSource.chunk_id.in_([c.id for c in chunks]))
-            ).rowcount
-            for chunk in chunks:
-                db.delete(chunk)
-            db.delete(version)
         purged_ids.append(document.id)
-        db.delete(document)
-        detail = f"{len(versions)} version(s)"
-        if unlinked:
-            detail += f", {unlinked} answer source link(s) removed"
-        record_audit(db, "purge", "document", document.id, detail)
-
+        _purge(db, vector_store, document, f"in the trash over {older_than_days} days")
     db.commit()
     return purged_ids
+
+
+def purge_document(db: Session, vector_store: VectorStore, document_id: int) -> str:
+    """'Delete permanently' from the trash. Only trashed documents: a live one
+    has to go through the trash first (invariant 3). Returns its filename."""
+    document = get_document(db, document_id)
+    if document.trashed_at is None:
+        raise ConflictError(
+            f"{document.filename!r} is not in the trash; move it to the trash first"
+        )
+    filename = document.filename
+    _purge(db, vector_store, document, "deleted permanently")
+    db.commit()
+    return filename
 
 
 # --- Diff (PLAN.md section 5) ----------------------------------------------

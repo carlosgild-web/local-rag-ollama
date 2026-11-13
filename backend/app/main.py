@@ -75,6 +75,27 @@ def _schedule_daily_backup(runtime: Runtime) -> None:
             queue.enqueue(db, "backup", {"reason": "auto"})
 
 
+def _schedule_trash_purge(runtime: Runtime) -> None:
+    """Queues the 30-day trash purge at start when something has expired
+    (decision 0018). Purging deletes vectors, so the job worker does it."""
+    from sqlalchemy import func, select
+
+    from app.db.models import IngestJob
+    from app.jobs import queue
+    from app.versioning import service
+
+    with runtime.session_factory() as db:
+        if not service.has_expired_trash(db):
+            return
+        waiting = db.execute(
+            select(func.count(IngestJob.id)).where(
+                IngestJob.job_type == "purge_trash", IngestJob.status.in_(("pending", "running"))
+            )
+        ).scalar_one()
+        if not waiting:
+            queue.enqueue(db, "purge_trash", {})
+
+
 def create_app(runtime: Runtime | None = None, *, start_worker: bool = True) -> FastAPI:
     """`runtime` defaults to the real one built from env settings; tests pass
     a fake one and `start_worker=False`, then drain jobs with
@@ -92,6 +113,7 @@ def create_app(runtime: Runtime | None = None, *, start_worker: bool = True) -> 
         # Staged intake batches nobody confirmed or cancelled expire after a day.
         intake.purge_stale_batches(app.state.runtime.settings)
         _schedule_daily_backup(app.state.runtime)
+        _schedule_trash_purge(app.state.runtime)  # after the backup, which keeps a copy
         app.state.worker = JobWorker(app.state.runtime)
         if start_worker:
             app.state.worker.start()

@@ -182,6 +182,28 @@ def delete_document(db: DbDep, document_id: int):
     return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
+@router.post(
+    "/documents/{document_id}/purge",
+    status_code=status.HTTP_202_ACCEPTED,
+    response_model=JobQueued,
+)
+def purge_document(db: DbDep, document_id: int):
+    """Delete permanently, from the trash only (409 otherwise). Cannot be undone:
+    the document, its versions and its vectors are removed by a job."""
+    document = service.get_document(db, document_id)
+    if document.trashed_at is None:
+        raise service.ConflictError(
+            f"{document.filename!r} is not in the trash; move it to the trash first"
+        )
+    job = queue.enqueue(
+        db,
+        "purge_document",
+        {"document_id": document.id, "filename": document.filename},
+        document_id=document.id,
+    )
+    return JobQueued(job_id=job.id)
+
+
 @router.post("/documents/{document_id}/restore", response_model=DocumentOut)
 def restore_document(db: DbDep, document_id: int):
     """Takes a document out of the trash (409 if a newer one has its name)."""

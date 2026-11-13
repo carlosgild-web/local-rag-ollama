@@ -141,6 +141,22 @@ def handle_backup(db: Session, payload: dict, runtime: Runtime, progress: Progre
     return {"name": path.name, "size": path.stat().st_size, "removed": removed}
 
 
+def handle_purge_trash(
+    db: Session, payload: dict, runtime: Runtime, progress: ProgressCallback
+) -> dict:
+    """Empties the 30-day trash (decision 0018). In the worker: it deletes vectors."""
+    purged = service.purge_expired_trash(db, runtime.vector_store)
+    return {"purged": len(purged), "document_ids": purged}
+
+
+def handle_purge_document(
+    db: Session, payload: dict, runtime: Runtime, progress: ProgressCallback
+) -> dict:
+    """'Delete permanently' for one document in the trash."""
+    filename = service.purge_document(db, runtime.vector_store, payload["document_id"])
+    return {"purged": 1, "filename": filename}
+
+
 HANDLERS: dict[str, Handler] = {
     "ingest": handle_ingest,
     "analyze_intake": handle_analyze_intake,
@@ -149,4 +165,6 @@ HANDLERS: dict[str, Handler] = {
     "rebuild_collection": handle_rebuild_collection,
     "seed_demo": handle_seed_demo,
     "backup": handle_backup,
+    "purge_trash": handle_purge_trash,
+    "purge_document": handle_purge_document,
 }

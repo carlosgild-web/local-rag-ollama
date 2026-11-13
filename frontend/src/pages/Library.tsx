@@ -11,6 +11,7 @@ import {
   useCollections,
   useDeleteDocument,
   useJobs,
+  usePurgeDocument,
   useRestoreDocument,
   useDocuments,
   useReindexDocument,
@@ -31,6 +32,7 @@ export default function Library() {
   const collections = useCollections();
   const remove = useDeleteDocument();
   const restore = useRestoreDocument();
+  const purge = usePurgeDocument();
   const system = useSystemStatus();
   const [queued, setQueued] = useState<number[]>([]);
   const reindex = useReindexDocument();
@@ -90,7 +92,12 @@ export default function Library() {
           </div>
         </div>
 
-        <ErrorNote error={documents.error ?? remove.error ?? reindex.error ?? restore.error} />
+        <ErrorNote error={documents.error ?? remove.error ?? reindex.error ?? restore.error ?? purge.error} />
+        {purge.isSuccess && trashed && (
+          <p className="text-sm text-muted-foreground">
+            Deleting permanently. Follow it in the <Link to="/queue" className="underline">queue</Link>.
+          </p>
+        )}
         {reindex.isSuccess && (
           <p className="text-sm text-muted-foreground">
             Reindex queued. Follow it in the <Link to="/queue" className="underline">queue</Link>.
@@ -129,6 +136,15 @@ export default function Library() {
                     onReindex={() => reindex.mutate(doc.id)}
                     reindexBlocked={system.processBlocked}
                     onRestore={() => restore.mutate(doc.id)}
+                    onPurge={() => {
+                      if (
+                        confirm(
+                          `Delete "${doc.filename}" permanently? All its versions and its search index entries are removed. This cannot be undone.`,
+                        )
+                      ) {
+                        purge.mutate(doc.id);
+                      }
+                    }}
                     onDelete={() => {
                       if (confirm(`Move "${doc.filename}" to the trash? It is kept for 30 days.`)) {
                         remove.mutate(doc.id);
@@ -149,6 +165,11 @@ export default function Library() {
     </>
   );
 }
+
+/** Matches the server's 30-day trash (decision 0018); the purge runs when the app starts. */
+const TRASH_DAYS = 30;
+const purgeDate = (trashedAt: string) =>
+  new Date(Date.parse(trashedAt) + TRASH_DAYS * 24 * 60 * 60 * 1000).toISOString();
 
 type SortKey = "file" | "collection" | "version" | "added" | "updated" | "deleted";
 type Sort = { key: SortKey; dir: "asc" | "desc" };
@@ -220,6 +241,7 @@ function DocumentRow({
   onTag,
   onReindex,
   onRestore,
+  onPurge,
   onDelete,
   reindexBlocked,
 }: {
@@ -230,6 +252,7 @@ function DocumentRow({
   onTag: (tag: string) => void;
   onReindex: () => void;
   onRestore: () => void;
+  onPurge: () => void;
   onDelete: () => void;
 }) {
   const isTrashed = doc.trashed_at !== null;
@@ -264,6 +287,11 @@ function DocumentRow({
       </td>
       <td className="whitespace-nowrap px-4 py-3 text-muted-foreground">
         {formatDate(isTrashed ? doc.trashed_at : doc.created_at)}
+        {isTrashed && doc.trashed_at && (
+          <div className="text-xs" title="Documents are deleted permanently after 30 days in the trash">
+            removed after {formatDate(purgeDate(doc.trashed_at))}
+          </div>
+        )}
       </td>
       {!isTrashed && (
         <td className="whitespace-nowrap px-4 py-3 text-muted-foreground">
@@ -272,9 +300,20 @@ function DocumentRow({
       )}
       <td className="px-4 py-3 text-right">
         {isTrashed && (
-          <Button variant="outline" size="sm" title="Take it out of the trash" onClick={onRestore}>
-            <RotateCcw /> Restore
-          </Button>
+          <div className="flex justify-end gap-1">
+            <Button variant="outline" size="sm" title="Take it out of the trash" onClick={onRestore}>
+              <RotateCcw /> Restore
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="text-destructive hover:text-destructive"
+              title="Delete permanently, now. Cannot be undone."
+              onClick={onPurge}
+            >
+              <Trash2 /> Delete permanently
+            </Button>
+          </div>
         )}
         {!isTrashed && (
           <div className="flex justify-end gap-1">

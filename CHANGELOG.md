@@ -19,6 +19,11 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Ver
 
 - **Glossary** ([decision 0021](docs/decisions/0021-glossary.md)), on the Collections page. Each entry is a word people use and the words the documents use, e.g. *vacation* → *PTO, paid time off*. Every question is asked with the meaning written in after the word, for the search and the model, in the chat, the portal and evaluation runs. The demo company's words load with the demo. On the golden set, questions passed went from 85% to 89% (both Spanish questions over English documents fixed, none broken).
 
+### Changed
+
+- **A fourth prompt rule** ([decision 0022](docs/decisions/0022-prompt-partial-answers.md)): "If the context answers part of the question, answer that part." On the golden set, questions passed went from 89% to 91%, none broken and every "not found" kept. The gain is one question, within run-to-run noise. New installs get it; existing installs save a new `default` profile version. A second rule, "give the exact numbers, dates, times and contacts", was measured and rejected: it broke three answers.
+- The portal's answer-language rule takes the next free rule number instead of a fixed "4.".
+
 ### Fixed
 
 - The demo golden set expected only the catalog for the Tiny Honeybee's finish, but the wholesale pricing sheet lists it too.

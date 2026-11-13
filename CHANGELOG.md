@@ -4,6 +4,17 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Ver
 
 ## [Unreleased]
 
+### Added
+
+- **Evaluation backend** ([decision 0019](docs/decisions/0019-evaluation.md)), the start of Phase 7, taken before Phase 6.
+  - Golden sets: each case has a shelf, expected files, required facts, a "should be not found" flag and wording groups. Sets can be created, edited, imported and exported as JSON under `/api/eval/sets`.
+  - The demo company's set has 53 cases (`backend/demo/eval/hilda-luna-golden.json`, `POST /api/eval/demo`).
+  - Runs are queued as a job (`POST /api/eval/runs`) and go through the chat's own retrieval and prompt.
+  - Scores: hit rate@5, MRR, cases passed and wording groups. With answers on, also answered vs "not found", required facts, correct "not found", citations to the right file, and an optional faithfulness score from the local model as judge.
+  - Retrieval can be hybrid (the chat's), vectors only or keywords only.
+  - Each run records the profile version and a fingerprint of the index, and `GET /api/eval/compare` shows two runs case by case.
+  - From the command line, with the app stopped: `python -m app.cli eval` and `eval-compare`.
+
 ## [0.8.1] - 2026-11-13
 
 Answers are repeatable, the console chat can search every shelf, the Library sorts by any column, and Phase 5 is complete: the 30-day trash now empties itself, and there's an Audit page.

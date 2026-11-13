@@ -198,6 +198,8 @@ Total is about 30 working days; the MVP (through phase 4) is about 15.
 
 ### Phase 7 — Evaluation (3 d)
 
+Taken before Phase 6 ([decision 0019](docs/decisions/0019-evaluation.md)).
+
 - [ ] Golden set editor (question, expected source, expected answer notes)
 - [ ] Runner with hit rate@5, MRR and LLM-judged faithfulness
 - [ ] Compare two profiles or two index versions side by side

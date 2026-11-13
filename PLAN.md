@@ -80,7 +80,7 @@ React UI ──HTTP/SSE──► FastAPI ──► Ollama (chat + embeddings)
 | Candidates | 20 from vector search + 20 from FTS5, fused with RRF into the top 20 |
 | Reranker | Off in MVP. Later, `bge-reranker-v2-m3` rescoring the top 20 |
 | Sent to the LLM | Top 5 chunks |
-| Temperature | 0.2 |
+| Temperature | 0 (was 0.2; decision 0016) |
 | `num_ctx` | 8192 |
 | Answer rule | Answer only from context, otherwise say "not found in the documents" |
 

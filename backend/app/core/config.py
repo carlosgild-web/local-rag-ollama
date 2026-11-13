@@ -33,7 +33,7 @@ class Settings(BaseSettings):
     retrieval_candidates: int = 20  # from each of vector search and FTS5, before RRF fusion
     retrieval_top_k: int = 5  # sent to the LLM, after fusion
     rerank_enabled: bool = False  # off in MVP; hook point for bge-reranker-v2-m3 later
-    llm_temperature: float = 0.2
+    llm_temperature: float = 0.0  # repeatable answers (decision 0016)
     ollama_num_ctx: int = 8192
 
     # OCR fallback for low-text-yield PDF pages

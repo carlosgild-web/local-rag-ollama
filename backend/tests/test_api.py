@@ -284,6 +284,7 @@ def test_models_list_pull_and_delete(client):
 def test_profiles_are_versioned_and_keep_the_grounding_rule(client):
     [default] = client.get("/api/profiles").json()
     assert default["name"] == "default" and default["version"] == 1
+    assert default["temperature"] == 0.0, "repeatable answers by default (decision 0016)"
 
     saved = client.post("/api/profiles", json={"retrieval_top_k": 8, "temperature": 0.1})
     assert saved.status_code == 201

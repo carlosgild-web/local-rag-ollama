@@ -353,6 +353,16 @@ def test_run_rules(client, library):
     assert client.delete(f"/api/eval/runs/{first['id']}").status_code == 204
 
 
+def test_an_interrupted_cli_run_does_not_block_new_runs(client, runtime, library):
+    eval_set = _new_set(client, CASES)
+    with runtime.session_factory() as db:
+        cli_run = eval_service.start_run(db, runtime.settings, eval_set["id"], queue_job=False)
+        cli_run_id = cli_run.id  # never executed: as if the CLI was stopped mid-run
+    assert client.get(f"/api/eval/runs/{cli_run_id}").json()["status"] == "cancelled"
+    assert _run(client, {"eval_set_id": eval_set["id"]})["status"] == "completed"
+    assert client.delete(f"/api/eval/runs/{cli_run_id}").status_code == 204
+
+
 def test_a_case_on_a_missing_shelf_is_an_error_not_a_crash(client, library):
     eval_set = _new_set(client, [{"question": "Anything?", "shelf": "nope", "sources": ["x.txt"]}])
     run = _run(client, {"eval_set_id": eval_set["id"]})

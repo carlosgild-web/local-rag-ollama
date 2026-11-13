@@ -61,4 +61,7 @@ export const JOB_LABEL: Record<string, string> = {
   analyze_intake: "Suggest shelves",
   backup: "Backup",
   seed_demo: "Load demo company",
+  run_eval: "Evaluation run",
+  purge_trash: "Empty trash",
+  purge_document: "Delete permanently",
 };

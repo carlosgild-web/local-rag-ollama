@@ -455,3 +455,181 @@ export type ChatEvent =
       data: { message_id: number; rag_profile_id: number; not_found: boolean; citation_status: CitationStatus };
     }
   | { event: "error"; data: { detail: string } };
+
+// --- Evaluation (decision 0019) ---------------------------------------------
+
+export type RetrievalMode = "hybrid" | "vector" | "keyword";
+
+export interface EvalSet {
+  id: number;
+  name: string;
+  description: string;
+  case_count: number;
+  run_count: number;
+  created_at: string;
+}
+
+export interface EvalCaseIn {
+  question: string;
+  /** null searches every shelf */
+  shelf: string | null;
+  expected_sources: string[];
+  /** groups of alternatives: the answer needs one alternative of each group */
+  required_facts: string[][];
+  expect_not_found: boolean;
+  kind: string;
+  variant_group: string | null;
+  expected_answer_notes: string | null;
+}
+
+export interface EvalCase extends EvalCaseIn {
+  id: number;
+  eval_set_id: number;
+}
+
+export interface EvalSetDetail extends EvalSet {
+  cases: EvalCase[];
+}
+
+/** Rates are 0..1; null means "not measured" (e.g. no answers generated). */
+export interface EvalMetrics {
+  cases: number;
+  errors: number;
+  answerable: number;
+  traps: number;
+  hit_rate_at_5: number | null;
+  hit_rate_at_1: number | null;
+  mrr: number | null;
+  retrieval_ms: number | null;
+  pass_rate: number | null;
+  variant_groups: number;
+  variant_rate: number | null;
+  answered_rate?: number | null;
+  facts_rate?: number | null;
+  trap_rate?: number | null;
+  citation_rate?: number | null;
+  faithfulness?: number | null;
+  judged?: number;
+  answer_ms?: number | null;
+}
+
+export interface EvalRunConfig {
+  mode: RetrievalMode;
+  top_k: number;
+  answers: boolean;
+  judge: boolean;
+  judge_model: string | null;
+}
+
+export interface EvalShelfSnapshot {
+  shelf: string;
+  collection_id: number;
+  embedding_model: string;
+  chunk_size_tokens: number;
+  documents: number;
+  chunks: number;
+  fingerprint: string;
+}
+
+export interface EvalRun {
+  id: number;
+  eval_set_id: number;
+  eval_set_name: string;
+  rag_profile_id: number | null;
+  profile: string | null;
+  chat_model: string | null;
+  label: string;
+  config: EvalRunConfig;
+  index_snapshot: EvalShelfSnapshot[];
+  metrics: EvalMetrics | null;
+  status: JobStatus;
+  progress: number;
+  error: string | null;
+  job_id: number | null;
+  created_at: string;
+  finished_at: string | null;
+}
+
+export interface EvalRetrieved {
+  chunk_id: number;
+  filename: string;
+  score: number;
+}
+
+export interface EvalResult {
+  id: number;
+  eval_case_id: number | null;
+  question: string;
+  shelf: string | null;
+  kind: string;
+  variant_group: string | null;
+  expect_not_found: boolean;
+  expected_sources: string[];
+  required_facts: string[][];
+  retrieved: EvalRetrieved[];
+  first_relevant_rank: number | null;
+  answer: string | null;
+  not_found: boolean | null;
+  missing_facts: string[][] | null;
+  citation_status: string | null;
+  cited_sources: string[] | null;
+  faithfulness: number | null;
+  judge_note: string | null;
+  passed: boolean | null;
+  retrieval_ms: number;
+  answer_ms: number | null;
+  error: string | null;
+}
+
+export interface EvalRunDetail extends EvalRun {
+  results: EvalResult[];
+}
+
+export interface EvalRunIn {
+  eval_set_id: number;
+  profile_id?: number;
+  mode: RetrievalMode;
+  top_k?: number;
+  answers: boolean;
+  judge: boolean;
+  label?: string;
+}
+
+export interface EvalCompareSide {
+  result_id: number;
+  first_relevant_rank: number | null;
+  top_source: string | null;
+  answer: string | null;
+  not_found: boolean | null;
+  missing_facts: string[][] | null;
+  cited_sources: string[] | null;
+  faithfulness: number | null;
+  passed: boolean | null;
+  error: string | null;
+}
+
+export type EvalChange = "fixed" | "broken" | "better" | "worse" | "same" | "only_a" | "only_b";
+
+export interface EvalCompareRow {
+  case_id: number | null;
+  question: string;
+  shelf: string | null;
+  kind: string;
+  variant_group: string | null;
+  expect_not_found: boolean;
+  a: EvalCompareSide | null;
+  b: EvalCompareSide | null;
+  change: EvalChange;
+}
+
+export interface EvalCompare {
+  a: EvalRun;
+  b: EvalRun;
+  same_index: boolean;
+  cases: EvalCompareRow[];
+}
+
+export interface EvalDemoStatus {
+  available: boolean;
+  loaded_set_id: number | null;
+}

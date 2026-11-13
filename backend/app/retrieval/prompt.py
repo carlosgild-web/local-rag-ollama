@@ -5,6 +5,8 @@ the answer is not found in the documents. Citations are mandatory
 (CLAUDE.md invariant 6).
 """
 
+import re
+
 from app.retrieval.retrieve import RetrievedChunk
 
 NOT_FOUND_PHRASE = "not found in the documents"
@@ -13,7 +15,8 @@ SYSTEM_INSTRUCTIONS = f"""You are a helpful assistant that answers questions usi
 
 1. Answer only using information present in the context. Do not use outside knowledge.
 2. Cite every claim with the bracketed source number(s) it came from, e.g. [1] or [1][3].
-3. If the context does not contain the answer, respond with exactly: "{NOT_FOUND_PHRASE}" and nothing else."""  # noqa: E501
+3. If the context does not contain the answer, respond with exactly: "{NOT_FOUND_PHRASE}" and nothing else.
+4. If the context answers part of the question, answer that part."""  # noqa: E501
 
 
 def _source_label(chunk: RetrievedChunk, index: int) -> str:
@@ -56,7 +59,14 @@ def with_answer_language(system_instructions: str | None, language: str | None) 
     if language is None:
         return system_instructions
     base = system_instructions or SYSTEM_INSTRUCTIONS
-    return f"{base}\n4. Write the answer in {ANSWER_LANGUAGES[language]}."
+    return f"{base}\n{_next_rule_number(base)}Write the answer in {ANSWER_LANGUAGES[language]}."
+
+
+def _next_rule_number(instructions: str) -> str:
+    """Gives "5. " after rules 1-4, so a profile's own rules keep their numbers
+    (decision 0022 added a rule 4). Unnumbered instructions get no number."""
+    numbers = [int(n) for n in re.findall(r"^(\d+)\.", instructions, flags=re.MULTILINE)]
+    return f"{max(numbers) + 1}. " if numbers else ""
 
 
 def citation_reminder(source_count: int) -> str:

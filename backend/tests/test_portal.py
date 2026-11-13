@@ -204,7 +204,7 @@ def test_answer_language_adds_one_rule_to_the_prompt(client, runtime):
     _two_shelves(client)
     _portal_ask(client, "vacation days?", answer_language="es")
     [prompt] = runtime.fake_llm.calls
-    assert "4. Write the answer in Spanish." in prompt
+    assert "5. Write the answer in Spanish." in prompt
 
 
 def test_with_answer_language_keeps_the_rules():
@@ -212,7 +212,12 @@ def test_with_answer_language_keeps_the_rules():
     assert with_answer_language("CUSTOM", None) == "CUSTOM"
     english = with_answer_language(None, "en")
     assert english.startswith(SYSTEM_INSTRUCTIONS)
-    assert english.endswith("4. Write the answer in English.")
+    assert english.endswith("5. Write the answer in English.")
+    # A profile's own rules keep their numbers; unnumbered ones get none.
+    assert with_answer_language("1. A\n2. B\n3. C", "es").endswith(
+        "\n4. Write the answer in Spanish."
+    )
+    assert with_answer_language("Be brief.", "en") == "Be brief.\nWrite the answer in English."
 
 
 def test_swap_keeps_the_portal_setting(runtime):

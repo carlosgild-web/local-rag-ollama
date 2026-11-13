@@ -14,6 +14,15 @@ import type {
   Health,
   Job,
   DemoStatus,
+  EvalCase,
+  EvalCaseIn,
+  EvalCompare,
+  EvalDemoStatus,
+  EvalRun,
+  EvalRunDetail,
+  EvalRunIn,
+  EvalSet,
+  EvalSetDetail,
   DemoFile,
   Backup,
   DocumentVersion,
@@ -177,4 +186,24 @@ export const api = {
 
   models: () => request<Model[]>("/models"),
   profiles: () => request<Profile[]>("/profiles"),
+
+  evalSets: () => request<EvalSet[]>("/eval/sets"),
+  evalSet: (id: number) => request<EvalSetDetail>(`/eval/sets/${id}`),
+  createEvalSet: (body: { name: string; description: string }) =>
+    request<EvalSetDetail>("/eval/sets", json("POST", body)),
+  importEvalSet: (body: unknown) => request<EvalSetDetail>("/eval/sets/import", json("POST", body)),
+  deleteEvalSet: (id: number) => request<void>(`/eval/sets/${id}`, { method: "DELETE" }),
+  evalSetExportUrl: (id: number) => `${API_BASE}/eval/sets/${id}/export`,
+  evalDemo: () => request<EvalDemoStatus>("/eval/demo"),
+  loadEvalDemo: () => request<EvalSetDetail>("/eval/demo", json("POST")),
+  addEvalCase: (setId: number, body: EvalCaseIn) =>
+    request<EvalCase>(`/eval/sets/${setId}/cases`, json("POST", body)),
+  updateEvalCase: (id: number, body: Partial<EvalCaseIn>) =>
+    request<EvalCase>(`/eval/cases/${id}`, json("PATCH", body)),
+  deleteEvalCase: (id: number) => request<void>(`/eval/cases/${id}`, { method: "DELETE" }),
+  evalRuns: (setId: number) => request<EvalRun[]>(`/eval/runs${query({ eval_set_id: setId })}`),
+  evalRun: (id: number) => request<EvalRunDetail>(`/eval/runs/${id}`),
+  startEvalRun: (body: EvalRunIn) => request<EvalRun>("/eval/runs", json("POST", body)),
+  deleteEvalRun: (id: number) => request<void>(`/eval/runs/${id}`, { method: "DELETE" }),
+  evalCompare: (a: number, b: number) => request<EvalCompare>(`/eval/compare${query({ a, b })}`),
 };

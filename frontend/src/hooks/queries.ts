@@ -278,3 +278,55 @@ export function useDeleteBackup() {
   const invalidate = useInvalidate();
   return useMutation({ mutationFn: api.deleteBackup, onSuccess: () => invalidate("backups") });
 }
+
+// --- Evaluation (decision 0019) ---------------------------------------------
+
+const isActiveRun = (status: string) => status === "pending" || status === "running";
+
+export function useEvalSets() {
+  return useQuery({ queryKey: ["eval", "sets"], queryFn: api.evalSets });
+}
+
+export function useEvalSet(id: number | null) {
+  return useQuery({
+    queryKey: ["eval", "set", id],
+    queryFn: () => api.evalSet(id as number),
+    enabled: id !== null,
+  });
+}
+
+export function useEvalDemo() {
+  return useQuery({ queryKey: ["eval", "demo"], queryFn: api.evalDemo });
+}
+
+/** Polls while a run waits or runs, so progress and results come in. */
+export function useEvalRuns(setId: number | null) {
+  return useQuery({
+    queryKey: ["eval", "runs", setId],
+    queryFn: () => api.evalRuns(setId as number),
+    enabled: setId !== null,
+    refetchInterval: (q) => (q.state.data?.some((r) => isActiveRun(r.status)) ? 2_000 : false),
+  });
+}
+
+export function useEvalRun(id: number | null) {
+  return useQuery({
+    queryKey: ["eval", "run", id],
+    queryFn: () => api.evalRun(id as number),
+    enabled: id !== null,
+    refetchInterval: (q) => (q.state.data && isActiveRun(q.state.data.status) ? 3_000 : false),
+  });
+}
+
+export function useEvalCompare(a: number | null, b: number | null) {
+  return useQuery({
+    queryKey: ["eval", "compare", a, b],
+    queryFn: () => api.evalCompare(a as number, b as number),
+    enabled: a !== null && b !== null,
+  });
+}
+
+export function useEvalMutation<A, R>(mutationFn: (args: A) => Promise<R>) {
+  const invalidate = useInvalidate();
+  return useMutation({ mutationFn, onSuccess: () => invalidate("eval", "jobs", "audit") });
+}

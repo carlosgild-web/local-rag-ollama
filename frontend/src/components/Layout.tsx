@@ -5,6 +5,7 @@ import {
   ClipboardList,
   Database,
   ExternalLink,
+  FlaskConical,
   FolderOpen,
   Globe,
   LayoutDashboard,
@@ -38,6 +39,7 @@ const NAV: { to: string; label: string; icon: typeof LayoutDashboard; end?: bool
   { to: "/queue", label: "Queue", icon: ListTodo, needs: "browse", partly: "process" },
   { to: "/backups", label: "Backups", icon: Archive, needs: "browse" },
   { to: "/audit", label: "Audit", icon: ClipboardList, needs: "browse" },
+  { to: "/evaluation", label: "Evaluation", icon: FlaskConical, needs: "browse", partly: "process" },
 ];
 
 const PILL: Record<SystemState, { label: string; className: string; dot: string }> = {

@@ -28,6 +28,15 @@ const ACTIONS: Record<string, string> = {
   demo_seed: "Demo loaded",
   job_cancel: "Job cancelled",
   job_retry: "Job retried",
+  eval_set_create: "Golden set created",
+  eval_set_import: "Golden set imported",
+  eval_set_update: "Golden set edited",
+  eval_set_delete: "Golden set deleted",
+  eval_case_create: "Question added",
+  eval_case_update: "Question edited",
+  eval_case_delete: "Question deleted",
+  eval_run: "Evaluation run",
+  eval_run_delete: "Evaluation run deleted",
 };
 
 const ENTITY_TYPES: Record<string, string> = {
@@ -38,9 +47,12 @@ const ENTITY_TYPES: Record<string, string> = {
   model: "Models",
   job: "Jobs",
   intake: "Uploads",
+  eval_set: "Golden sets",
+  eval_case: "Golden-set questions",
+  eval_run: "Evaluation runs",
 };
 
-const DESTRUCTIVE = new Set(["purge", "delete", "backup_delete", "model_delete"]);
+const DESTRUCTIVE = new Set(["purge", "delete", "backup_delete", "model_delete", "eval_set_delete"]);
 
 export default function Audit() {
   const [action, setAction] = useState("");

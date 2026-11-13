@@ -80,7 +80,7 @@ React UI ──HTTP/SSE──► FastAPI ──► Ollama (chat + embeddings)
 | Candidates | 20 from vector search + 20 from FTS5, fused with RRF into the top 20 |
 | Reranker | Off in MVP. Later, `bge-reranker-v2-m3` rescoring the top 20 |
 | Sent to the LLM | Top 5 chunks |
-| Temperature | 0.2 |
+| Temperature | 0 (was 0.2; decision 0016) |
 | `num_ctx` | 8192 |
 | Answer rule | Answer only from context, otherwise say "not found in the documents" |
 
@@ -207,6 +207,11 @@ Open quality items from the 2026-11-06 end-to-end test, to measure here (`docs/t
 - A price-table mix-up: a wholesale price given as the retail price (sc-01).
 - About 1 in 5 citations are valid numbers that point to the wrong document. `citation_status` can't detect this (decision 0007).
 - Try a 7B/8B chat model on better hardware against `qwen2.5:3b` (decision 0004).
+
+Found in manual tests on 2026-11-12/13 (temperature 0), to add to the golden set:
+- **Different words:** "How many vacation days do I have?" answers "not found" in both the console (hr shelf) and the portal, although the PTO section is in the top 3 sources. Asking for "PTO days" answers correctly. The model doesn't connect "vacation" with "PTO".
+- **Missing detail:** "Can I get a custom bead color made?" on the customer-support shelf cites the right FAQ entry but leaves out the contact email. The portal's answer includes it.
+- **Answers from unrelated text:** the same question on the operations shelf (no FAQ) builds an answer from the supplier agreement instead of saying "not found", and reads the agreement's "Buyer" (Hilda & Luna) as the customer.
 
 ### Phase 8 — Hardening (2 d)
 

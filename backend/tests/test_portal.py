@@ -175,6 +175,31 @@ def test_portal_chats_are_kept_apart_from_the_console(client):
     assert _source_files(_events(follow_up)) >= {"kiln.txt"}
 
 
+def test_console_all_shelves_searches_every_active_shelf(client):
+    """'All shelves' in the console: hidden-from-portal shelves too, saved
+    without a shelf so follow-ups keep it, until a shelf is chosen again."""
+    shelves = _two_shelves(client)
+    client.patch(f"/api/collections/{shelves['ops']}", json={"portal_visible": False})
+
+    def ask(question, **extra):
+        response = client.post("/api/chat", json={"question": question, **extra})
+        assert response.status_code == 200, response.text
+        return _events(response)
+
+    events = ask("vacation days and kiln safety glasses", all_shelves=True)
+    assert _source_files(events) == {"vacation.txt", "kiln.txt"}
+    session_id = next(data for name, data in events if name == "session")["session_id"]
+    session = client.get(f"/api/sessions/{session_id}").json()
+    assert session["channel"] == "admin" and session["collection_id"] is None
+
+    follow_up = ask("and kiln glasses?", session_id=session_id)
+    assert "kiln.txt" in _source_files(follow_up)
+
+    narrowed = ask("vacation days?", session_id=session_id, collection_id=shelves["hr"])
+    assert _source_files(narrowed) == {"vacation.txt"}
+    assert client.get(f"/api/sessions/{session_id}").json()["collection_id"] == shelves["hr"]
+
+
 def test_answer_language_adds_one_rule_to_the_prompt(client, runtime):
     _two_shelves(client)
     _portal_ask(client, "vacation days?", answer_language="es")

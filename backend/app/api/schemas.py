@@ -293,6 +293,9 @@ class ChatIn(BaseModel):
     question: str = Field(min_length=1, max_length=4000)
     session_id: int | None = None
     collection_id: int | None = None
+    # Console only: search every active shelf (wins over collection_id). The
+    # session is saved without a shelf, and its follow-ups keep searching all.
+    all_shelves: bool = False
     profile: str | None = None  # profile name; defaults to "default"
     # "intranet": the employee portal. Searches every portal-visible shelf
     # and ignores collection_id (decision 0010).

@@ -1,6 +1,6 @@
-import { Download, ExternalLink, FileText, RefreshCw, RotateCcw, Trash2 } from "lucide-react";
+import { ArrowDown, ArrowUp, ArrowUpDown, Download, ExternalLink, FileText, RefreshCw, RotateCcw, Trash2 } from "lucide-react";
 import { API_BASE } from "@/api/client";
-import { useEffect, useState } from "react";
+import { type ReactNode, useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import type { Document } from "@/api/types";
 import { EmptyState, ErrorNote, PageHeader } from "@/components/common";
@@ -25,7 +25,7 @@ export default function Library() {
   const [search, setSearch] = useState("");
   const [tag, setTag] = useState("");
   const [trashed, setTrashed] = useState(false);
-  const [sort, setSort] = useState<"added" | "updated">("added");
+  const [sort, setSort] = useState<Sort>(DEFAULT_SORT);
   const [openId, setOpenId] = useState<number | null>(null);
   const documents = useDocuments({ q: search.trim() || undefined, tag: tag || undefined, trashed });
   const collections = useCollections();
@@ -37,8 +37,15 @@ export default function Library() {
 
   const collectionName = (id: number) =>
     collections.data?.find((c) => c.id === id)?.name ?? `#${id}`;
-  const rows = [...(documents.data ?? [])].sort((a, b) =>
-    sort === "updated" ? b.updated_at.localeCompare(a.updated_at) : b.id - a.id,
+  const showTrash = (value: boolean) => {
+    setTrashed(value);
+    setSort(value ? TRASH_SORT : DEFAULT_SORT);
+  };
+  const rows = sortDocuments(documents.data ?? [], sort, collectionName);
+  const header = (key: SortKey, label: string) => (
+    <SortableHeader sortKey={key} sort={sort} onSort={setSort}>
+      {label}
+    </SortableHeader>
   );
   const openDoc = documents.data?.find((d) => d.id === openId) ?? null;
 
@@ -61,17 +68,6 @@ export default function Library() {
             onChange={(e) => setSearch(e.target.value)}
             className="max-w-xs"
           />
-          {!trashed && (
-            <select
-              value={sort}
-              onChange={(e) => setSort(e.target.value as "added" | "updated")}
-              className="h-9 rounded-md border bg-background px-2 text-sm"
-              aria-label="Sort documents"
-            >
-              <option value="added">Newest added first</option>
-              <option value="updated">Recently updated first</option>
-            </select>
-          )}
           {tag && (
             <Badge variant="secondary" className="cursor-pointer" onClick={() => setTag("")}>
               tag: {tag} ✕
@@ -82,7 +78,7 @@ export default function Library() {
               <button
                 key={String(value)}
                 type="button"
-                onClick={() => setTrashed(value)}
+                onClick={() => showTrash(value)}
                 className={cn(
                   "rounded px-3 py-1",
                   trashed === value ? "bg-muted font-medium" : "text-muted-foreground",
@@ -114,11 +110,11 @@ export default function Library() {
             <table className="w-full text-sm">
               <thead className="bg-muted/50 text-left text-xs uppercase text-muted-foreground">
                 <tr>
-                  <th className="px-4 py-2 font-medium">File</th>
-                  <th className="px-4 py-2 font-medium">Collection</th>
-                  <th className="px-4 py-2 font-medium">Version</th>
-                  <th className="px-4 py-2 font-medium">{trashed ? "Deleted" : "Added"}</th>
-                  {!trashed && <th className="px-4 py-2 font-medium">Updated</th>}
+                  {header("file", "File")}
+                  {header("collection", "Collection")}
+                  {header("version", "Version")}
+                  {trashed ? header("deleted", "Deleted") : header("added", "Added")}
+                  {!trashed && header("updated", "Updated")}
                   <th className="px-4 py-2" />
                 </tr>
               </thead>
@@ -151,6 +147,69 @@ export default function Library() {
         onClose={() => setOpenId(null)}
       />
     </>
+  );
+}
+
+type SortKey = "file" | "collection" | "version" | "added" | "updated" | "deleted";
+type Sort = { key: SortKey; dir: "asc" | "desc" };
+/** Most recently changed first; documents with one version count from when they were added. */
+const DEFAULT_SORT: Sort = { key: "updated", dir: "desc" };
+const TRASH_SORT: Sort = { key: "deleted", dir: "desc" };
+const TEXT_KEYS: SortKey[] = ["file", "collection"];
+
+const byText = (a: string, b: string) => a.localeCompare(b, undefined, { numeric: true, sensitivity: "base" });
+const byDate = (a: string | null, b: string | null) => (a ? Date.parse(a) : 0) - (b ? Date.parse(b) : 0);
+
+function sortDocuments(docs: Document[], sort: Sort, collectionName: (id: number) => string): Document[] {
+  const compare = (a: Document, b: Document): number => {
+    switch (sort.key) {
+      case "file":
+        return byText(a.filename, b.filename);
+      case "collection":
+        return byText(collectionName(a.collection_id), collectionName(b.collection_id));
+      case "version":
+        return (a.active_version_number ?? 0) - (b.active_version_number ?? 0) || a.version_count - b.version_count;
+      case "added":
+        return byDate(a.created_at, b.created_at);
+      case "updated":
+        return byDate(a.updated_at, b.updated_at);
+      case "deleted":
+        return byDate(a.trashed_at, b.trashed_at);
+    }
+  };
+  const sign = sort.dir === "asc" ? 1 : -1;
+  // Ties: newest document first, so the order never jumps between refreshes.
+  return [...docs].sort((a, b) => sign * compare(a, b) || b.id - a.id);
+}
+
+/** A column header that sorts the table: first click picks the column, the next flips it. */
+function SortableHeader({
+  sortKey,
+  sort,
+  onSort,
+  children,
+}: {
+  sortKey: SortKey;
+  sort: Sort;
+  onSort: (sort: Sort) => void;
+  children: ReactNode;
+}) {
+  const active = sort.key === sortKey;
+  const Icon = !active ? ArrowUpDown : sort.dir === "asc" ? ArrowUp : ArrowDown;
+  const next: Sort = active
+    ? { key: sortKey, dir: sort.dir === "asc" ? "desc" : "asc" }
+    : { key: sortKey, dir: TEXT_KEYS.includes(sortKey) ? "asc" : "desc" };
+  return (
+    <th className="px-4 py-2 font-medium" aria-sort={active ? (sort.dir === "asc" ? "ascending" : "descending") : "none"}>
+      <button
+        type="button"
+        onClick={() => onSort(next)}
+        className={cn("inline-flex items-center gap-1 uppercase hover:text-foreground", active && "text-foreground")}
+      >
+        {children}
+        <Icon className={cn("size-3", !active && "opacity-40")} />
+      </button>
+    </th>
   );
 }
 

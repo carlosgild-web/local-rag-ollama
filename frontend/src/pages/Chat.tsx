@@ -24,24 +24,33 @@ export default function Chat() {
   const collections = useCollections();
   const shelves = collections.data ?? [];
   // The shelf to search: the open session's, else the one used last.
-  const [chosen, setChosen] = useState<number | undefined>(() => {
-    const stored = Number(localStorage.getItem(LAST_SHELF_KEY));
+  // A console session saved without a shelf searches all of them.
+  const [chosen, setChosen] = useState<ShelfChoice | undefined>(() => {
+    const raw = localStorage.getItem(LAST_SHELF_KEY);
+    if (raw === ALL_SHELVES) return ALL_SHELVES;
+    const stored = Number(raw);
     return Number.isFinite(stored) && stored > 0 ? stored : undefined;
   });
-  const sessionShelf = sessionId === null ? undefined : session.data?.collection_id;
+  const sessionShelf: ShelfChoice | undefined =
+    sessionId === null || !session.data ? undefined : (session.data.collection_id ?? ALL_SHELVES);
   useEffect(() => {
     if (sessionShelf != null) setChosen(sessionShelf);
   }, [sessionShelf]);
-  const shelfId = shelves.some((c) => c.id === chosen)
-    ? chosen
-    : shelves.length === 1
-      ? shelves[0].id
-      : undefined;
+  const shelfId: ShelfChoice | undefined =
+    chosen === ALL_SHELVES
+      ? shelves.length > 1
+        ? ALL_SHELVES
+        : shelves[0]?.id
+      : shelves.some((c) => c.id === chosen)
+        ? chosen
+        : shelves.length === 1
+          ? shelves[0].id
+          : undefined;
   // An open session whose shelf was rebuilt: the server follows it to the new copy.
   const needsShelfChoice = shelfId === undefined && sessionId === null && shelves.length > 1;
-  const chooseShelf = (id: number) => {
-    setChosen(id);
-    localStorage.setItem(LAST_SHELF_KEY, String(id));
+  const chooseShelf = (choice: ShelfChoice) => {
+    setChosen(choice);
+    localStorage.setItem(LAST_SHELF_KEY, String(choice));
   };
   const [question, setQuestion] = useState("");
 
@@ -58,7 +67,8 @@ export default function Chat() {
     const text = question.trim();
     if (!text || isStreaming || needsShelfChoice || shelves.length === 0) return;
     setQuestion("");
-    ask(text, sessionId, shelfId);
+    if (shelfId === ALL_SHELVES) ask(text, sessionId, undefined, { all_shelves: true });
+    else ask(text, sessionId, shelfId);
   };
 
   return (
@@ -106,6 +116,39 @@ export default function Chat() {
       </aside>
 
       <section className="flex min-w-0 flex-1 flex-col">
+        {/* The shelf decides what can be found; keep it in plain sight, not in the footer. */}
+        <div className="border-b px-6 py-2">
+          <div className="mx-auto flex max-w-3xl items-center gap-2 text-sm">
+            {collections.isSuccess && shelves.length === 0 ? (
+              <span className="text-warning">
+                No shelves yet: <Link to="/library" className="underline">upload documents</Link> first.
+              </span>
+            ) : (
+              <label className={cn("flex items-center gap-2", needsShelfChoice ? "text-warning" : "text-muted-foreground")}>
+                {needsShelfChoice ? "Choose a shelf to search:" : "Searching shelf:"}
+                <select
+                  className="rounded-md border bg-background px-2 py-1 font-medium text-foreground"
+                  value={shelfId ?? ""}
+                  onChange={(e) => chooseShelf(e.target.value === ALL_SHELVES ? ALL_SHELVES : Number(e.target.value))}
+                  aria-label="Shelf to search"
+                >
+                  {shelfId === undefined && <option value="">—</option>}
+                  {shelves.length > 1 && <option value={ALL_SHELVES}>All shelves</option>}
+                  {shelves.map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {c.name}
+                    </option>
+                  ))}
+                </select>
+                <span className="text-xs text-muted-foreground">
+                  {shelfId === ALL_SHELVES
+                    ? "Every shelf is searched; the best passages win."
+                    : "Only this shelf's documents are used."}
+                </span>
+              </label>
+            )}
+          </div>
+        </div>
         <div className="flex-1 overflow-y-auto">
           <div className="mx-auto max-w-3xl space-y-6 px-6 py-8">
             {messages.length === 0 && !pending && <Welcome />}
@@ -174,30 +217,9 @@ export default function Chat() {
                 </Button>
               )}
             </div>
-            <div className="flex items-center justify-between text-xs text-muted-foreground">
-              <span>Answers use only your documents and cite them. Each question is answered on its own.</span>
-              {collections.isSuccess && shelves.length === 0 ? (
-                <span className="text-warning">
-                  No shelves yet: <Link to="/library" className="underline">upload documents</Link> first.
-                </span>
-              ) : (
-                <label className={cn("flex items-center gap-1.5", needsShelfChoice && "text-warning")}>
-                  {needsShelfChoice ? "Choose a shelf:" : "Shelf:"}
-                  <select
-                    className="rounded border bg-background px-1 py-0.5 text-foreground"
-                    value={shelfId ?? ""}
-                    onChange={(e) => chooseShelf(Number(e.target.value))}
-                  >
-                    {shelfId === undefined && <option value="">—</option>}
-                    {shelves.map((c) => (
-                      <option key={c.id} value={c.id}>
-                        {c.name}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-              )}
-            </div>
+            <p className="text-xs text-muted-foreground">
+              Answers use only your documents and cite them. Each question is answered on its own.
+            </p>
           </div>
         </div>
         </Paused>
@@ -207,6 +229,9 @@ export default function Chat() {
 }
 
 const LAST_SHELF_KEY = "chat.lastShelf";
+const ALL_SHELVES = "all";
+/** A shelf id, or every active shelf. */
+type ShelfChoice = number | typeof ALL_SHELVES;
 
 function Welcome() {
   return (

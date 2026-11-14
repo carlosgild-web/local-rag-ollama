@@ -4,6 +4,17 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Ver
 
 ## [Unreleased]
 
+### Added
+
+- Prometheus metrics at `/metrics` ([decision 0030](docs/decisions/0030-prometheus-metrics.md)), written with the standard library (no new dependency):
+  - HTTP requests and their duration, by method, route template and status
+  - searches: count, duration and passages returned, by mode (chat, the inspector and the evaluation all count)
+  - chat answers: time from the question to the end of the answer, by outcome (answered, not found, error, disconnected)
+  - background jobs: duration per attempt, by type and result, plus jobs in the queue by status
+  - the app version
+
+  Like `/health`, it stays open when a password is set: it holds counts and timings only. `METRICS_ENABLED=false` turns it off.
+
 ## [0.11.0] - 2026-11-14
 
 Phase 8, hardening. An optional password now covers the console, the employee portal and the API. Tests now cover the guards around versioning and jobs, and CI shows coverage (92%). A fresh clone becomes a working app in under 6 minutes on a laptop, models aside.

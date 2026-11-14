@@ -116,6 +116,7 @@ flowchart LR
   - Rollback only flips a pointer and never re-embeds.
 - **Blue/green rebuilds.** Changing a shelf's embedding model or chunking builds a new copy in the background and swaps it in when it's ready. The old copy answers until then ([0003](docs/decisions/0003-per-collection-chunks.md)).
 - **Reproducible answers and an audit log.** Each answer records its retrieval profile, passages and scores. Uploads, deletes, rollbacks, rebuilds and settings changes are audited.
+- **Observable.** `/health` checks Ollama, SQLite, the vector store and the job worker. Every log line is JSON with a request id, and `/metrics` gives Prometheus the request, retrieval, answer and job timings, written with the standard library ([0030](docs/decisions/0030-prometheus-metrics.md)).
 - **Testable by design.** The LLM, embedding and vector-store clients are interfaces with fake implementations, so the unit tests and CI never need Ollama.
 - **Measured decisions.** Choices are tested on real data and written down:
   - the one-line citation hint beat a long reminder, 6/6 vs 2/6 valid citations ([0007](docs/decisions/0007-citation-reminder-and-check.md))

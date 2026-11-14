@@ -25,12 +25,14 @@ floor. The defaults reproduce the chat's retrieval exactly, and every
 returned chunk carries its per-side ranks and scores.
 """
 
+import time
 from collections.abc import Callable
 from dataclasses import dataclass
 
 from sqlalchemy import bindparam, select, text
 from sqlalchemy.orm import Session
 
+from app.core import metrics
 from app.core.config import Settings
 from app.db.fts import build_match_query
 from app.db.models import Chunk, Collection, Document, DocumentVersion
@@ -110,6 +112,40 @@ def retrieve_many(
         raise ValueError(f"unknown retrieval mode {mode!r}")
     if not 0.0 <= vector_weight <= 1.0:
         raise ValueError("vector_weight must be between 0 and 1")
+    started = time.perf_counter()
+    results = _search(
+        db,
+        question,
+        collections=collections,
+        settings=settings,
+        embedding_client_for=embedding_client_for,
+        vector_store=vector_store,
+        top_k=top_k,
+        mode=mode,
+        candidates=candidates,
+        vector_weight=vector_weight,
+        min_cosine=min_cosine,
+    )
+    metrics.RETRIEVALS.inc(mode=mode)
+    metrics.RETRIEVAL_DURATION.observe(time.perf_counter() - started, mode=mode)
+    metrics.RETRIEVED_CHUNKS.observe(len(results), mode=mode)
+    return results
+
+
+def _search(
+    db: Session,
+    question: str,
+    *,
+    collections: list[Collection],
+    settings: Settings,
+    embedding_client_for: Callable[[str], EmbeddingClient],
+    vector_store: VectorStore,
+    top_k: int | None,
+    mode: str,
+    candidates: int | None,
+    vector_weight: float,
+    min_cosine: float,
+) -> list[RetrievedChunk]:
     top_k = top_k or settings.retrieval_top_k
     candidates = candidates or settings.retrieval_candidates
 

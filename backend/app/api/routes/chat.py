@@ -10,6 +10,7 @@ session history and feedback.
 """
 
 import logging
+import time
 from collections.abc import Iterator
 from typing import Annotated
 
@@ -32,6 +33,7 @@ from app.api.schemas import (
     SourceOut,
 )
 from app.api.sse import SSE_HEADERS, drive_sync_stream, sse
+from app.core import metrics
 from app.core.runtime import Runtime
 from app.db.models import Chunk, Document, DocumentVersion, Feedback, Message, MessageSource
 from app.llm.ollama_client import OllamaError
@@ -55,6 +57,7 @@ def chat(db: DbDep, runtime: RuntimeDep, body: ChatIn):
     """Answers from the documents only, with citations, streamed as SSE.
     Retrieval runs before the stream opens, so an unreachable Ollama or an
     unknown collection/session is a normal HTTP error."""
+    started = time.perf_counter()
     settings = runtime.settings
     profile = profiles.get_active_profile(
         db, settings, body.profile or profiles.DEFAULT_PROFILE_NAME
@@ -138,6 +141,7 @@ def chat(db: DbDep, runtime: RuntimeDep, body: ChatIn):
         profile_id=profile.id,
         chat_model=profile.chat_model,
         temperature=profile.temperature,
+        started=started,
     )
     return StreamingResponse(
         drive_sync_stream(stream), media_type="text/event-stream", headers=SSE_HEADERS
@@ -153,6 +157,7 @@ def _answer_stream(
     profile_id: int,
     chat_model: str,
     temperature: float,
+    started: float | None = None,
 ) -> Iterator[str]:
     yield sse("session", {"session_id": session_id, "user_message_id": user_message_id})
 
@@ -164,6 +169,8 @@ def _answer_stream(
 
     parts: list[str] = []
     saved = False
+    # answered | not_found | error | disconnected (the client left mid-answer)
+    outcome = "disconnected"
 
     def final_text() -> str:
         """The answer with its citation numbers checked against the passages
@@ -201,6 +208,7 @@ def _answer_stream(
                 parts.append(piece)
                 yield sse("token", {"text": piece})
         message_id = save()
+        outcome = "not_found" if context is None else "answered"
         yield sse(
             "done",
             {
@@ -212,11 +220,14 @@ def _answer_stream(
         )
     except Exception as exc:
         logger.exception("chat generation failed", extra={"session_id": session_id})
+        outcome = "error"
         yield sse("error", {"detail": generation_error_detail(exc, chat_model)})
     finally:
         # Client went away mid-answer: keep what was generated, with its sources.
         if not saved and parts:
             save()
+        if started is not None:
+            metrics.ANSWER_DURATION.observe(time.perf_counter() - started, outcome=outcome)
 
 
 def generation_error_detail(exc: Exception, chat_model: str) -> str:

@@ -39,6 +39,9 @@ import type {
   IntakeStarted,
   Model,
   Profile,
+  ProfileCompare,
+  ProfileIn,
+  ProfileVersion,
   Session,
   SessionSummary,
   UploadCheckResult,
@@ -192,6 +195,10 @@ export const api = {
 
   models: () => request<Model[]>("/models"),
   profiles: () => request<Profile[]>("/profiles"),
+  saveProfile: (body: ProfileIn) => request<Profile>("/profiles", json("POST", body)),
+  profileVersions: (id: number) => request<ProfileVersion[]>(`/profiles/${id}/versions`),
+  compareProfiles: (a: number, b: number) => request<ProfileCompare>(`/profiles/compare${query({ a, b })}`),
+  restoreProfile: (id: number) => request<Profile>(`/profiles/${id}/restore`, json("POST")),
 
   evalSets: () => request<EvalSet[]>("/eval/sets"),
   evalSet: (id: number) => request<EvalSetDetail>(`/eval/sets/${id}`),

@@ -500,6 +500,24 @@ class ProfileOut(ORMModel):
     created_at: UtcDatetime
 
 
+class ProfileVersionOut(ProfileOut):
+    answer_count: int = 0  # chat answers recorded with this version
+    eval_run_count: int = 0
+
+
+class ProfileFieldChange(BaseModel):
+    field: str
+    a: Any
+    b: Any
+
+
+class ProfileCompareOut(BaseModel):
+    a: ProfileOut
+    b: ProfileOut
+    changes: list[ProfileFieldChange]
+    prompt_diff: list[str]
+
+
 # --- Ops ----------------------------------------------------------------------
 
 

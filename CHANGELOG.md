@@ -7,6 +7,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Ver
 ### Added
 
 - Retrieval inspector (`/inspector`, `POST /api/retrieve/inspect`): every candidate with its vector and keyword ranks and scores, the top-k the model would see, the final prompt and timings. Sliders for search mode, top-k, candidates, vector weight (weighted RRF) and a cosine floor, plus a reranker toggle, re-query live. With its defaults it shows exactly what the chat sends. Read-only; the chat is unchanged ([decision 0024](docs/decisions/0024-retrieval-inspector.md)).
+- Profiles page (`/profiles`): edit the chat model, top-k, temperature and system prompt. Each save is a new version. The page also has a version timeline with how many answers and evaluation runs used each version, and a compare of any two versions (the changed settings and a line diff of the prompt). Restore saves an old version's settings as the next version, so history is never rewritten. New endpoints: `GET /api/profiles/compare`, `POST /api/profiles/{id}/restore`. A new profile starts as a copy of the selected one.
 
 ## [0.9.0] - 2026-11-14
 

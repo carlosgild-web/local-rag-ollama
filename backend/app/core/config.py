@@ -65,6 +65,12 @@ class Settings(BaseSettings):
     # reach the API could otherwise make the app read any folder on the machine.
     watch_roots: str = ""
 
+    # Optional password for the whole app (decision 0026). Empty = no sign-in
+    # (localhost only). Or run `python -m app.cli set-password`, which stores a
+    # hash in DATA_DIR; this variable wins when both are set.
+    app_password: str = ""
+    auth_session_days: int = 7
+
     # Logging
     log_level: str = "INFO"
 

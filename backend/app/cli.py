@@ -6,6 +6,8 @@ Usage:
     python -m app.cli seed-demo [path]
     python -m app.cli eval [--set NAME] [--mode hybrid|vector|keyword] [--answers] [--judge]
     python -m app.cli eval-compare <run a> <run b>
+    python -m app.cli set-password [--stdin]
+    python -m app.cli clear-password
 """
 
 import argparse
@@ -289,6 +291,53 @@ def cmd_reranker_download(args: argparse.Namespace) -> int:
     return 0
 
 
+def _audit(action: str, detail: str) -> None:
+    runtime = build_runtime(get_settings())
+    with runtime.session_factory() as db:
+        service.audit_event(db, action, "auth", None, detail)
+
+
+def cmd_set_password(args: argparse.Namespace) -> int:
+    """Stores an scrypt hash in DATA_DIR/auth.json (decision 0026). The app picks
+    it up at once and everyone already signed in is signed out."""
+    import getpass
+
+    from app.core import auth
+
+    settings = get_settings()
+    if args.stdin:
+        password = sys.stdin.readline().rstrip("\r\n")
+    else:
+        password = getpass.getpass("New password: ")
+        if getpass.getpass("Again: ") != password:
+            print("The two passwords don't match; nothing changed.", file=sys.stderr)
+            return 1
+    try:
+        auth.set_password(settings, password)
+    except auth.AuthError as exc:
+        print(f"Not set: {exc}.", file=sys.stderr)
+        return 1
+    _audit("password_set", "password set from the CLI")
+    if settings.app_password:
+        print("Saved, but APP_PASSWORD is set too and wins until you remove it.")
+    else:
+        print("Saved. The app now asks for this password; sessions already open are signed out.")
+    return 0
+
+
+def cmd_clear_password(args: argparse.Namespace) -> int:
+    from app.core import auth
+
+    settings = get_settings()
+    env_note = " APP_PASSWORD is still set, so sign-in stays on." if settings.app_password else ""
+    if not auth.clear_password(settings):
+        print("No password was stored." + env_note)
+        return 0
+    _audit("password_clear", "password removed from the CLI")
+    print("Removed." + (env_note or " The app is open again: keep it on localhost."))
+    return 0
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="app.cli")
     subparsers = parser.add_subparsers(dest="command", required=True)
@@ -354,6 +403,16 @@ def main(argv: list[str] | None = None) -> int:
         "reranker-download", help="Download the reranker model (about 588 MB) to DATA_DIR/hf"
     )
     download_parser.set_defaults(func=cmd_reranker_download)
+
+    password_parser = subparsers.add_parser(
+        "set-password", help="Require a password to use the app (stores a hash in DATA_DIR)"
+    )
+    password_parser.add_argument(
+        "--stdin", action="store_true", help="Read the password from standard input (scripts)"
+    )
+    password_parser.set_defaults(func=cmd_set_password)
+    clear_parser = subparsers.add_parser("clear-password", help="Remove the stored password")
+    clear_parser.set_defaults(func=cmd_clear_password)
 
     args = parser.parse_args(argv)
     return args.func(args)

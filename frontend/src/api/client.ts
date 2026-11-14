@@ -110,7 +110,17 @@ export interface DocumentFilters {
   tag?: string;
 }
 
+export interface AuthStatus {
+  /** The app has a password (decision 0026). */
+  enabled: boolean;
+  signed_in: boolean;
+}
+
 export const api = {
+  authStatus: () => request<AuthStatus>("/auth/status"),
+  login: (password: string) => request<AuthStatus>("/auth/login", json("POST", { password })),
+  logout: () => request<void>("/auth/logout", json("POST")),
+
   // health reports 503 when down but still sends the full body
   health: async (): Promise<Health> => {
     const response = await fetch(`${API_BASE}/health`);

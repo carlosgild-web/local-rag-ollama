@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useRef } from "react";
 import { api, type DocumentFilters } from "@/api/client";
-import type { AuditFilters, CollectionCreate, CollectionReindex, InspectIn, Job } from "@/api/types";
+import type { AuditFilters, CollectionCreate, CollectionReindex, InspectIn, Job, ProfileIn } from "@/api/types";
 
 export const keys = {
   health: ["health"] as const,
@@ -109,6 +109,40 @@ export function useInspect(body: InspectIn | null) {
 export function useProfiles() {
   return useQuery({ queryKey: keys.profiles, queryFn: api.profiles });
 }
+
+export function useProfileVersions(id: number | null) {
+  return useQuery({
+    queryKey: ["profile-versions", id],
+    queryFn: () => api.profileVersions(id as number),
+    enabled: id !== null,
+  });
+}
+
+export function useProfileCompare(a: number | null, b: number | null) {
+  return useQuery({
+    queryKey: ["profile-compare", a, b],
+    queryFn: () => api.compareProfiles(a as number, b as number),
+    enabled: a !== null && b !== null,
+    staleTime: Infinity,
+  });
+}
+
+/** Saving or restoring makes a new version: every profile view refetches. */
+function useProfileWrite<T>(fn: (arg: T) => Promise<unknown>) {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: fn,
+    onSuccess: () => {
+      client.invalidateQueries({ queryKey: keys.profiles });
+      client.invalidateQueries({ queryKey: ["profile-versions"] });
+      client.invalidateQueries({ queryKey: ["audit"] });
+      client.invalidateQueries({ queryKey: ["inspect"] });
+    },
+  });
+}
+
+export const useSaveProfile = () => useProfileWrite((body: ProfileIn) => api.saveProfile(body));
+export const useRestoreProfile = () => useProfileWrite((id: number) => api.restoreProfile(id));
 
 function useInvalidate() {
   const client = useQueryClient();

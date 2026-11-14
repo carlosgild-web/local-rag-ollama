@@ -445,6 +445,28 @@ export interface Profile {
   created_at: string;
 }
 
+export interface ProfileVersion extends Profile {
+  /** Chat answers recorded with this version (invariant 5). */
+  answer_count: number;
+  eval_run_count: number;
+}
+
+/** The fields the Profiles page edits; the rest are set per shelf. */
+export interface ProfileIn {
+  name: string;
+  chat_model?: string;
+  retrieval_top_k?: number;
+  temperature?: number;
+  system_prompt?: string;
+}
+
+export interface ProfileCompare {
+  a: Profile;
+  b: Profile;
+  changes: { field: string; a: unknown; b: unknown }[];
+  prompt_diff: string[];
+}
+
 // POST /api/retrieve/inspect: the retrieval inspector (decision 0024).
 export type InspectScope = "shelf" | "all" | "portal";
 

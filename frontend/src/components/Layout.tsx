@@ -11,6 +11,7 @@ import {
   LayoutDashboard,
   ListTodo,
   ScanSearch,
+  SlidersHorizontal,
   Bell,
   BellOff,
   Lock,
@@ -51,6 +52,7 @@ const NAV: {
   { to: "/audit", label: "Audit", icon: ClipboardList, needs: "browse" },
   { to: "/evaluation", label: "Evaluation", icon: FlaskConical, needs: "browse", partly: "process" },
   { to: "/inspector", label: "Inspector", icon: ScanSearch, needs: "browse", partly: "process", group: "Control panel" },
+  { to: "/profiles", label: "Profiles", icon: SlidersHorizontal, needs: "browse" },
 ];
 
 const PILL: Record<SystemState, { label: string; className: string; dot: string }> = {

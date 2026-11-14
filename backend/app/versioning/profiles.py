@@ -3,13 +3,15 @@ change -> new rag_profile version"). Every assistant message records the
 profile version it used (invariant 5); every change is audited (invariant 7).
 """
 
-from sqlalchemy import select
+from dataclasses import dataclass
+
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.core.config import Settings
-from app.db.models import RagProfile
+from app.db.models import EvalRun, Message, RagProfile
 from app.retrieval.prompt import NOT_FOUND_PHRASE, SYSTEM_INSTRUCTIONS
-from app.versioning.service import NotFoundError, record_audit
+from app.versioning.service import ConflictError, NotFoundError, record_audit, text_diff
 
 DEFAULT_PROFILE_NAME = "default"
 EDITABLE_FIELDS = (
@@ -95,10 +97,16 @@ def list_versions(db: Session, profile_id: int) -> list[RagProfile]:
 
 
 def create_profile_version(
-    db: Session, settings: Settings, *, name: str = DEFAULT_PROFILE_NAME, **changes
+    db: Session,
+    settings: Settings,
+    *,
+    name: str = DEFAULT_PROFILE_NAME,
+    audit_note: str = "",
+    **changes,
 ) -> RagProfile:
     """Creates the next version of `name`: the latest version (or Settings
-    defaults) with `changes` applied. Earlier versions are kept, inactive."""
+    defaults) with `changes` applied. Earlier versions are kept, inactive.
+    `audit_note` is added to the audit entry (e.g. "restored from v2")."""
     unknown = set(changes) - set(EDITABLE_FIELDS)
     if unknown:
         raise InvalidProfileError(f"unknown profile fields: {sorted(unknown)}")
@@ -123,7 +131,9 @@ def create_profile_version(
         "settings_change",
         "rag_profile",
         profile.id,
-        f"{name} v{profile.version}" + (f": {', '.join(changed)}" if latest else " created"),
+        f"{name} v{profile.version}"
+        + (f": {', '.join(changed)}" if latest else " created")
+        + (f" ({audit_note})" if audit_note else ""),
     )
     db.commit()
     return profile
@@ -144,3 +154,66 @@ def _validate(values: dict) -> None:
         raise InvalidProfileError("chunk_size_tokens must be at least 50")
     if not 0.0 <= values["chunk_overlap_pct"] < 0.5:
         raise InvalidProfileError("chunk_overlap_pct must be in [0, 0.5)")
+
+
+@dataclass
+class FieldChange:
+    field: str
+    a: object
+    b: object
+
+
+@dataclass
+class ProfileComparison:
+    a: RagProfile
+    b: RagProfile
+    changes: list[FieldChange]  # every editable field that differs, the prompt included
+    prompt_diff: list[str]  # unified line diff of the system prompts
+
+
+def compare_versions(db: Session, a_id: int, b_id: int) -> ProfileComparison:
+    """Two versions of the same profile, field by field."""
+    a, b = get_profile(db, a_id), get_profile(db, b_id)
+    if a.name != b.name:
+        raise InvalidProfileError("compare two versions of the same profile")
+    changes = [
+        FieldChange(f, getattr(a, f), getattr(b, f))
+        for f in EDITABLE_FIELDS
+        if getattr(a, f) != getattr(b, f)
+    ]
+    diff = text_diff(a.system_prompt, b.system_prompt, f"v{a.version}", f"v{b.version}")
+    return ProfileComparison(a=a, b=b, changes=changes, prompt_diff=diff)
+
+
+def restore_version(db: Session, settings: Settings, profile_id: int) -> RagProfile:
+    """Saves an earlier version's values as the next version. History stays
+    linear: nothing is rewritten, and the restore is audited like any save."""
+    old = get_profile(db, profile_id)
+    latest = _latest(db, old.name)
+    values = {f: getattr(old, f) for f in EDITABLE_FIELDS}
+    if latest is not None and all(getattr(latest, f) == v for f, v in values.items()):
+        raise ConflictError(f"v{old.version} has the same settings as the latest version")
+    return create_profile_version(
+        db, settings, name=old.name, audit_note=f"restored from v{old.version}", **values
+    )
+
+
+def usage_counts(db: Session, profile_ids: list[int]) -> dict[int, tuple[int, int]]:
+    """(answers, evaluation runs) recorded with each profile version (invariant 5)."""
+    if not profile_ids:
+        return {}
+    answers = dict(
+        db.execute(
+            select(Message.rag_profile_id, func.count())
+            .where(Message.rag_profile_id.in_(profile_ids))
+            .group_by(Message.rag_profile_id)
+        ).all()
+    )
+    runs = dict(
+        db.execute(
+            select(EvalRun.rag_profile_id, func.count())
+            .where(EvalRun.rag_profile_id.in_(profile_ids))
+            .group_by(EvalRun.rag_profile_id)
+        ).all()
+    )
+    return {pid: (answers.get(pid, 0), runs.get(pid, 0)) for pid in profile_ids}

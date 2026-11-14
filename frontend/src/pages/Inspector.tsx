@@ -1,6 +1,6 @@
 import { ArrowDown, ArrowUp, ChevronDown, ChevronRight, Copy, RotateCcw, Search } from "lucide-react";
 import { type ReactNode, useEffect, useMemo, useRef, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import type { InspectChunk, InspectIn, InspectOut, RetrievalMode } from "@/api/types";
 import { EmptyState, ErrorNote, PageHeader } from "@/components/common";
 import { Badge } from "@/components/ui/badge";
@@ -48,7 +48,9 @@ export default function Inspector() {
   const [draft, setDraft] = useState("");
   const [question, setQuestion] = useState("");
   const [scope, setScope] = useState<string>(""); // "all" | "portal" | shelf id
-  const [profile, setProfile] = useState("default");
+  const [searchParams] = useSearchParams();
+  // The Profiles page links here with ?profile=<name>.
+  const [profile, setProfile] = useState(searchParams.get("profile") || "default");
   const [overrides, setOverrides] = useState<Overrides>(CHAT_DEFAULTS);
 
   useEffect(() => {

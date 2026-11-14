@@ -4,6 +4,14 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Ver
 
 ## [Unreleased]
 
+## [0.11.0] - 2026-11-14
+
+Phase 8, hardening. An optional password now covers the console, the employee portal and the API. Tests now cover the guards around versioning and jobs, and CI shows coverage (92%). A fresh clone becomes a working app in under 6 minutes on a laptop, models aside.
+
+### Upgrading
+
+- Nothing to migrate. Sign-in stays off until you run `python -m app.cli set-password` or set `APP_PASSWORD`. Developers: `pip install -r requirements-dev.txt` adds `pytest-cov`.
+
 ### Added
 
 - Optional password ([decision 0026](docs/decisions/0026-optional-password.md)). `python -m app.cli set-password` stores an scrypt hash in `DATA_DIR`; `APP_PASSWORD` works too, for Docker. With a password, the console and the employee portal show a sign-in screen, and every API route and the API docs need a session: a signed `HttpOnly`, `SameSite=Strict` cookie for 7 days (`AUTH_SESSION_DAYS`). `/health` and the public `/site` stay open. After 5 wrong passwords from one address in 5 minutes, sign-in waits. Changing or clearing the password signs everyone out. Off by default, so nothing changes until you set one.

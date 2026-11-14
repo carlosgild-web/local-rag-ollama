@@ -196,7 +196,7 @@ Total is about 30 working days; the MVP (through phase 4) is about 15.
 
 **Done when:** changing a slider changes retrieval results live in the inspector.
 
-✅ **Done when is met (2026-11-14).** The user checked it by hand on the demo library. Moving a slider re-queries in about 15 ms once the question's embedding is cached. PRs #33 (inspector), #34 (profiles), #36 (models) and the watched-folders PR. Along the way, #35 fixed demo libraries loaded before v0.9.0, which had no glossary words.
+✅ **Done when is met (2026-11-14).** The user checked it by hand on the demo library. Moving a slider re-queries in about 15 ms once the question's embedding is cached. PRs #33 (inspector), #34 (profiles), #36 (models) and #37 (watched folders), released as v0.10.0. Along the way, #35 fixed demo libraries loaded before v0.9.0, which had no glossary words.
 
 ### Phase 7 — Evaluation (3 d)
 

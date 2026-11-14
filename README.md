@@ -35,6 +35,8 @@ It checks your computer, reuses the Ollama and models you already have, and asks
 - **Shows what it reads and what changed.** Click a document to read the text the app searches, see its versions, compare any two (changes highlighted), restore an earlier one, or fix a number in the text, saved as a new version with who changed what. The Library shows when each document was last updated.
 - **Backs itself up.** One zip holds the database, the search index and your original files: made daily, or with *Back up now*. Restoring is one command, and the current data is saved first.
 - **Explains problems in plain words.** A troubleshooter checks Ollama, the database, the search index and the background worker, and gives the cause and the fix. It can draft a (simulated) support ticket for the next support level.
+- **Lets you look inside.** The retrieval inspector shows every passage a question finds, with its vector and keyword ranks and scores, where the cut to the model falls, and the exact prompt. Sliders for top-k, candidates, vector weight, a similarity floor and the reranker re-rank live. Settings live in versioned profiles you can compare and restore, and a models manager pulls, switches and deletes Ollama models (never one in use).
+- **Watches folders.** Point it at a folder and new or changed files are added to a shelf by themselves, with the same versioning as an upload. Deleting a file there never deletes the document.
 - **Works in English and Spanish**, with search that combines meaning (vectors) and exact words (keywords).
 - **Comes with a demo company.** *Hilda & Luna Beadworks*, a fictional bead maker, has a public website at `/site` and an intranet at `/intranet`. Employees ask **Luna**, an assistant that searches every shelf the admin shares with the portal, in a floating chat or full screen, in Spanish or English. See [Employee portal](#employee-portal).
 
@@ -257,8 +259,9 @@ Your documents, the database, vectors and backups live in `backend/data/` when y
   - the employee portal with Luna, the company's public website and a reviewer's demo guide in v0.6.0 ([decision 0010](docs/decisions/0010-employee-portal.md), [decision 0011](docs/decisions/0011-public-site.md))
   - the one-command start in v0.7.0 ([decision 0013](docs/decisions/0013-one-command-start.md))
   - Phase 5 (versions, history, trash, audit) in v0.8
-  - Phase 7 (evaluation, taken before Phase 6: [decision 0019](docs/decisions/0019-evaluation.md))
-- **Next:** the control panel (Phase 6), hardening, and polish.
+  - Phase 7 (evaluation, taken before Phase 6: [decision 0019](docs/decisions/0019-evaluation.md)) in v0.9.0
+  - Phase 6 (the control panel: inspector, profiles, models, watched folders) in v0.10.0 ([decision 0024](docs/decisions/0024-retrieval-inspector.md), [decision 0025](docs/decisions/0025-watched-folders.md))
+- **Next:** hardening (Phase 8) and polish (Phase 9).
 
 ## License
 

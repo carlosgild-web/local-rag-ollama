@@ -4,6 +4,10 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Ver
 
 ## [Unreleased]
 
+## [0.10.0] - 2026-11-14
+
+Phase 6, the control panel. Four new console pages show and change how the app works: a retrieval inspector that explains every ranking and shows the exact prompt, versioned profiles you can compare and restore, a models manager, and watched folders that add files by themselves. The inspector also found why "How many vacation days do I have?" answered "not found" on libraries loaded before v0.9.0: they had no glossary words.
+
 ### Upgrading
 
 - The app applies migration 0010 (watched folders) on start. `pip install -r requirements.txt` adds `watchdog`.

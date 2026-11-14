@@ -85,11 +85,12 @@ def allowed_path(settings: Settings, raw: str) -> str | None:
     Checked before the folder is touched at all: the path comes from an API
     caller, and without the check anyone who can reach the API could make the
     app read (and then answer from) any folder on the machine."""
+    # realpath resolves ".." and links, and on Windows returns the case the
+    # folder really has on disk, so a plain prefix check is enough.
     real = os.path.realpath(os.path.expanduser(raw))
-    full = os.path.normcase(real)  # Windows compares paths without case
     for root in settings.watch_root_paths:
-        base = os.path.normcase(str(root))
-        if full == base or full.startswith(base.rstrip(os.sep) + os.sep):
+        base = str(root).rstrip(os.sep)
+        if real == base or real.startswith(base + os.sep):
             return real
     return None
 

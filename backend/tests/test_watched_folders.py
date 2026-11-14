@@ -138,7 +138,8 @@ def test_a_folder_left_outside_new_watch_roots_is_not_read(
     listed = client.get("/api/watched-folders").json()["folders"][0]
     assert "outside WATCH_ROOTS" in listed["error"]
     with runtime.session_factory() as db:
-        assert watched.folder_for(db, runtime.settings, folder / "a.txt") is None
+        found = watched.folder_for(db, runtime.settings, folder / "a.txt")
+    assert found is None
 
 
 def test_watch_roots_default_to_the_home_folder(runtime):
@@ -174,9 +175,8 @@ def test_pause_resume_and_remove_keep_the_documents(client, runtime, folder, she
     paused = client.patch(f"/api/watched-folders/{added['id']}", json={"enabled": False}).json()
     assert paused["enabled"] is False and paused["state"] == "paused"
     with runtime.session_factory() as db:
-        assert (
-            watched.folder_for(db, runtime.settings, folder / "a.txt") is None
-        ), "a paused folder takes nothing"
+        found = watched.folder_for(db, runtime.settings, folder / "a.txt")
+    assert found is None, "a paused folder takes nothing"
 
     assert client.delete(f"/api/watched-folders/{added['id']}").status_code == 204
     assert client.get("/api/watched-folders").json()["folders"] == []

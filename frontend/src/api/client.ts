@@ -194,6 +194,7 @@ export const api = {
     request<InspectOut>("/retrieve/inspect", { ...json("POST", body), signal }),
 
   models: () => request<Model[]>("/models"),
+  deleteModel: (name: string) => request<void>(`/models/${encodeURIComponent(name)}`, { method: "DELETE" }),
   profiles: () => request<Profile[]>("/profiles"),
   saveProfile: (body: ProfileIn) => request<Profile>("/profiles", json("POST", body)),
   profileVersions: (id: number) => request<ProfileVersion[]>(`/profiles/${id}/versions`),

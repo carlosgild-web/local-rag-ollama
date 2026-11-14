@@ -155,7 +155,7 @@ function Editor({ profile }: { profile: Profile }) {
             </select>
             {!installed && models.isSuccess && (
               <span className="block text-xs text-warning">
-                Ollama doesn't have this model. Pull it (<code>ollama pull {draft.chat_model}</code>) or pick another.
+                Ollama doesn't have this model. <Link to="/models" className="underline">Pull it</Link> or pick another.
               </span>
             )}
           </label>

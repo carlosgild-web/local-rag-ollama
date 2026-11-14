@@ -430,7 +430,17 @@ export interface Model {
   family: string | null;
   parameter_size: string | null;
   capabilities: string[];
+  /** Ollama holds it in memory right now. */
+  loaded: boolean;
+  /** Profiles and shelves that need it; deleting it is refused while this isn't empty. */
+  used_by: string[];
 }
+
+/** Server-sent events of POST /api/models/pull. */
+export type PullEvent =
+  | { event: "progress"; data: { status: string; total?: number; completed?: number; digest?: string } }
+  | { event: "done"; data: { name: string; status: string } }
+  | { event: "error"; data: { detail: string } };
 
 export interface Profile {
   id: number;

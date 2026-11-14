@@ -138,8 +138,9 @@ flowchart LR
 
 | Check | Result |
 |---|---|
-| Unit and API tests (fakes, run in CI) | 287 tests pass; `ruff` clean |
-| CI (GitHub Actions) | lint, tests, frontend build and `docker build` on every push |
+| Unit and API tests (fakes, run in CI) | 380 tests pass, 92% coverage; `ruff` clean |
+| CI (GitHub Actions) | lint, tests, frontend build and `docker build` on every push; CodeQL, secret scanning and Dependabot |
+| Repository audit | no secrets or personal data in any commit or image in the history ([report](docs/test-reports/2026-11-14-repo-audit.md)) |
 | End-to-end test: real Ollama, 11 sample documents, about 60 questions, plus Luna through the portal | **53/53** must-pass checks · 53/57 answer checks · 31/38 citations correct · 7/7 refusals · 6/6 portal questions ([report](docs/test-reports/2026-11-09-e2e.md)) |
 
 The end-to-end kit in [`e2e/`](e2e/) drives the same API the UI uses. It checks:

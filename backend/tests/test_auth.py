@@ -167,3 +167,17 @@ def test_cli_sets_and_clears_the_password(runtime, monkeypatch, capsys):
 
         actions = [a.action for a in db.query(AuditLog).all()]
     assert "password_set" in actions and "password_clear" in actions
+
+
+def test_health_hides_error_messages_from_signed_out_callers(client, locked, monkeypatch):
+    def unreachable():
+        raise RuntimeError("cannot reach http://10.0.0.5:11434 from /srv/private")
+
+    monkeypatch.setattr(locked.ollama, "ping", unreachable)
+
+    hidden = client.get("/health").json()["ollama"]
+    assert hidden == {"ok": False, "detail": "RuntimeError (sign in for details)"}
+
+    assert _login(client).status_code == 200
+    shown = client.get("/health").json()["ollama"]
+    assert shown["detail"] == "RuntimeError: cannot reach http://10.0.0.5:11434 from /srv/private"

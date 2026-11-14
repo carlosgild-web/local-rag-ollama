@@ -98,11 +98,12 @@ flowchart LR
 4. The pieces are embedded with `bge-m3` and indexed twice: in Chroma (vectors) and in SQLite FTS5 (keywords).
 
 **Answering a question:**
-1. Both indexes are searched on the chosen shelf.
-2. The two rankings are fused with reciprocal rank fusion.
-3. The top 5 passages go into a prompt that allows answers only from them, with citations.
-4. The answer streams back over server-sent events.
-5. Every answer stores the passages and scores it used, so it can be reproduced later, and a citation check rates it.
+1. The glossary writes the documents' words into the question: "vacation" is asked as "vacation (PTO, paid time off)".
+2. Both indexes are searched on the chosen shelf.
+3. The two rankings are fused with reciprocal rank fusion. An optional cross-encoder reranker can rescore the top 20.
+4. The top 5 passages go into a prompt that allows answers only from them, with citations.
+5. The answer streams back over server-sent events. When it ends, each `[n]` is checked against the passages and moved to the one that has the claim's figures, if the model cited the wrong one.
+6. Every answer stores the passages and scores it used, so it can be reproduced later.
 
 ## Engineering highlights
 
@@ -117,13 +118,14 @@ flowchart LR
 - **Measured decisions.** Choices are tested on real data and written down:
   - the one-line citation hint beat a long reminder, 6/6 vs 2/6 valid citations ([0007](docs/decisions/0007-citation-reminder-and-check.md))
   - grouping by department beat clustering by similarity for suggesting shelves, 11/11 vs 5–19 of 30 ([0009](docs/decisions/0009-suggested-shelves-and-tags.md))
+  - a golden set of 53 questions scores every change; three fixes took answers from 70% to 91% passed, and a fourth rule that broke three answers was rejected ([Evaluation](#evaluation))
 - **Built for one small machine.** One worker, an in-process job queue on SQLite (no Redis), and a 3B chat model on a 7.2 GB RAM laptop ([0004](docs/decisions/0004-small-chat-model-on-low-ram.md)).
 
 ## Quality
 
 | Check | Result |
 |---|---|
-| Unit and API tests (fakes, run in CI) | 189 tests pass; `ruff` clean |
+| Unit and API tests (fakes, run in CI) | 287 tests pass; `ruff` clean |
 | CI (GitHub Actions) | lint, tests, frontend build and `docker build` on every push |
 | End-to-end test: real Ollama, 11 sample documents, about 60 questions, plus Luna through the portal | **53/53** must-pass checks · 53/57 answer checks · 31/38 citations correct · 7/7 refusals · 6/6 portal questions ([report](docs/test-reports/2026-11-09-e2e.md)) |
 
@@ -131,6 +133,45 @@ The end-to-end kit in [`e2e/`](e2e/) drives the same API the UI uses. It checks:
 - ingestion of every file type, answers against expected facts, citations and grounding
 - versions and rollback, trash and restore, jobs (cancel and retry), reindex and rebuild
 - suggested shelves, prompt injection, and recovery after a restart
+
+### Evaluation
+
+A golden set of 53 questions about the demo company ([`backend/demo/eval/`](backend/demo/eval/hilda-luna-golden.json)), each with the file a good answer comes from and the facts it must contain. It includes:
+- questions on every shelf, in English and Spanish
+- the same question in other words ("vacation" vs "PTO")
+- 10 questions whose answer isn't on the shelf searched, where the right reply is "not found"
+
+Runs go through the chat's own retrieval and prompt, and the **Evaluation** page compares any two runs question by question ([decision 0019](docs/decisions/0019-evaluation.md)).
+
+**Answers** (`qwen2.5:3b` on a 7.2 GB laptop CPU, temperature 0, hybrid retrieval, top 5):
+
+| Step | Passed | Required facts | "Not found" when right | Citations to the right file |
+|---|---|---|---|---|
+| Baseline | 70% | 84% | 100% | 79% |
+| + citation repair ([0020](docs/decisions/0020-citation-repair.md)) | 85% | 86% | 100% | 95% |
+| + glossary ([0021](docs/decisions/0021-glossary.md)) | 89% | 89% | 100% | 98% |
+| + "answer the part it answers" rule ([0022](docs/decisions/0022-prompt-partial-answers.md)) | **91%** | 91% | 100% | 98% |
+
+The five questions still failing are the 3B model reading or omitting details. The fixes were measured on the questions they were written for, so treat the later steps as best cases; the decisions say which gains are within run-to-run noise.
+
+**Retrieval** (same 53 questions, right file in the top 5 / ranked first / MRR):
+
+| Retrieval | Hit@5 | Hit@1 | MRR | Time per question |
+|---|---|---|---|---|
+| Vectors only (`bge-m3`) | 96% | 78% | 0.865 | 2.7 s |
+| Keywords only (SQLite FTS5) | 100% | 96% | 0.978 | 2 ms |
+| Hybrid, RRF (the default) | 100% | 89% | 0.934 | 2.5 s |
+| Hybrid + `bge-reranker-v2-m3` | 100% | 91% | 0.956 | 15 s |
+
+The reranker is off by default: on a laptop CPU it costs about 12 s per question for +0.02 MRR ([decision 0023](docs/decisions/0023-reranker.md)).
+
+To run it yourself, load the demo company and the demo golden set (one button each in the console), then start a run on the Evaluation page. From the command line, with the app stopped:
+
+```bash
+cd backend
+.venv/Scripts/python -m app.cli eval --answers        # loads the demo set if there is none
+.venv/Scripts/python -m app.cli eval-compare 1 2
+```
 
 ## How it was built
 
@@ -192,13 +233,13 @@ To run the end-to-end test against a running server, see [e2e/README.md](e2e/REA
 
 ```
 start.cmd, start.sh One-command start (Windows logic in scripts/start.ps1)
-backend/app/        FastAPI app: api/, core/, ingest/, retrieval/, llm/, versioning/, jobs/, db/
+backend/app/        FastAPI app: api/, core/, ingest/, retrieval/, llm/, versioning/, jobs/, db/, eval/
 backend/tests/      pytest suite (fakes only)        backend/migrations/  Alembic
 frontend/src/       React + Vite + TypeScript + Tailwind: pages/, components/, api/, hooks/
 frontend/src/portal/  The employee portal and Luna (lazy-loaded, own fonts)
 frontend/src/site/    The demo company's public website (lazy-loaded)
 scripts/            start.ps1, plus site image tools: Gemini prompts, Blender references, WebP prep
-backend/demo/       Fictional Hilda & Luna Beadworks documents (the dashboard's demo)
+backend/demo/       Fictional Hilda & Luna Beadworks documents (the dashboard's demo), golden set, glossary
 e2e/                End-to-end test kit and a fictional sample corpus
 docs/decisions/     Why things are the way they are   docs/test-reports/  End-to-end reports
 docs/showcase/      Slide deck and screenshots
@@ -208,8 +249,14 @@ Your documents, the database, vectors and backups live in `backend/data/` when y
 
 ## Status
 
-- **Done:** Phases 0–4 of [PLAN.md](PLAN.md), plus the UI improvements in v0.5.0 ([CHANGELOG](CHANGELOG.md), [decision 0008](docs/decisions/0008-ui-improvements-scope.md)) and in v0.6.0 the employee portal with Luna, the company's public website and a reviewer's demo guide ([decision 0010](docs/decisions/0010-employee-portal.md), [decision 0011](docs/decisions/0011-public-site.md)). v0.7.0 adds the one-command start ([decision 0013](docs/decisions/0013-one-command-start.md)).
-- **Next:** a versions UI, a control panel, an evaluation set, hardening, and polish.
+- **Done:**
+  - Phases 0–4 of [PLAN.md](PLAN.md)
+  - the UI improvements in v0.5.0 ([CHANGELOG](CHANGELOG.md), [decision 0008](docs/decisions/0008-ui-improvements-scope.md))
+  - the employee portal with Luna, the company's public website and a reviewer's demo guide in v0.6.0 ([decision 0010](docs/decisions/0010-employee-portal.md), [decision 0011](docs/decisions/0011-public-site.md))
+  - the one-command start in v0.7.0 ([decision 0013](docs/decisions/0013-one-command-start.md))
+  - Phase 5 (versions, history, trash, audit) in v0.8
+  - Phase 7 (evaluation, taken before Phase 6: [decision 0019](docs/decisions/0019-evaluation.md))
+- **Next:** the control panel (Phase 6), hardening, and polish.
 
 ## License
 

@@ -10,6 +10,7 @@ import {
   Globe,
   LayoutDashboard,
   ListTodo,
+  ScanSearch,
   Bell,
   BellOff,
   Lock,
@@ -18,7 +19,7 @@ import {
   X,
   XCircle,
 } from "lucide-react";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { Fragment, useCallback, useEffect, useRef, useState } from "react";
 import { NavLink, Outlet } from "react-router-dom";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { Troubleshooter } from "@/components/Troubleshooter";
@@ -31,7 +32,16 @@ import { cn } from "@/lib/utils";
 
 type Need = "browse" | "chat" | "process" | null;
 
-const NAV: { to: string; label: string; icon: typeof LayoutDashboard; end?: boolean; needs: Need; partly?: Need }[] = [
+const NAV: {
+  to: string;
+  label: string;
+  icon: typeof LayoutDashboard;
+  end?: boolean;
+  needs: Need;
+  partly?: Need;
+  /** Starts a titled group in the sidebar. */
+  group?: string;
+}[] = [
   { to: "/", label: "Dashboard", icon: LayoutDashboard, end: true, needs: null },
   { to: "/chat", label: "Chat", icon: MessageSquare, needs: "chat" },
   { to: "/library", label: "Library", icon: FolderOpen, needs: "browse", partly: "process" },
@@ -40,6 +50,7 @@ const NAV: { to: string; label: string; icon: typeof LayoutDashboard; end?: bool
   { to: "/backups", label: "Backups", icon: Archive, needs: "browse" },
   { to: "/audit", label: "Audit", icon: ClipboardList, needs: "browse" },
   { to: "/evaluation", label: "Evaluation", icon: FlaskConical, needs: "browse", partly: "process" },
+  { to: "/inspector", label: "Inspector", icon: ScanSearch, needs: "browse", partly: "process", group: "Control panel" },
 ];
 
 const PILL: Record<SystemState, { label: string; className: string; dot: string }> = {
@@ -102,39 +113,45 @@ function Shell() {
         </button>
         <NotifyToggle notify={notifications} />
         <nav className="flex flex-1 flex-col gap-0.5 px-3">
-          {NAV.map(({ to, label, icon: Icon, end, needs, partly }) => {
+          {NAV.map(({ to, label, icon: Icon, end, needs, partly, group }) => {
             const blocked = blockedFor(needs);
             const partlyBlocked = !blocked ? blockedFor(partly ?? null) : null;
             return (
-              <NavLink
-                key={to}
-                to={to}
-                end={end}
-                title={
-                  blocked
-                    ? `${label} is paused: ${blocked}`
-                    : partlyBlocked
-                      ? `Some actions are paused: ${partlyBlocked}`
-                      : undefined
-                }
-                className={({ isActive }) =>
-                  cn(
-                    "flex items-center gap-3 rounded-md px-3 py-2 text-sm text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground",
-                    isActive && "bg-background font-medium text-foreground shadow-sm",
-                    blocked && "opacity-60",
-                  )
-                }
-              >
-                <Icon className="size-4" />
-                <span className="flex-1">{label}</span>
-                {blocked && <Lock className="size-3.5 text-warning" />}
-                {partlyBlocked && <span className="size-1.5 rounded-full bg-warning" />}
-                {to === "/queue" && activeJobs > 0 && (
-                  <span className="rounded-full bg-primary px-1.5 text-xs font-medium text-primary-foreground">
-                    {activeJobs}
+              <Fragment key={to}>
+                {group && (
+                  <span className="px-3 pt-4 pb-1 text-xs font-medium uppercase tracking-wide text-muted-foreground/70">
+                    {group}
                   </span>
                 )}
-              </NavLink>
+                <NavLink
+                  to={to}
+                  end={end}
+                  title={
+                    blocked
+                      ? `${label} is paused: ${blocked}`
+                      : partlyBlocked
+                        ? `Some actions are paused: ${partlyBlocked}`
+                        : undefined
+                  }
+                  className={({ isActive }) =>
+                    cn(
+                      "flex items-center gap-3 rounded-md px-3 py-2 text-sm text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground",
+                      isActive && "bg-background font-medium text-foreground shadow-sm",
+                      blocked && "opacity-60",
+                    )
+                  }
+                >
+                  <Icon className="size-4" />
+                  <span className="flex-1">{label}</span>
+                  {blocked && <Lock className="size-3.5 text-warning" />}
+                  {partlyBlocked && <span className="size-1.5 rounded-full bg-warning" />}
+                  {to === "/queue" && activeJobs > 0 && (
+                    <span className="rounded-full bg-primary px-1.5 text-xs font-medium text-primary-foreground">
+                      {activeJobs}
+                    </span>
+                  )}
+                </NavLink>
+              </Fragment>
             );
           })}
         </nav>

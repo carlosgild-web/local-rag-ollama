@@ -2,7 +2,7 @@
 worker share. Tests build a Runtime from fakes instead (tests/conftest.py)."""
 
 from collections.abc import Callable
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 from sqlalchemy import Engine
 from sqlalchemy.orm import Session, sessionmaker
@@ -12,6 +12,7 @@ from app.db.migrate import upgrade_to_head
 from app.db.session import make_engine, make_session_factory
 from app.llm.base import EmbeddingClient, LLMClient
 from app.llm.ollama_admin import OllamaAdmin
+from app.retrieval.inspector import QuestionEmbeddingCache
 from app.retrieval.reranker import Reranker
 from app.retrieval.vector_store import VectorStore
 
@@ -28,6 +29,8 @@ class Runtime:
     ollama: OllamaAdmin
     # Loads its model on first use (decision 0023); None in tests unless set.
     reranker: Reranker | None = None
+    # Question embeddings the retrieval inspector reuses between slider moves.
+    question_cache: QuestionEmbeddingCache = field(default_factory=QuestionEmbeddingCache)
 
 
 def build_runtime(settings: Settings) -> Runtime:

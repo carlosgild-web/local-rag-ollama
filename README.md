@@ -22,6 +22,16 @@ cd local-rag-ollama
 
 It checks your computer, reuses the Ollama and models you already have, and asks before downloading or installing anything. Then it opens the dashboard, where you can read the demo company's documents and load them with one click.
 
+**Only have Docker?** The demo mode pulls two small models by itself (`bge-m3` and `qwen2.5:3b`, about 3 GB the first time) and runs on a laptop with 8 GB of RAM:
+
+```bash
+git clone https://github.com/carlosgild-web/local-rag-ollama.git
+cd local-rag-ollama
+docker compose -f compose.yaml -f compose.demo.yaml up -d
+```
+
+Then open http://localhost:8000 and click **Load the demo company** ([decision 0031](docs/decisions/0031-docker-demo-mode.md)).
+
 **[Getting started, step by step →](GETTING_STARTED.md)** ([as a web page](https://carlosgild-web.github.io/local-rag-ollama/getting-started.html)): install, load the demo company, try everything and run the tests.
 
 **[Take the 10-minute reviewer walkthrough →](docs/walkthrough.md)**: the demo company's website, its intranet with Luna, and the admin console, with screenshots. There's also a [slide deck](https://carlosgild-web.github.io/local-rag-ollama/showcase/).
@@ -202,6 +212,7 @@ ollama pull llama3.1        # or qwen2.5:3b on a machine with ~8 GB RAM
 **Docker:** the app image is pulled from `ghcr.io/carlosgild-web/local-rag-ollama` (add `--build` to build it from source instead).
 
 ```bash
+docker compose -f compose.yaml -f compose.demo.yaml up -d            # demo: pulls bge-m3 + qwen2.5:3b itself
 docker compose up -d                                                 # Ollama in its own container
 docker compose exec ollama ollama pull bge-m3
 docker compose exec ollama ollama pull llama3.1                      # or qwen2.5:3b with CHAT_MODEL=qwen2.5:3b

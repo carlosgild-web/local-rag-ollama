@@ -14,6 +14,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Ver
   - the app version
 
   Like `/health`, it stays open when a password is set: it holds counts and timings only. `METRICS_ENABLED=false` turns it off.
+- Docker demo mode ([decision 0031](docs/decisions/0031-docker-demo-mode.md)): `docker compose -f compose.yaml -f compose.demo.yaml up -d`. A one-off `models` container pulls `bge-m3` and `qwen2.5:3b` into the Ollama volume, then the app starts with them. With only Docker installed, the demo is three commands (clone, `cd`, `up`) and one click on **Load the demo company**. `DEMO_CHAT_MODEL` picks another small model.
 
 ## [0.11.0] - 2026-11-14
 

@@ -235,7 +235,7 @@ Found in manual tests on 2026-11-12/13 (temperature 0), to add to the golden set
 ### Phase 9 — Portfolio polish (3–4 d)
 
 - [x] Prometheus `/metrics` (query latency, retrieval count, job durations) and request-id logging: standard library only ([decision 0030](docs/decisions/0030-prometheus-metrics.md))
-- [ ] `demo` compose profile with small models (`llama3.2:3b` plus `bge-m3`)
+- [x] `demo` compose profile with small models: `compose.demo.yaml` with `qwen2.5:3b` plus `bge-m3`, pulled by a one-off container ([decision 0031](docs/decisions/0031-docker-demo-mode.md))
 - [x] Public open-license demo corpus (Spanish and English): the Hilda & Luna demo company in `backend/demo/`
 - [ ] README: architecture diagram, 3–5 screenshots, 2–3 minute demo video, "how it works", hardware notes. Done except the video, which is on hold
 - [ ] Eval results table in the README (hit rate@5 and MRR per profile)

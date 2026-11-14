@@ -125,6 +125,9 @@ cd local-rag-ollama</code></pre></div>
   </div>
 
   <h3>A. Docker, everything in containers</h3>
+  <p><b>Just the demo, with small models:</b> one command pulls <code>bge-m3</code> and <code>qwen2.5:3b</code> (about 3 GB the first time) and starts everything. It runs with 8 GB of RAM. When <code>docker compose ps</code> shows <code>app</code> running, open <a href="http://localhost:8000">localhost:8000</a> and click <b>Load the demo company</b>.</p>
+  <div class="code"><pre><code>docker compose -f compose.yaml -f compose.demo.yaml up -d</code></pre></div>
+  <p><b>With the full-size chat model:</b></p>
   <div class="code"><pre><code>docker compose up -d
 docker compose exec ollama ollama pull bge-m3
 docker compose exec ollama ollama pull llama3.1</code></pre></div>

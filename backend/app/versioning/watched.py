@@ -85,13 +85,18 @@ def allowed_path(settings: Settings, raw: str) -> str | None:
     Checked before the folder is touched at all: the path comes from an API
     caller, and without the check anyone who can reach the API could make the
     app read (and then answer from) any folder on the machine."""
-    # realpath resolves ".." and links, and on Windows returns the case the
-    # folder really has on disk, so a plain prefix check is enough.
     real = os.path.realpath(os.path.expanduser(raw))
+    return real if _root_of(settings, real) is not None else None
+
+
+def _root_of(settings: Settings, real: str) -> str | None:
+    """The WATCH_ROOTS entry a resolved path lies in. realpath resolves ".."
+    and links and, on Windows, returns the case the folder has on disk, so a
+    prefix check at a separator boundary is enough."""
     for root in settings.watch_root_paths:
         base = str(root).rstrip(os.sep)
         if real == base or real.startswith(base + os.sep):
-            return real
+            return base
     return None
 
 
@@ -102,13 +107,15 @@ def _validate_path(
         raise InvalidWatchedFolderError("give the folder's full path")
     if not os.path.isabs(os.path.expanduser(raw.strip())):
         raise InvalidWatchedFolderError(f"{raw!r} isn't a full path (e.g. C:\\Docs or /watch)")
-    allowed = allowed_path(settings, raw.strip())
-    if allowed is None:
+    real = os.path.realpath(os.path.expanduser(raw.strip()))
+    root = _root_of(settings, real)
+    # The guard stays here, before the folder is touched (CodeQL py/path-injection).
+    if root is None or not real.startswith(root):
         roots = ", ".join(str(r) for r in settings.watch_root_paths)
         raise InvalidWatchedFolderError(
             f"only folders inside {roots} can be watched; set WATCH_ROOTS to allow others"
         )
-    path = Path(allowed)
+    path = Path(real)
     if not path.is_dir():
         raise InvalidWatchedFolderError(f"{path} doesn't exist or isn't a folder on this machine")
     data_dir = _norm(settings.data_dir)

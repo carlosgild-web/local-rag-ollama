@@ -400,3 +400,18 @@ export function useGlossaryMutation<A, R>(mutationFn: (args: A) => Promise<R>) {
   // The demo status says whether the demo's words are missing; the inspector shows the expansion.
   return useMutation({ mutationFn, onSuccess: () => invalidate("glossary", "audit", "demo", "inspect") });
 }
+
+// --- Watched folders (decision 0025) ---------------------------------------------
+
+export function useWatchedFolders() {
+  return useQuery({ queryKey: ["watched-folders"], queryFn: api.watchedFolders, refetchInterval: 5_000 });
+}
+
+/** Folder changes can queue files: refresh the queue and library too. */
+export function useWatchedFolderMutation<A, R>(mutationFn: (args: A) => Promise<R>) {
+  const invalidate = useInvalidate();
+  return useMutation({
+    mutationFn,
+    onSuccess: () => invalidate("watched-folders", "jobs", "documents", "audit"),
+  });
+}

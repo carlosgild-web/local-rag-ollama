@@ -189,12 +189,14 @@ Total is about 30 working days; the MVP (through phase 4) is about 15.
 
 ### Phase 6 — Control panel (about 3 d)
 
-- [ ] Retrieval inspector (chunks, scores, final prompt, parameter sliders)
-- [ ] Profiles with version history and compare
-- [ ] Models manager with pull progress
-- [ ] Watched folders with `WATCH_POLLING` option
+- [x] Retrieval inspector (chunks, scores, final prompt, parameter sliders): `/inspector`, [decision 0024](docs/decisions/0024-retrieval-inspector.md)
+- [x] Profiles with version history and compare: `/profiles`, with restore as a new version
+- [x] Models manager with pull progress: `/models`, delete refused while a model is in use
+- [x] Watched folders with `WATCH_POLLING` option: `/watched`, [decision 0025](docs/decisions/0025-watched-folders.md)
 
 **Done when:** changing a slider changes retrieval results live in the inspector.
+
+✅ **Done when is met (2026-11-14).** The user checked it by hand on the demo library. Moving a slider re-queries in about 15 ms once the question's embedding is cached. PRs #33 (inspector), #34 (profiles), #36 (models) and the watched-folders PR. Along the way, #35 fixed demo libraries loaded before v0.9.0, which had no glossary words.
 
 ### Phase 7 — Evaluation (3 d)
 

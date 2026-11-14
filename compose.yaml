@@ -46,7 +46,9 @@ services:
       WEB_CONCURRENCY: "1"
     volumes:
       - app_data:/data
-      # Phase 6 adds the watched folder: - ./inbox:/watch:ro
+      # Watched folders (decision 0025): add /watch on the Watched folders page and
+      # drop files into ./inbox. Read-only: the app copies files, never changes them.
+      - ./inbox:/watch:ro
     ports:
       # APP_PORT picks another port when 8000 is taken (the start scripts set it in .env).
       - "127.0.0.1:${APP_PORT:-8000}:8000"

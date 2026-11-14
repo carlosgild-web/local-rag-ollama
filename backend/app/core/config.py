@@ -53,8 +53,13 @@ class Settings(BaseSettings):
     # Automatic daily backups kept in DATA_DIR/backups (0 turns them off)
     backup_keep: int = 7
 
-    # File watching
+    # Watched folders (decision 0025). Polling instead of OS file events: needed
+    # for Docker bind mounts and network drives, where events don't arrive.
     watch_polling: bool = False
+    watch_poll_seconds: float = 5.0  # how often polling looks, when it's on
+    # A file is queued once its size and time stop changing for this long, so a
+    # copy in progress isn't ingested half-written.
+    watch_settle_seconds: float = 2.0
 
     # Logging
     log_level: str = "INFO"

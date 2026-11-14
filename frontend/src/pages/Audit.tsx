@@ -39,6 +39,9 @@ const ACTIONS: Record<string, string> = {
   eval_run_delete: "Evaluation run deleted",
   glossary_add: "Glossary word added",
   glossary_delete: "Glossary word removed",
+  watch_add: "Folder watched",
+  watch_update: "Watched folder changed",
+  watch_remove: "Folder no longer watched",
 };
 
 const ENTITY_TYPES: Record<string, string> = {
@@ -53,6 +56,7 @@ const ENTITY_TYPES: Record<string, string> = {
   eval_case: "Golden-set questions",
   eval_run: "Evaluation runs",
   glossary: "Glossary",
+  watched_folder: "Watched folders",
 };
 
 const DESTRUCTIVE = new Set(["purge", "delete", "backup_delete", "model_delete", "eval_set_delete"]);

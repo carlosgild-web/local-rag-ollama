@@ -9,6 +9,9 @@ backend/.venv/
 *.pyc
 .pytest_cache/
 .ruff_cache/
+.coverage
+coverage.md
+htmlcov/
 *.egg-info/
 
 # Env

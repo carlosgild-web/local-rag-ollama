@@ -262,7 +262,8 @@ Your documents, the database, vectors and backups live in `backend/data/` when y
   - Phase 5 (versions, history, trash, audit) in v0.8
   - Phase 7 (evaluation, taken before Phase 6: [decision 0019](docs/decisions/0019-evaluation.md)) in v0.9.0
   - Phase 6 (the control panel: inspector, profiles, models, watched folders) in v0.10.0 ([decision 0024](docs/decisions/0024-retrieval-inspector.md), [decision 0025](docs/decisions/0025-watched-folders.md))
-- **Next:** hardening (Phase 8) and polish (Phase 9).
+  - Phase 8 (an optional password, test coverage, a fresh clone running in under 6 minutes) in v0.11.0 ([decision 0026](docs/decisions/0026-optional-password.md))
+- **Next:** portfolio polish (Phase 9).
 
 ## License
 

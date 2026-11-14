@@ -224,11 +224,13 @@ Found in manual tests on 2026-11-12/13 (temperature 0), to add to the golden set
 ### Phase 8 — Hardening (2 d)
 
 - [x] Backup and restore (zip of DB, vectors, files; decision 0015)
-- [ ] Optional password auth (localhost-only by default)
+- [x] Optional password auth (localhost-only by default): one password for the console, the portal and the API ([decision 0026](docs/decisions/0026-optional-password.md))
 - [x] Launcher scripts for Windows (`start.ps1`) and Linux/macOS: `start.cmd` / `start.sh` (decision 0013; macOS not tried on a real Mac yet)
-- [ ] Test coverage on versioning and jobs; fix flaky tests
+- [x] Test coverage on versioning and jobs; fix flaky tests: `pytest --cov` in CI (92%), guard tests, a bounded `docker info` in `start.sh`
 
 **Done when:** a fresh machine goes from clone to working app in under 15 minutes (excluding model downloads).
+
+✅ **Done when is met (2026-11-14).** On the development laptop (Windows 11, 7.2 GB RAM), going from a fresh `git clone` to "All systems OK" took **5 min 38 s**. That was `start.cmd --yes` without Docker (route C), with pip's cache off, so every package was downloaded. The models were already in Ollama, which the criterion excludes. PRs #40 (password) and #41 (coverage), released as v0.11.0. Not timed: a machine without Python or Ollama installed. The script installs them with winget and asks first.
 
 ### Phase 9 — Portfolio polish (3–4 d)
 

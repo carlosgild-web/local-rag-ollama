@@ -333,6 +333,8 @@ export interface DemoStatus {
   /** Documents in the library, not counting the trash. */
   documents: number;
   job: Job | null;
+  /** The demo was loaded before v0.9.0 added the glossary, so its words are missing. */
+  glossary_missing: boolean;
 }
 
 export interface Job {

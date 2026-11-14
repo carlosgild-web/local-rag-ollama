@@ -253,6 +253,8 @@ class DemoStatusOut(BaseModel):
     available: bool  # the demo corpus ships with this install
     documents: int  # documents in the library, not counting the trash
     job: JobOut | None  # the latest demo load, if any
+    # The demo was loaded before the glossary existed (v0.9.0): offer its words.
+    glossary_missing: bool = False
 
 
 # --- Retrieval and chat -------------------------------------------------------

@@ -2,10 +2,11 @@ import { X } from "lucide-react";
 import { useState } from "react";
 import { api } from "@/api/client";
 import { ErrorNote } from "@/components/common";
+import { GlossaryNotice } from "@/components/GlossaryNotice";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { useGlossary, useGlossaryMutation } from "@/hooks/queries";
+import { useDemo, useGlossary, useGlossaryMutation } from "@/hooks/queries";
 
 /** Words people use and the words the documents use (decision 0021). Every
  * question, in the chat and in the portal, is asked with these meanings added. */
@@ -19,6 +20,8 @@ export function GlossaryCard() {
   const remove = useGlossaryMutation((id: number) => api.deleteGlossaryTerm(id));
   const loadDemo = useGlossaryMutation(() => api.loadDemoGlossary());
   const rows = glossary.data ?? [];
+  // The notice above already offers the demo's words; don't offer them twice.
+  const noticeShown = useDemo().data?.glossary_missing ?? false;
 
   const submit = () =>
     add.mutate(
@@ -42,6 +45,7 @@ export function GlossaryCard() {
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-3 text-sm">
+        <GlossaryNotice />
         {rows.length > 0 ? (
           <ul className="flex flex-wrap gap-2">
             {rows.map((row) => (
@@ -60,7 +64,8 @@ export function GlossaryCard() {
             ))}
           </ul>
         ) : (
-          glossary.isSuccess && (
+          glossary.isSuccess &&
+          !noticeShown && (
             <p className="text-muted-foreground">
               Empty.{" "}
               <button type="button" className="underline" onClick={() => loadDemo.mutate(undefined)}>

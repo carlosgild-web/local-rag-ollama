@@ -391,5 +391,6 @@ export function useGlossary() {
 
 export function useGlossaryMutation<A, R>(mutationFn: (args: A) => Promise<R>) {
   const invalidate = useInvalidate();
-  return useMutation({ mutationFn, onSuccess: () => invalidate("glossary", "audit") });
+  // The demo status says whether the demo's words are missing; the inspector shows the expansion.
+  return useMutation({ mutationFn, onSuccess: () => invalidate("glossary", "audit", "demo", "inspect") });
 }

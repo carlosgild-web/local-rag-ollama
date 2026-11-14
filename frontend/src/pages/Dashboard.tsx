@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Building2, CheckCircle2, Download, ExternalLink, FolderOpen, Globe, Loader2, MessageSquare, Sparkles, Upload, Wrench, XCircle } from "lucide-react";
 import { API_BASE } from "@/api/client";
 import { Link } from "react-router-dom";
+import { GlossaryNotice } from "@/components/GlossaryNotice";
 import { useTroubleshooter } from "@/components/TroubleshooterContext";
 import type { ComponentHealth } from "@/api/types";
 import { ErrorNote, JOB_LABEL, JobStatusBadge, PageHeader } from "@/components/common";
@@ -82,6 +83,7 @@ export default function Dashboard() {
         <ErrorNote error={health.error} />
 
         <DemoCard onTroubleshoot={openTroubleshooter} />
+        <GlossaryNotice dismissible />
 
         <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           {stats.map((s) => (

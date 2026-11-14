@@ -32,7 +32,7 @@ def client(runtime):
 
 def test_status_offers_the_demo_on_an_empty_library(client, demo_root):
     body = client.get("/api/demo").json()
-    assert body == {"available": True, "documents": 0, "job": None}
+    assert body == {"available": True, "documents": 0, "job": None, "glossary_missing": False}
 
 
 def test_seed_runs_as_a_job_and_fills_the_library(client, demo_root, runtime):
@@ -165,3 +165,40 @@ def test_an_uploaded_document_can_be_opened_as_uploaded(client, runtime):
     assert client.delete(f"/api/documents/{document['id']}").status_code == 204
     assert client.get(f"/api/documents/{document['id']}/original").status_code == 404
     assert client.get("/api/documents/9999/original").status_code == 404
+
+
+# --- A demo loaded before the glossary existed (v0.9.0) -----------------------------
+
+
+def _forget_glossary(runtime):
+    """What a library loaded before migration 0009 looks like: no words, no audit."""
+    from app.db.models import GlossaryTerm
+
+    with runtime.session_factory() as db:
+        db.query(GlossaryTerm).delete()
+        db.commit()
+
+
+def test_status_offers_the_glossary_when_an_old_demo_lacks_it(client, demo_root, runtime):
+    client.post("/api/demo/seed")
+    client.drain()
+    assert client.get("/api/demo").json()["glossary_missing"] is False, "seeding loads it"
+
+    _forget_glossary(runtime)
+    assert client.get("/api/demo").json()["glossary_missing"] is True
+
+    assert client.post("/api/glossary/demo").status_code == 200
+    assert client.get("/api/demo").json()["glossary_missing"] is False
+
+
+def test_no_offer_without_a_demo_load_or_after_removing_words_on_purpose(
+    client, demo_root, runtime
+):
+    assert client.get("/api/demo").json()["glossary_missing"] is False, "no demo loaded"
+
+    client.post("/api/demo/seed")
+    client.drain()
+    for term in client.get("/api/glossary").json():
+        assert client.delete(f"/api/glossary/{term['id']}").status_code == 204
+    assert client.get("/api/glossary").json() == []
+    assert client.get("/api/demo").json()["glossary_missing"] is False

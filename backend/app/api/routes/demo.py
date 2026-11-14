@@ -37,6 +37,7 @@ def demo_status(db: DbDep):
         available=demo.demo_available(),
         documents=documents,
         job=jobs_out(db, [job])[0] if job else None,
+        glossary_missing=demo.demo_glossary_missing(db),
     )
 
 

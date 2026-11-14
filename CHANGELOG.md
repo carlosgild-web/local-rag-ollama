@@ -4,11 +4,16 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Ver
 
 ## [Unreleased]
 
+### Upgrading
+
+- The app applies migration 0010 (watched folders) on start. `pip install -r requirements.txt` adds `watchdog`.
+
 ### Added
 
 - Retrieval inspector (`/inspector`, `POST /api/retrieve/inspect`): every candidate with its vector and keyword ranks and scores, the top-k the model would see, the final prompt and timings. Sliders for search mode, top-k, candidates, vector weight (weighted RRF) and a cosine floor, plus a reranker toggle, re-query live. With its defaults it shows exactly what the chat sends. Read-only; the chat is unchanged ([decision 0024](docs/decisions/0024-retrieval-inspector.md)).
 - Profiles page (`/profiles`): edit the chat model, top-k, temperature and system prompt. Each save is a new version. The page also has a version timeline with how many answers and evaluation runs used each version, and a compare of any two versions (the changed settings and a line diff of the prompt). Restore saves an old version's settings as the next version, so history is never rewritten. New endpoints: `GET /api/profiles/compare`, `POST /api/profiles/{id}/restore`. A new profile starts as a copy of the selected one.
 - Models manager (`/models`): the models Ollama has, what kind each is, its size, whether it's in memory and which profiles and shelves use it. Pull by name or from a short list of tested models, with a live progress bar and Cancel. "Use for chat" saves a new version of the default profile. Delete asks first, and the API refuses (409) to delete a model a profile or shelf uses, or the `EMBEDDING_MODEL` for new shelves.
+- Watched folders (`/watched`, `/api/watched-folders`): new and changed files in a folder are added to a shelf by themselves, with the same versioning as an upload (a duplicate is skipped, a changed file becomes a new version). OS file events by default, or polling with `WATCH_POLLING=true` (Docker, network drives). A file waits until it stops changing, and the folders are scanned at startup to catch up. A file deleted from a folder keeps its document. Pause, resume, "Scan now", audited. New dependency: `watchdog`. Only folders inside `WATCH_ROOTS` can be watched: your home folder by default, `/watch` in Docker, where `./inbox` is mounted ([decision 0025](docs/decisions/0025-watched-folders.md)).
 
 ### Fixed
 

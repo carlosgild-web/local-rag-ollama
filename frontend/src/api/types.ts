@@ -479,6 +479,36 @@ export interface ProfileCompare {
   prompt_diff: string[];
 }
 
+// Watched folders (decision 0025).
+export interface WatchedFolder {
+  id: number;
+  path: string;
+  collection_id: number;
+  collection_name: string;
+  recursive: boolean;
+  enabled: boolean;
+  /** "watching", "starting" (just added), "paused", "error" (see error) or "stopped" (the watcher isn't running). */
+  state: "watching" | "starting" | "paused" | "error" | "stopped";
+  error: string | null;
+  files_queued: number;
+  last_scan_at: string | null;
+  last_file_at: string | null;
+  created_at: string;
+}
+
+export interface WatchedFolders {
+  mode: "events" | "polling";
+  running: boolean;
+  poll_seconds: number;
+  folders: WatchedFolder[];
+}
+
+export interface WatchScan {
+  queued: number;
+  known: number;
+  skipped: number;
+}
+
 // POST /api/retrieve/inspect: the retrieval inspector (decision 0024).
 export type InspectScope = "shelf" | "all" | "portal";
 

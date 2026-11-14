@@ -31,6 +31,9 @@ import type {
   DocumentVersion,
   VersionText,
   VersionDiff,
+  WatchedFolder,
+  WatchedFolders,
+  WatchScan,
   FeedbackSummary,
   JobQueued,
   Intake,
@@ -192,6 +195,14 @@ export const api = {
 
   inspect: (body: InspectIn, signal?: AbortSignal) =>
     request<InspectOut>("/retrieve/inspect", { ...json("POST", body), signal }),
+
+  watchedFolders: () => request<WatchedFolders>("/watched-folders"),
+  addWatchedFolder: (body: { path: string; collection_id: number; recursive: boolean }) =>
+    request<WatchedFolder>("/watched-folders", json("POST", body)),
+  updateWatchedFolder: (id: number, body: Partial<Pick<WatchedFolder, "enabled" | "recursive" | "collection_id">>) =>
+    request<WatchedFolder>(`/watched-folders/${id}`, json("PATCH", body)),
+  removeWatchedFolder: (id: number) => request<void>(`/watched-folders/${id}`, { method: "DELETE" }),
+  scanWatchedFolder: (id: number) => request<WatchScan>(`/watched-folders/${id}/scan`, json("POST")),
 
   models: () => request<Model[]>("/models"),
   deleteModel: (name: string) => request<void>(`/models/${encodeURIComponent(name)}`, { method: "DELETE" }),

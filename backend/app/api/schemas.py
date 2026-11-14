@@ -522,6 +522,56 @@ class ProfileCompareOut(BaseModel):
     prompt_diff: list[str]
 
 
+# --- Watched folders (decision 0025) -------------------------------------------
+
+
+class WatchedFolderIn(BaseModel):
+    model_config = ConfigDict(
+        json_schema_extra={"examples": [{"path": "/watch", "collection_id": 1}]}
+    )
+
+    path: str = Field(min_length=1, max_length=1000)  # a full path on the machine running the app
+    collection_id: int
+    recursive: bool = True
+
+
+class WatchedFolderPatch(BaseModel):
+    enabled: bool | None = None
+    recursive: bool | None = None
+    collection_id: int | None = None
+
+
+class WatchedFolderOut(BaseModel):
+    id: int
+    path: str
+    collection_id: int
+    collection_name: str
+    recursive: bool
+    enabled: bool
+    # "watching", "starting" (just added; picked up within a second), "paused",
+    # "error" (can't watch it: see error) or "stopped" (the watcher isn't
+    # running, e.g. the CLI or a test server)
+    state: str
+    error: str | None
+    files_queued: int
+    last_scan_at: UtcDatetime | None
+    last_file_at: UtcDatetime | None
+    created_at: UtcDatetime
+
+
+class WatchedFoldersOut(BaseModel):
+    mode: Literal["events", "polling"]  # WATCH_POLLING
+    running: bool
+    poll_seconds: float
+    folders: list[WatchedFolderOut]
+
+
+class WatchScanOut(BaseModel):
+    queued: int
+    known: int  # already in the library, or already waiting in the queue
+    skipped: int  # empty, too large or unreadable
+
+
 # --- Ops ----------------------------------------------------------------------
 
 

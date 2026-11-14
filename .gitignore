@@ -1,5 +1,7 @@
 # Data (never commit documents, DB, vectors, backups)
 data/
+# The folder compose.yaml mounts as /watch for watched folders (decision 0025)
+inbox/
 
 # Python
 backend/.venv/

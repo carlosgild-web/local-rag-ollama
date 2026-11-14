@@ -317,6 +317,28 @@ class GlossaryTerm(Base):
     created_at: Mapped[dt.datetime] = mapped_column(default=utcnow)
 
 
+class WatchedFolder(Base):
+    """A folder whose new and changed files are ingested into a shelf
+    (PLAN.md Phase 6). `collection_id` may point at an older generation after
+    a blue/green swap; the shelf is found again by name when a file is queued.
+    Files deleted from the folder are only logged (decision 0025)."""
+
+    __tablename__ = "watched_folders"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    path: Mapped[str] = mapped_column(unique=True)
+    collection_id: Mapped[int] = mapped_column(ForeignKey("collections.id"))
+    recursive: Mapped[bool] = mapped_column(default=True)
+    enabled: Mapped[bool] = mapped_column(default=True)
+    created_at: Mapped[dt.datetime] = mapped_column(default=utcnow)
+    last_scan_at: Mapped[dt.datetime | None] = mapped_column(default=None)
+    last_file_at: Mapped[dt.datetime | None] = mapped_column(default=None)  # last file queued
+    files_queued: Mapped[int] = mapped_column(default=0)
+    last_error: Mapped[str | None] = mapped_column(Text, default=None)
+
+    collection: Mapped["Collection"] = relationship()
+
+
 class AuditLog(Base):
     """Every upload, delete, rollback, reindex, and settings change
     (invariant 7)."""

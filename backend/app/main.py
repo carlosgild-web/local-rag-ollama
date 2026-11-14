@@ -22,6 +22,7 @@ from app.api.routes import (
     profiles,
     retrieval,
     support,
+    watched,
 )
 from app.api.routes import (
     eval as eval_routes,
@@ -39,10 +40,12 @@ from app.core.runtime import Runtime, build_runtime
 from app.eval.service import InvalidEvalError
 from app.ingest import intake
 from app.ingest.uploads import EmptyUploadError, UnsupportedUploadError, UploadTooLargeError
+from app.ingest.watcher import FolderWatcher
 from app.jobs.worker import JobWorker
 from app.versioning.glossary import InvalidGlossaryError
 from app.versioning.profiles import InvalidProfileError
 from app.versioning.service import ConflictError, NotFoundError
+from app.versioning.watched import InvalidWatchedFolderError
 
 API_PREFIX = "/api"
 
@@ -52,6 +55,7 @@ _ERROR_STATUS = {
     InvalidProfileError: 422,
     InvalidEvalError: 422,
     InvalidGlossaryError: 422,
+    InvalidWatchedFolderError: 422,
     UploadTooLargeError: 413,
     EmptyUploadError: 422,
     UnsupportedUploadError: 415,
@@ -125,11 +129,15 @@ def create_app(runtime: Runtime | None = None, *, start_worker: bool = True) -> 
         _schedule_daily_backup(app.state.runtime)
         _schedule_trash_purge(app.state.runtime)  # after the backup, which keeps a copy
         app.state.worker = JobWorker(app.state.runtime)
+        # Watched folders (decision 0025): one thread, started with the worker.
+        app.state.watcher = FolderWatcher(app.state.runtime)
         if start_worker:
             app.state.worker.start()
+            app.state.watcher.start()
         try:
             yield
         finally:
+            app.state.watcher.stop()
             app.state.worker.stop()
             app.state.runtime.engine.dispose()
 
@@ -155,6 +163,7 @@ def create_app(runtime: Runtime | None = None, *, start_worker: bool = True) -> 
         demo,
         eval_routes,
         glossary_routes,
+        watched,
     ):
         api.include_router(module.router)
     app.include_router(api)

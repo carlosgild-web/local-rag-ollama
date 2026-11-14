@@ -7,6 +7,7 @@ import {
   ExternalLink,
   FlaskConical,
   FolderOpen,
+  FolderSync,
   Globe,
   LayoutDashboard,
   ListTodo,
@@ -55,6 +56,7 @@ const NAV: {
   { to: "/inspector", label: "Inspector", icon: ScanSearch, needs: "browse", partly: "process", group: "Control panel" },
   { to: "/profiles", label: "Profiles", icon: SlidersHorizontal, needs: "browse" },
   { to: "/models", label: "Models", icon: Boxes, needs: null },
+  { to: "/watched", label: "Watched folders", icon: FolderSync, needs: "browse", partly: "process" },
 ];
 
 const PILL: Record<SystemState, { label: string; className: string; dot: string }> = {

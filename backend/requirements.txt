@@ -20,4 +20,5 @@ sqlalchemy>=2.0
 alembic>=1.13
 python-multipart>=0.0.9
 
-# Phase 6 (watched folders) will add: watchdog
+# Phase 6 (watched folders):
+watchdog>=6.0

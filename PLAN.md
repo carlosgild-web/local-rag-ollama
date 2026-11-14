@@ -206,7 +206,7 @@ Taken before Phase 6 ([decision 0019](docs/decisions/0019-evaluation.md)).
 
 **Done when:** vector only, hybrid and hybrid + reranker can be compared on the same question set.
 
-✅ **Done when is met (2026-11-14).** Retrieval: vector 0.865 MRR, hybrid 0.934, hybrid + reranker 0.956 (decision 0023). Answers went from 70% to 91% of questions passed after three measured fixes: citation repair (0020), glossary (0021) and a partial-answers prompt rule (0022). Still to close the phase: a final run with the judge, the README eval table and the release.
+✅ **Done when is met (2026-11-14).** Retrieval: vector 0.865 MRR, hybrid 0.934, hybrid + reranker 0.956 (decision 0023). Answers went from 70% to 91% of questions passed after three measured fixes: citation repair (0020), glossary (0021) and a partial-answers prompt rule (0022). Closed with v0.9.0: the final run with the judge confirmed 91% (faithfulness 0.74; the 3B judge is unreliable), and the README has the eval tables.
 
 Open quality items from the 2026-11-06 end-to-end test, to measure here (`docs/test-reports/2026-11-06-e2e.md`):
 - FAQ questions answered "not found" although the right passages were retrieved (sc-06, sc-07). Check the chunking of `08-customer-faq.txt`.

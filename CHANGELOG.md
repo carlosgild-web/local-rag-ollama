@@ -4,7 +4,27 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Ver
 
 ## [Unreleased]
 
+## [0.9.0] - 2026-11-14
+
+Phase 7, evaluation. A golden set of 53 questions now scores every change. Three measured fixes took answers on it from 70% to 91% passed, keeping every "not found" right. A final run of this release confirmed the 91%. Vector-only, hybrid and hybrid plus a reranker are compared on the same questions. Phase 7 was taken before Phase 6 ([decision 0019](docs/decisions/0019-evaluation.md)).
+
+The local judge's faithfulness score stayed at 0.74. A 3B judge marks some correct answers as unsupported, so it's reported as a hint, not a result.
+
+### Upgrading
+
+- The app applies migrations 0008 (evaluation) and 0009 (glossary) on start.
+- To get the new prompt rule, save a new version of the `default` profile with `SYSTEM_INSTRUCTIONS`' fourth rule (`POST /api/profiles`), or start fresh.
+- Load the demo company's glossary words with the button in the Glossary card (Collections), and the demo golden set on the Evaluation page.
+- The reranker is optional: `python -m app.cli reranker-download`, then pick it per evaluation run or set `RERANK_ENABLED=true`.
+
 ### Added
+
+- **Evaluation page** in the console:
+  - golden sets: create, import or export JSON, load the demo set
+  - questions: add and edit them, with shelf, expected files, required facts, a "should be not found" flag and wording groups
+  - runs: start them with a profile, retrieval mode, top-k, answers, the judge, the glossary, citation repair and the reranker; follow progress or cancel
+  - a run's detail opens each question's answer, missing facts, cited files and top passages
+  - two runs side by side: totals with deltas, a note when the index changed, and the questions that changed
 
 - **Citation repair** ([decision 0020](docs/decisions/0020-citation-repair.md)). After an answer is written, each `[n]` is checked against the passages sent to the model and moved to the one that has the claim's figures or words, only when the evidence is clear. Words never change. On the golden set this lifted questions passed from 70% to 81% and citations to the right file from 79% to 93%, with none broken. Evaluation runs repair by default; `repair_citations: false` or `--no-repair` measures without it.
 

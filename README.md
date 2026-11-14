@@ -152,7 +152,9 @@ Runs go through the chat's own retrieval and prompt, and the **Evaluation** page
 | + glossary ([0021](docs/decisions/0021-glossary.md)) | 89% | 89% | 100% | 98% |
 | + "answer the part it answers" rule ([0022](docs/decisions/0022-prompt-partial-answers.md)) | **91%** | 91% | 100% | 98% |
 
-The five questions still failing are the 3B model reading or omitting details. The fixes were measured on the questions they were written for, so treat the later steps as best cases; the decisions say which gains are within run-to-run noise.
+A final run of the released configuration (v0.9.0) repeated the last row exactly, with the same 5 questions failing. The five are the 3B model reading or omitting details. The fixes were measured on the questions they were written for, so treat the later steps as best cases; the decisions say which gains are within run-to-run noise.
+
+The local model also judged faithfulness ("is every fact in the answer in the sources?"): 0.74 before the fixes and 0.74 after. A 3B judge isn't reliable. It marked correct answers as unsupported, such as $1.60 retail, which the catalog states. So the score is kept as a hint to read answers, not as a result.
 
 **Retrieval** (same 53 questions, right file in the top 5 / ranked first / MRR):
 

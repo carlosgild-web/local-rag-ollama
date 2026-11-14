@@ -34,7 +34,10 @@ jobs:
       - run: pip install -r requirements.txt -r requirements-dev.txt
       - run: ruff check .
       - run: ruff format --check .
-      - run: pytest -q
+      - name: pytest with coverage
+        run: |
+          pytest -q --cov --cov-report=term --cov-report=markdown:coverage.md
+          { echo "## Backend coverage"; echo; cat coverage.md; } >> "$GITHUB_STEP_SUMMARY"
 
   frontend:
     runs-on: ubuntu-latest
@@ -68,6 +71,8 @@ jobs:
   # The one-command start scripts: lint them, then run --check (detect and
   # explain, change nothing) on each OS a tester might use.
   start-scripts:
+    # A hang (macOS once ran into the 15-minute mark) fails fast instead.
+    timeout-minutes: 10
     strategy:
       fail-fast: false
       matrix:

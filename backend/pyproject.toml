@@ -14,3 +14,10 @@ select = ["E", "F", "I", "UP", "B", "SIM"]
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 pythonpath = ["."]
+
+[tool.coverage.run]
+source = ["app"]
+
+[tool.coverage.report]
+# CI prints the summary; there's no minimum yet (Phase 8, decision in CHANGELOG).
+skip_covered = true

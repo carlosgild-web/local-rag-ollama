@@ -7,6 +7,20 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Ver
 ### Added
 
 - Optional password ([decision 0026](docs/decisions/0026-optional-password.md)). `python -m app.cli set-password` stores an scrypt hash in `DATA_DIR`; `APP_PASSWORD` works too, for Docker. With a password, the console and the employee portal show a sign-in screen, and every API route and the API docs need a session: a signed `HttpOnly`, `SameSite=Strict` cookie for 7 days (`AUTH_SESSION_DAYS`). `/health` and the public `/site` stay open. After 5 wrong passwords from one address in 5 minutes, sign-in waits. Changing or clearing the password signs everyone out. Off by default, so nothing changes until you set one.
+- Test coverage: `pytest --cov` (new dev dependency `pytest-cov`), and CI shows the coverage table in each run's summary. There's no minimum yet. 19 new tests cover the guards around versioning and jobs that had none:
+  - purging a document that isn't in the trash is refused
+  - an ingest job that waited through a blue/green swap lands in the live shelf
+  - only generations of the same shelf can be swapped
+  - stale jobs are recovered at start, and an unknown job type fails cleanly
+  - the worker loop survives errors and a failed heartbeat
+  - profile values are checked
+  - a watched folder that becomes unreachable is reported, then recovers
+
+  Coverage is 92% overall, 97% for `versioning/service.py` and 93–99% for `jobs/`.
+
+### Fixed
+
+- `start.sh` gives up on `docker info` after 20 seconds, treating Docker as down, instead of waiting forever while Docker Desktop is stuck starting. CI's start-script jobs stop after 10 minutes: a macOS run once hung until its 15-minute mark.
 
 ## [0.10.0] - 2026-11-14
 

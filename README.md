@@ -220,13 +220,14 @@ Open http://localhost:8000. The app has no sign-in by default and listens on loc
 
 **Low on RAM?** Set `CHAT_MODEL=qwen2.5:3b` ([decision 0004](docs/decisions/0004-small-chat-model-on-low-ram.md)).
 
-> **Run it locally or on a private network.** There are no logins: the admin console, the intranet and uploads are open to anyone who can reach the server. Docker publishes its ports on `127.0.0.1` only, for that reason.
+> **Run it locally or on a private network.** There's no sign-in by default: the admin console, the intranet and uploads are open to anyone who can reach the server, so Docker publishes its ports on `127.0.0.1` only. Set a password (`python -m app.cli set-password`) before anyone else can reach it.
 
 ## Testing
 
 ```bash
 cd backend
 .venv/Scripts/python -m pytest -q                       # no Ollama needed
+.venv/Scripts/python -m pytest -q --cov                 # with a coverage summary
 .venv/Scripts/ruff check . && .venv/Scripts/ruff format --check .
 cd ../frontend && npm run build                         # type check + build
 ```

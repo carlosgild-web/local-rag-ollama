@@ -109,6 +109,19 @@ size_of() {
 }
 
 has() { command -v "$1" >/dev/null 2>&1; }
+# Runs a command but gives up after $1 seconds (macOS has no `timeout`). Used for
+# `docker info`, which can hang while Docker Desktop is stuck starting.
+with_timeout() {
+  local secs="$1" pid killer rc
+  shift
+  "$@" &
+  pid=$!
+  ( sleep "$secs"; kill "$pid" 2>/dev/null ) >/dev/null 2>&1 &
+  killer=$!
+  wait "$pid"; rc=$?
+  kill "$killer" 2>/dev/null; wait "$killer" 2>/dev/null
+  return "$rc"
+}
 http_get() { curl -s -m 5 "$1" 2>/dev/null; }
 
 port_free() {
@@ -245,7 +258,7 @@ DOCKER_STATE=""; DOCKER_DETAIL=""
 docker_state() {
   local out
   if [ "$NO_DOCKER" = 1 ] || ! has docker; then DOCKER_STATE="missing"; DOCKER_DETAIL=""; return; fi
-  if out="$(docker info --format '{{.ServerVersion}}' 2>&1)"; then DOCKER_STATE="running"; DOCKER_DETAIL="$out"
+  if out="$(with_timeout 20 docker info --format '{{.ServerVersion}}' 2>&1)"; then DOCKER_STATE="running"; DOCKER_DETAIL="$out"
   else DOCKER_STATE="down"; DOCKER_DETAIL="$(printf '%s' "$out" | grep -v '^[[:space:]]*$' | tail -2 | tr '\n' ' ')"; fi
 }
 

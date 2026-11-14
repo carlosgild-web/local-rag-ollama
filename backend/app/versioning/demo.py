@@ -9,9 +9,11 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
 
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.core.config import Settings
+from app.db.models import AuditLog, IngestJob
 from app.llm.base import EmbeddingClient
 from app.retrieval.vector_store import VectorStore
 from app.versioning import glossary, service
@@ -71,6 +73,26 @@ def seed_demo(
     if glossary.demo_glossary_available() and not glossary.list_terms(db):
         glossary.load_demo_glossary(db)
     return results
+
+
+def demo_glossary_missing(db: Session) -> bool:
+    """True when the demo company was loaded but its glossary never was: a
+    library loaded before v0.9.0, which added the glossary (decision 0021).
+    The vacation→PTO kind of question then answers "not found". Someone who
+    removed glossary words on purpose isn't asked again."""
+    if not glossary.demo_glossary_available() or glossary.list_terms(db):
+        return False
+    seeded = db.execute(
+        select(IngestJob.id)
+        .where(IngestJob.job_type == "seed_demo", IngestJob.status == "completed")
+        .limit(1)
+    ).first()
+    if seeded is None:
+        return False
+    removed = db.execute(
+        select(AuditLog.id).where(AuditLog.action == "glossary_delete").limit(1)
+    ).first()
+    return removed is None
 
 
 def demo_available(root: Path | None = None) -> bool:

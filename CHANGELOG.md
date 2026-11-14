@@ -9,6 +9,10 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Ver
 - Retrieval inspector (`/inspector`, `POST /api/retrieve/inspect`): every candidate with its vector and keyword ranks and scores, the top-k the model would see, the final prompt and timings. Sliders for search mode, top-k, candidates, vector weight (weighted RRF) and a cosine floor, plus a reranker toggle, re-query live. With its defaults it shows exactly what the chat sends. Read-only; the chat is unchanged ([decision 0024](docs/decisions/0024-retrieval-inspector.md)).
 - Profiles page (`/profiles`): edit the chat model, top-k, temperature and system prompt. Each save is a new version. The page also has a version timeline with how many answers and evaluation runs used each version, and a compare of any two versions (the changed settings and a line diff of the prompt). Restore saves an old version's settings as the next version, so history is never rewritten. New endpoints: `GET /api/profiles/compare`, `POST /api/profiles/{id}/restore`. A new profile starts as a copy of the selected one.
 
+### Fixed
+
+- A demo library loaded before v0.9.0 never got the demo glossary, so questions like "How many vacation days do I have?" answered "not found". The Dashboard and the Glossary card now offer to load the words with one click (`glossary_missing` in `GET /api/demo`). Nothing loads by itself, and a library whose words were removed on purpose isn't asked.
+
 ## [0.9.0] - 2026-11-14
 
 Phase 7, evaluation. A golden set of 53 questions now scores every change. Three measured fixes took answers on it from 70% to 91% passed, keeping every "not found" right. A final run of this release confirmed the 91%. Vector-only, hybrid and hybrid plus a reranker are compared on the same questions. Phase 7 was taken before Phase 6 ([decision 0019](docs/decisions/0019-evaluation.md)).

@@ -60,6 +60,16 @@ It never installs anything without asking, and it shows the exact command first.
 
 ### A. Docker, everything in containers (easiest)
 
+**Just the demo, with small models:** one command pulls `bge-m3` and `qwen2.5:3b` (about 3 GB the first time) and starts everything. It runs with 8 GB of RAM.
+
+```bash
+docker compose -f compose.yaml -f compose.demo.yaml up -d
+```
+
+Wait until `docker compose ps` shows `app` running (the first time, the download takes a few minutes), then open http://localhost:8000 and click **Load the demo company**.
+
+**With the full-size chat model:**
+
 ```bash
 docker compose up -d
 docker compose exec ollama ollama pull bge-m3

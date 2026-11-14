@@ -1,0 +1,30 @@
+# Demo mode: a reviewer with only Docker runs the whole demo with small models.
+#   docker compose -f compose.yaml -f compose.demo.yaml up -d
+# A one-off `models` container pulls bge-m3 and qwen2.5:3b (about 3 GB, once;
+# they stay in the ollama_models volume), then the app starts with them.
+# Open http://localhost:8000 and click "Load the demo company" (decision 0031).
+#
+# qwen2.5:3b is the model behind the README's evaluation numbers, and it runs
+# on a laptop with 8 GB of RAM. For another one, set DEMO_CHAT_MODEL
+# (e.g. DEMO_CHAT_MODEL=llama3.2:3b in a .env file next to this one).
+services:
+  models:
+    image: ollama/ollama:latest
+    environment:
+      OLLAMA_HOST: http://ollama:11434 # the CLI talks to the ollama service
+      DEMO_CHAT_MODEL: ${DEMO_CHAT_MODEL:-qwen2.5:3b}
+    entrypoint: ["/bin/sh", "-c"]
+    # $$ keeps Compose from expanding it: the container's shell reads the variable.
+    command: ['ollama pull bge-m3 && ollama pull "$$DEMO_CHAT_MODEL"']
+    depends_on:
+      ollama:
+        condition: service_healthy
+    restart: "no"
+
+  app:
+    environment:
+      CHAT_MODEL: ${DEMO_CHAT_MODEL:-qwen2.5:3b}
+      EMBEDDING_MODEL: bge-m3
+    depends_on:
+      models:
+        condition: service_completed_successfully

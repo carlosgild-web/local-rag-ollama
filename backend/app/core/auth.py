@@ -18,6 +18,7 @@ Only the standard library: hashlib.scrypt, hmac, secrets.
 
 import base64
 import contextlib
+import functools
 import hashlib
 import hmac
 import json
@@ -117,9 +118,18 @@ def check_password(settings: Settings, password: str) -> bool:
 
 
 def _fingerprint(settings: Settings) -> str:
-    """Changes whenever the password does, which ends every session."""
+    """Changes whenever the password does, which ends every session. It goes
+    into the cookie, so it must not let anyone test password guesses offline:
+    it's scrypt, salted with the server's secret key (CodeQL
+    py/weak-sensitive-data-hashing flagged a plain SHA-256 here)."""
     source = settings.app_password or stored_hash(settings) or ""
-    return hashlib.sha256(source.encode()).hexdigest()[:16]
+    return _derive(source, _secret(settings))
+
+
+@functools.lru_cache(maxsize=8)
+def _derive(source: str, key: bytes) -> str:
+    """Cached: scrypt is slow on purpose, and this runs on every request."""
+    return hashlib.scrypt(source.encode(), salt=key, dklen=12, **_SCRYPT).hex()
 
 
 # --- Sessions --------------------------------------------------------------------

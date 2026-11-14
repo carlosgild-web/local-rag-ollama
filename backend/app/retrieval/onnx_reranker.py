@@ -32,7 +32,7 @@ FILES = {
     MODEL_FILE: "912fc1215c2dbff6499700534bd8d31253af01573861abbfc43afd1fab6cce5d",
 }
 MAX_LENGTH = 512  # tokens per question + passage pair
-BATCH = 8  # pairs per forward pass: keeps peak memory low on small machines
+BATCH = 4  # pairs per forward pass: keeps peak memory low on a 7 GB machine
 
 
 class RerankerUnavailableError(RuntimeError):

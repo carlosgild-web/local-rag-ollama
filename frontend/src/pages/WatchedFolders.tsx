@@ -71,7 +71,8 @@ function AddFolder() {
         <CardDescription>
           The full path on the machine running the app, such as <code>C:\Users\you\Documents\Policies</code>. In Docker
           it's the path inside the container: <code>/watch</code> is the <code>inbox</code> folder next to{" "}
-          <code>compose.yaml</code>. The files already there are added once.
+          <code>compose.yaml</code>. Only folders inside <code>WATCH_ROOTS</code> are allowed (your home folder unless you set
+          it). The files already there are added once.
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-3">

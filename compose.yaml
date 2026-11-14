@@ -43,6 +43,7 @@ services:
       CHAT_MODEL: ${CHAT_MODEL:-llama3.1}
       EMBEDDING_MODEL: ${EMBEDDING_MODEL:-bge-m3}
       WATCH_POLLING: "true"
+      WATCH_ROOTS: /watch # only the mounted inbox can be watched (decision 0025)
       WEB_CONCURRENCY: "1"
     volumes:
       - app_data:/data

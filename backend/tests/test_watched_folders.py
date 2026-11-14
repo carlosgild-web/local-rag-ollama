@@ -12,6 +12,12 @@ from app.main import create_app
 from app.versioning import service, watched
 
 
+@pytest.fixture(autouse=True)
+def _roots(runtime, tmp_path):
+    """Allow the test's own folders (CI's /tmp isn't under the home folder)."""
+    runtime.settings.watch_roots = str(tmp_path)
+
+
 @pytest.fixture
 def client(runtime):
     app = create_app(runtime, start_worker=False)
@@ -101,6 +107,50 @@ def test_bad_paths_are_refused(client, runtime, tmp_path, shelf, path, code):
     assert response.status_code == code, response.text
 
 
+def test_only_folders_inside_watch_roots_are_accepted(client, runtime, tmp_path, shelf):
+    outside = tmp_path / "outside"
+    inside_root = tmp_path / "allowed"
+    (inside_root / "docs").mkdir(parents=True)
+    outside.mkdir()
+    runtime.settings.watch_roots = str(inside_root)
+
+    refused = client.post(
+        "/api/watched-folders", json={"path": str(outside), "collection_id": shelf}
+    )
+    assert refused.status_code == 422 and "WATCH_ROOTS" in refused.json()["detail"]
+    sneaky = str(inside_root / "docs" / ".." / ".." / "outside")
+    assert (
+        client.post(
+            "/api/watched-folders", json={"path": sneaky, "collection_id": shelf}
+        ).status_code
+        == 422
+    )
+    _add(client, inside_root / "docs", shelf)
+
+
+def test_a_folder_left_outside_new_watch_roots_is_not_read(
+    client, runtime, tmp_path, folder, shelf
+):
+    (folder / "a.txt").write_text("Alpha.")
+    added = _add(client, folder, shelf)
+    runtime.settings.watch_roots = str(tmp_path / "somewhere-else")
+    assert _scan(client, added["id"])["queued"] == 0
+    listed = client.get("/api/watched-folders").json()["folders"][0]
+    assert "outside WATCH_ROOTS" in listed["error"]
+    with runtime.session_factory() as db:
+        assert watched.folder_for(db, runtime.settings, folder / "a.txt") is None
+
+
+def test_watch_roots_default_to_the_home_folder(runtime):
+    import os
+    from pathlib import Path
+
+    runtime.settings.watch_roots = ""
+    assert runtime.settings.watch_root_paths == [Path(os.path.realpath(Path.home()))]
+    runtime.settings.watch_roots = os.pathsep.join(["/a", "/b"])
+    assert len(runtime.settings.watch_root_paths) == 2
+
+
 def test_overlapping_folders_and_unknown_shelves_are_refused(client, folder, shelf):
     (folder / "sub").mkdir()
     _add(client, folder, shelf)
@@ -124,7 +174,9 @@ def test_pause_resume_and_remove_keep_the_documents(client, runtime, folder, she
     paused = client.patch(f"/api/watched-folders/{added['id']}", json={"enabled": False}).json()
     assert paused["enabled"] is False and paused["state"] == "paused"
     with runtime.session_factory() as db:
-        assert watched.folder_for(db, folder / "a.txt") is None, "a paused folder takes nothing"
+        assert (
+            watched.folder_for(db, runtime.settings, folder / "a.txt") is None
+        ), "a paused folder takes nothing"
 
     assert client.delete(f"/api/watched-folders/{added['id']}").status_code == 204
     assert client.get("/api/watched-folders").json()["folders"] == []
@@ -189,7 +241,7 @@ def test_non_recursive_folders_leave_subfolders_out(client, runtime, folder, she
     added = _add(client, folder, shelf, recursive=False)
     assert _scan(client, added["id"])["queued"] == 1
     with runtime.session_factory() as db:
-        assert watched.folder_for(db, folder / "sub" / "deep.txt") is None
+        assert watched.folder_for(db, runtime.settings, folder / "sub" / "deep.txt") is None
     assert set(_documents(runtime)) == {"top.txt"}
 
 

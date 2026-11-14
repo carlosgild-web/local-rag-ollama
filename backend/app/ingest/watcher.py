@@ -153,6 +153,9 @@ class FolderWatcher:
         with self.runtime.session_factory() as db:
             folders = [f for f in watched.list_folders(db) if f.enabled]
             for folder in folders:
+                if watched.allowed_path(self.settings, folder.path) is None:
+                    errors[folder.id] = f"{folder.path} is outside WATCH_ROOTS; it isn't watched"
+                    continue
                 try:
                     observer.schedule(handler, folder.path, recursive=folder.recursive)
                     watching.add(folder.id)
@@ -205,7 +208,7 @@ class FolderWatcher:
             return []
         with self.runtime.session_factory() as db:
             for path in ready:
-                folder = watched.folder_for(db, path)
+                folder = watched.folder_for(db, self.settings, path)
                 if folder is None:
                     continue
                 try:

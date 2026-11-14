@@ -24,6 +24,7 @@ Phase 6 asks for "watched folders with a `WATCH_POLLING` option": new and change
 - **Shelf:** the folder stores a collection id, and the live generation is found by name, so a blue/green swap keeps feeding the right shelf (invariant 4).
 - **Folder rules:**
   - full paths only
+  - **inside `WATCH_ROOTS` only.** It defaults to the user's home folder, and `compose.yaml` sets `/watch`. The path comes from whoever calls the API. Without a limit, anyone who can reach the API could make the app read any folder on the machine and then answer questions from its documents. The app only listens on localhost, but it has no login yet (Phase 8). CodeQL flagged this as `py/path-injection` on the first version of the PR. The check runs on the resolved real path (so `..` and links can't escape) before the folder is touched, and again when a folder is scanned or watched, in case `WATCH_ROOTS` changed since.
   - never inside `DATA_DIR`, and never containing it (that would feed the app its own files)
   - folders can't overlap, so no file is queued twice
 - **Deleted files** are logged (`file removed from a watched folder; its document is kept`) and nothing else happens.

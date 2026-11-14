@@ -14,6 +14,7 @@ The watcher thread (app/ingest/watcher.py) only calls `queue_file` and
 import hashlib
 import json
 import logging
+import os
 import shutil
 import uuid
 from dataclasses import dataclass
@@ -79,15 +80,34 @@ def shelf_of(db: Session, folder: WatchedFolder) -> Collection:
     return live or collection
 
 
+def allowed_path(settings: Settings, raw: str) -> str | None:
+    """The normalized absolute path when it lies inside WATCH_ROOTS, else None.
+    Checked before the folder is touched at all: the path comes from an API
+    caller, and without the check anyone who can reach the API could make the
+    app read (and then answer from) any folder on the machine."""
+    real = os.path.realpath(os.path.expanduser(raw))
+    full = os.path.normcase(real)  # Windows compares paths without case
+    for root in settings.watch_root_paths:
+        base = os.path.normcase(str(root))
+        if full == base or full.startswith(base.rstrip(os.sep) + os.sep):
+            return real
+    return None
+
+
 def _validate_path(
     db: Session, settings: Settings, raw: str, *, ignore_id: int | None = None
 ) -> Path:
     if not raw.strip():
         raise InvalidWatchedFolderError("give the folder's full path")
-    path = Path(raw.strip()).expanduser()
-    if not path.is_absolute():
+    if not os.path.isabs(os.path.expanduser(raw.strip())):
         raise InvalidWatchedFolderError(f"{raw!r} isn't a full path (e.g. C:\\Docs or /watch)")
-    path = _norm(path)
+    allowed = allowed_path(settings, raw.strip())
+    if allowed is None:
+        roots = ", ".join(str(r) for r in settings.watch_root_paths)
+        raise InvalidWatchedFolderError(
+            f"only folders inside {roots} can be watched; set WATCH_ROOTS to allow others"
+        )
+    path = Path(allowed)
     if not path.is_dir():
         raise InvalidWatchedFolderError(f"{path} doesn't exist or isn't a folder on this machine")
     data_dir = _norm(settings.data_dir)
@@ -257,6 +277,11 @@ def scan_folder(db: Session, settings: Settings, folder: WatchedFolder) -> ScanR
     """Queues every supported file whose content isn't in the library yet: at
     startup (changes made while the app was off) and from "Scan now"."""
     result = ScanResult()
+    if allowed_path(settings, folder.path) is None:
+        folder.last_error = f"{folder.path} is outside WATCH_ROOTS; it isn't read"
+        folder.last_scan_at = utcnow()
+        db.commit()
+        return result
     root = Path(folder.path)
     if not root.is_dir():
         folder.last_error = f"{folder.path} isn't reachable"
@@ -283,12 +308,14 @@ def scan_folder(db: Session, settings: Settings, folder: WatchedFolder) -> ScanR
     return result
 
 
-def folder_for(db: Session, path: Path) -> WatchedFolder | None:
-    """The enabled watched folder a path belongs to, if any."""
+def folder_for(db: Session, settings: Settings, path: Path) -> WatchedFolder | None:
+    """The enabled watched folder a path belongs to, if any (inside WATCH_ROOTS)."""
     path = _norm(path)
     for folder in list_folders(db):
         root = Path(folder.path)
         if not folder.enabled or not _inside(path, root):
+            continue
+        if allowed_path(settings, folder.path) is None:
             continue
         if folder.recursive or path.parent == root:
             return folder

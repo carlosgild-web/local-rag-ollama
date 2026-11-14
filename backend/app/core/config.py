@@ -60,6 +60,10 @@ class Settings(BaseSettings):
     # A file is queued once its size and time stop changing for this long, so a
     # copy in progress isn't ingested half-written.
     watch_settle_seconds: float = 2.0
+    # Only folders inside these may be watched (separated by ";" on Windows and
+    # ":" elsewhere, like PATH). Empty = the user's home folder. Anyone who can
+    # reach the API could otherwise make the app read any folder on the machine.
+    watch_roots: str = ""
 
     # Logging
     log_level: str = "INFO"
@@ -83,6 +87,16 @@ class Settings(BaseSettings):
     @property
     def db_path(self) -> Path:
         return self.data_dir / "app.db"
+
+    @property
+    def watch_root_paths(self) -> list[Path]:
+        """WATCH_ROOTS as absolute paths; the home folder when it's empty."""
+        import os
+
+        parts = [p.strip() for p in self.watch_roots.split(os.pathsep) if p.strip()]
+        return [Path(os.path.realpath(os.path.expanduser(p))) for p in parts] or [
+            Path(os.path.realpath(Path.home()))
+        ]
 
     @property
     def uploads_dir(self) -> Path:

@@ -13,6 +13,7 @@ from pathlib import Path
 
 from sqlalchemy.orm import Session
 
+from app.core import metrics
 from app.core.logging import request_id_var
 from app.core.runtime import Runtime
 from app.db import backup
@@ -93,6 +94,8 @@ class JobWorker:
         def progress(fraction: float) -> None:
             queue.report_progress(db, job, fraction)
 
+        started = time.perf_counter()
+        outcome = "failed"  # this attempt's result; a failed job may still be retried
         try:
             if handler is None:
                 raise ValueError(f"no handler for job type {job.job_type!r}")
@@ -100,6 +103,7 @@ class JobWorker:
         except JobCancelled:
             db.rollback()
             queue.mark_cancelled(db, job)
+            outcome = "cancelled"
             self._cleanup(job.job_type, payload)
             logger.info("job cancelled", extra=log_extra)
         except Exception as exc:
@@ -117,7 +121,12 @@ class JobWorker:
             if job.job_type == "ingest" and result.get("document_id"):
                 job.document_id = result["document_id"]
             queue.complete(db, job, result)
+            outcome = "completed"
             logger.info("job completed", extra=log_extra)
+        finally:
+            metrics.JOB_DURATION.observe(
+                time.perf_counter() - started, job_type=job.job_type, status=outcome
+            )
         return True
 
     def run_until_idle(self, max_jobs: int = 100) -> int:

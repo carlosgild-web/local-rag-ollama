@@ -73,6 +73,9 @@ class Settings(BaseSettings):
 
     # Logging
     log_level: str = "INFO"
+    # Prometheus metrics at /metrics (decision 0030). Open like /health: only
+    # counts and timings, no documents or questions.
+    metrics_enabled: bool = True
 
     # Developer only: simulate failures for the troubleshooter, e.g.
     # "sqlite,ollama_down" (see app/core/faults.py). Empty = off.

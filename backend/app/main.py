@@ -8,7 +8,7 @@ from contextlib import asynccontextmanager
 
 import httpx
 from fastapi import APIRouter, FastAPI, Request
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, PlainTextResponse
 
 from app import __version__
 from app.api.routes import (
@@ -37,6 +37,7 @@ from app.api.routes import (
     intake as intake_routes,
 )
 from app.api.static import find_static_dir, mount_frontend
+from app.core import metrics
 from app.core.auth import AuthMiddleware, LoginLimiter
 from app.core.config import get_settings
 from app.core.logging import RequestIdMiddleware, configure_logging
@@ -174,22 +175,45 @@ def create_app(runtime: Runtime | None = None, *, start_worker: bool = True) -> 
     app.include_router(api)
     # Unprefixed alias for container health checks.
     app.add_api_route("/health", ops.health, methods=["GET"], include_in_schema=False)
+    settings = runtime.settings if runtime is not None else get_settings()
+    if settings.metrics_enabled:
+        app.add_api_route("/metrics", _metrics, methods=["GET"], include_in_schema=False)
 
     for exc_type, status_code in _ERROR_STATUS.items():
         app.add_exception_handler(exc_type, _error_handler(status_code))
     app.add_exception_handler(httpx.HTTPError, _ollama_error)
-    # Added after AuthMiddleware so it wraps it: refused requests are logged too.
+    # Added after AuthMiddleware so they wrap it: refused requests are logged and counted.
     app.add_middleware(AuthMiddleware)
+    if settings.metrics_enabled:
+        app.add_middleware(metrics.MetricsMiddleware)
     app.add_middleware(RequestIdMiddleware)
     app.state.login_limiter = LoginLimiter()
     _patch_openapi_file_fields(app)
 
-    # Last, so the catch-all never shadows the API, /docs or /health.
-    settings = runtime.settings if runtime is not None else get_settings()
+    # Last, so the catch-all never shadows the API, /docs, /health or /metrics.
     static_dir = find_static_dir(settings.static_dir)
     if static_dir is not None:
         mount_frontend(app, static_dir, api_prefix=API_PREFIX)
     return app
+
+
+def _metrics(request: Request) -> PlainTextResponse:
+    """Prometheus text format (decision 0030)."""
+    from sqlalchemy import func, select
+
+    from app.db.models import IngestJob
+
+    runtime: Runtime = request.app.state.runtime
+    try:
+        with runtime.session_factory() as db:
+            rows = db.execute(
+                select(IngestJob.status, func.count(IngestJob.id)).group_by(IngestJob.status)
+            ).all()
+        jobs: dict[str, int] | None = {status: count for status, count in rows}
+    except Exception:  # SQLite down: /health reports it; still serve the rest
+        jobs = None
+    body = metrics.render(version=__version__, jobs_by_status=jobs)
+    return PlainTextResponse(body, media_type=metrics.CONTENT_TYPE)
 
 
 def _patch_openapi_file_fields(app: FastAPI) -> None:

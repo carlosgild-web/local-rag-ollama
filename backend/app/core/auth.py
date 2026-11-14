@@ -33,7 +33,14 @@ from pathlib import Path
 from app.core.config import Settings
 
 COOKIE_NAME = "rag_session"
-OPEN_PATHS = {"/health", "/api/health", "/api/auth/status", "/api/auth/login", "/api/auth/logout"}
+OPEN_PATHS = {
+    "/health",
+    "/api/health",
+    "/metrics",  # counts and timings only (decision 0030); off with METRICS_ENABLED=false
+    "/api/auth/status",
+    "/api/auth/login",
+    "/api/auth/logout",
+}
 # scrypt cost: about 50 ms and 16 MB per check on a laptop (OWASP's minimum is N=2**17, r=8).
 _SCRYPT = {"n": 2**14, "r": 8, "p": 1}
 _MAX_FAILURES = 5

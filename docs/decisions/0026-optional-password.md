@@ -21,7 +21,7 @@ The user chose (2026-11-14):
   - The key is 32 random bytes in `DATA_DIR/secret_key`.
   - The cookie is `HttpOnly`, `SameSite=Strict` (cross-site requests carry no cookie, which covers CSRF for this app), and `Secure` when the request came over HTTPS (`X-Forwarded-Proto` behind a proxy).
   - It lasts 7 days (`AUTH_SESSION_DAYS`).
-  - Changing or clearing the password changes the fingerprint, so everyone is signed out.
+  - Changing or clearing the password changes the fingerprint, so everyone is signed out. The fingerprint is scrypt keyed with the server's secret, so a cookie doesn't let anyone test password guesses offline. The first version used a plain SHA-256, and CodeQL flagged it (`py/weak-sensitive-data-hashing`).
   - `POST /api/auth/logout` clears the cookie.
 - **What needs a session:** every `/api` route and the API docs (`/docs`, `/redoc`, `/openapi.json`). These stay open:
   - `/health` and `/api/health` (the container health check)

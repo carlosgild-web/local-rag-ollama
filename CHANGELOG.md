@@ -4,6 +4,10 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Ver
 
 ## [Unreleased]
 
+### Security
+
+- `/health`, which stays open when a password is set, no longer shows error messages to callers who aren't signed in: only the error's type (CodeQL `py/stack-trace-exposure`). Without a password nothing changes. The log and the troubleshooter keep the full message.
+
 ### Added
 
 - Prometheus metrics at `/metrics` ([decision 0030](docs/decisions/0030-prometheus-metrics.md)), written with the standard library (no new dependency):
@@ -15,6 +19,11 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Ver
 
   Like `/health`, it stays open when a password is set: it holds counts and timings only. `METRICS_ENABLED=false` turns it off.
 - Docker demo mode ([decision 0031](docs/decisions/0031-docker-demo-mode.md)): `docker compose -f compose.yaml -f compose.demo.yaml up -d`. A one-off `models` container pulls `bge-m3` and `qwen2.5:3b` into the Ollama volume, then the app starts with them. With only Docker installed, the demo is three commands (clone, `cd`, `up`) and one click on **Load the demo company**. `DEMO_CHAT_MODEL` picks another small model.
+
+### Documentation
+
+- Decision records for three design choices: Chroma behind a `VectorStore` interface ([0027](docs/decisions/0027-chroma-behind-an-interface.md)), the active-version pointer that makes rollback free ([0028](docs/decisions/0028-active-version-pointer.md)), and blue/green rebuilds ([0029](docs/decisions/0029-blue-green-reindex.md)).
+- A repository audit for secrets and personal data, with every commit and image in the history checked ([report](docs/test-reports/2026-11-14-repo-audit.md)).
 
 ## [0.11.0] - 2026-11-14
 

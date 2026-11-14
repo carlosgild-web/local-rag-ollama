@@ -239,9 +239,9 @@ Found in manual tests on 2026-11-12/13 (temperature 0), to add to the golden set
 - [x] Public open-license demo corpus (Spanish and English): the Hilda & Luna demo company in `backend/demo/`
 - [ ] README: architecture diagram, 3–5 screenshots, 2–3 minute demo video, "how it works", hardware notes. Done except the video, which is on hold
 - [ ] Eval results table in the README (hit rate@5 and MRR per profile)
-- [ ] `docs/decisions/`: why Chroma behind an interface, why active-version pointer, why blue/green reindex
+- [x] `docs/decisions/`: why Chroma behind an interface ([0027](docs/decisions/0027-chroma-behind-an-interface.md)), why active-version pointer ([0028](docs/decisions/0028-active-version-pointer.md)), why blue/green reindex ([0029](docs/decisions/0029-blue-green-reindex.md))
 - [ ] License (MIT or Apache-2.0), changelog, tag `v0.1`
-- [ ] Audit repo for personal data and secrets, including git history
+- [x] Audit repo for personal data and secrets, including git history ([report](docs/test-reports/2026-11-14-repo-audit.md)): clean; one CodeQL finding in `/health` fixed
 
 **Done when:** a reviewer who only has Docker can run the demo in 5 commands or fewer and understand the project from the README in a few minutes.
 

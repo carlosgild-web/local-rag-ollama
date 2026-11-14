@@ -1,6 +1,7 @@
 """Ops (PLAN.md section 8): audit log, health, diagnostics and backups. Restoring a
 backup is offline (the start script or app.cli), see decision 0015."""
 
+import logging
 from typing import Annotated
 
 from fastapi import APIRouter, Query, Request, Response, status
@@ -16,6 +17,7 @@ from app.api.schemas import (
     HealthOut,
     JobQueued,
 )
+from app.core import auth
 from app.core.diagnostics import run_diagnostics
 from app.core.faults import SimulatedFault, active_faults, simulate
 from app.db import backup
@@ -24,6 +26,7 @@ from app.jobs import queue
 from app.versioning.service import NotFoundError, audit_event
 
 router = APIRouter(tags=["ops"])
+logger = logging.getLogger(__name__)
 
 
 @router.get("/audit", response_model=list[AuditOut])
@@ -45,13 +48,19 @@ def list_audit(
     return db.execute(query).scalars().all()
 
 
-def _check(fn) -> ComponentHealth:
+def _check(fn, *, name: str, full_errors: bool) -> ComponentHealth:
+    """`full_errors=False` keeps only the error's type: /health is open without a
+    password, and an error message can hold paths or addresses. The log and the
+    troubleshooter (which needs a session) keep the full message."""
     try:
         detail = fn()
         return ComponentHealth(ok=True, detail=detail)
     except SimulatedFault as exc:
         return ComponentHealth(ok=False, detail=str(exc))
     except Exception as exc:
+        logger.warning("health check failed", extra={"component": name}, exc_info=True)
+        if not full_errors:
+            return ComponentHealth(ok=False, detail=f"{type(exc).__name__} (sign in for details)")
         return ComponentHealth(ok=False, detail=f"{type(exc).__name__}: {exc}")
 
 
@@ -92,13 +101,19 @@ def health(request: Request, response: Response, db: DbDep, runtime: RuntimeDep)
             raise RuntimeError("not running")
         return "running"
 
+    settings = runtime.settings
+    # Without a password every route is open anyway; with one, only signed-in
+    # callers see error messages (CodeQL py/stack-trace-exposure).
+    full_errors = not auth.enabled(settings) or auth.valid_session(
+        settings, request.cookies.get(auth.COOKIE_NAME)
+    )
     result = HealthOut(
         status="ok",
         simulated=sorted(active_faults(faults)),
-        ollama=_check(ollama),
-        sqlite=_check(sqlite),
-        vector_store=_check(vector_store),
-        job_worker=_check(job_worker),
+        ollama=_check(ollama, name="ollama", full_errors=full_errors),
+        sqlite=_check(sqlite, name="sqlite", full_errors=full_errors),
+        vector_store=_check(vector_store, name="vector_store", full_errors=full_errors),
+        job_worker=_check(job_worker, name="job_worker", full_errors=full_errors),
     )
     if not (result.sqlite.ok and result.vector_store.ok):
         result.status = "down"

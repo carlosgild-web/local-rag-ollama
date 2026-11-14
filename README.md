@@ -22,7 +22,7 @@ cd local-rag-ollama
 
 It checks your computer, reuses the Ollama and models you already have, and asks before downloading or installing anything. Then it opens the dashboard, where you can read the demo company's documents and load them with one click.
 
-**Only have Docker?** The demo mode pulls two small models by itself (`bge-m3` and `qwen2.5:3b`, about 3 GB the first time) and runs on a laptop with 8 GB of RAM:
+**Only have Docker?** The demo mode pulls two small models by itself (`bge-m3` and `qwen2.5:3b`, about 3 GB the first time). It needs a machine with about 16 GB of RAM, since Docker keeps the models in a VM that gets half the memory; with 8 GB, use the start script above, which runs Ollama outside Docker:
 
 ```bash
 git clone https://github.com/carlosgild-web/local-rag-ollama.git
@@ -276,7 +276,8 @@ Your documents, the database, vectors and backups live in `backend/data/` when y
   - Phase 7 (evaluation, taken before Phase 6: [decision 0019](docs/decisions/0019-evaluation.md)) in v0.9.0
   - Phase 6 (the control panel: inspector, profiles, models, watched folders) in v0.10.0 ([decision 0024](docs/decisions/0024-retrieval-inspector.md), [decision 0025](docs/decisions/0025-watched-folders.md))
   - Phase 8 (an optional password, test coverage, a fresh clone running in under 6 minutes) in v0.11.0 ([decision 0026](docs/decisions/0026-optional-password.md))
-- **Next:** portfolio polish (Phase 9).
+  - Phase 9 (Prometheus metrics, the Docker demo mode, the design decisions and a repository audit) in v1.0.0 ([decisions 0027–0031](docs/decisions/))
+- **Next:** a 2–3 minute demo video.
 
 ## License
 

@@ -445,6 +445,65 @@ export interface Profile {
   created_at: string;
 }
 
+// POST /api/retrieve/inspect: the retrieval inspector (decision 0024).
+export type InspectScope = "shelf" | "all" | "portal";
+
+export interface InspectIn {
+  question: string;
+  scope: InspectScope;
+  collection_id?: number;
+  profile?: string;
+  mode: RetrievalMode;
+  top_k?: number;
+  candidates?: number;
+  /** Hybrid only: 0.5 = plain RRF (the chat), 1 = vectors only, 0 = keywords only. */
+  vector_weight: number;
+  /** Vector matches under this cosine similarity are dropped; 0 = off. */
+  min_cosine: number;
+  rerank?: boolean;
+  include_prompt?: boolean;
+}
+
+export interface InspectChunk {
+  rank: number;
+  chunk_id: number;
+  document_id: number;
+  version_id: number | null;
+  filename: string;
+  page: number | null;
+  heading: string | null;
+  score: number;
+  text: string;
+  sent: boolean;
+  vector_rank: number | null;
+  vector_score: number | null;
+  keyword_rank: number | null;
+  keyword_score: number | null;
+  fused_score: number | null;
+  rerank_score: number | null;
+}
+
+export interface InspectOut {
+  question: string;
+  expanded_question: string;
+  collection_ids: number[];
+  profile_id: number;
+  profile_name: string;
+  profile_version: number;
+  parameters: {
+    mode: RetrievalMode;
+    top_k: number;
+    candidates: number;
+    vector_weight: number;
+    min_cosine: number;
+    rerank: boolean;
+  };
+  reranker_available: boolean;
+  chunks: InspectChunk[];
+  prompt: string | null;
+  timings: { embed_ms: number; embedding_cached: boolean; search_ms: number; rerank_ms: number | null; total_ms: number };
+}
+
 // Server-sent events of POST /api/chat, in order.
 export type ChatEvent =
   | { event: "session"; data: { session_id: number; user_message_id: number } }

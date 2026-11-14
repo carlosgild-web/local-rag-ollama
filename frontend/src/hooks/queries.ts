@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useRef } from "react";
 import { api, type DocumentFilters } from "@/api/client";
-import type { AuditFilters, CollectionCreate, CollectionReindex, Job } from "@/api/types";
+import type { AuditFilters, CollectionCreate, CollectionReindex, InspectIn, Job } from "@/api/types";
 
 export const keys = {
   health: ["health"] as const,
@@ -90,6 +90,20 @@ export function useSession(id: number | null) {
 
 export function useModels() {
   return useQuery({ queryKey: keys.models, queryFn: api.models, retry: false });
+}
+
+/** The retrieval inspector. Keeps the last result on screen while the next
+ * one loads, so the table doesn't flash as a slider moves; a superseded
+ * request is aborted. */
+export function useInspect(body: InspectIn | null) {
+  return useQuery({
+    queryKey: ["inspect", body],
+    queryFn: ({ signal }) => api.inspect(body as InspectIn, signal),
+    enabled: body !== null,
+    placeholderData: (prev) => prev,
+    staleTime: 30_000,
+    retry: false,
+  });
 }
 
 export function useProfiles() {

@@ -12,6 +12,8 @@ import type {
   SupportTicket,
   SupportTicketIn,
   Health,
+  InspectIn,
+  InspectOut,
   Job,
   DemoStatus,
   EvalCase,
@@ -184,6 +186,9 @@ export const api = {
     request<VersionDiff>(`/documents/${docId}/diff${query({ a, b })}`),
   rollback: (docId: number, versionId: number) =>
     request<DocumentVersion>(`/documents/${docId}/rollback`, json("POST", { version_id: versionId })),
+
+  inspect: (body: InspectIn, signal?: AbortSignal) =>
+    request<InspectOut>("/retrieve/inspect", { ...json("POST", body), signal }),
 
   models: () => request<Model[]>("/models"),
   profiles: () => request<Profile[]>("/profiles"),

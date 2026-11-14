@@ -285,6 +285,73 @@ class RetrieveOut(BaseModel):
     chunks: list[ChunkOut]
 
 
+class InspectIn(BaseModel):
+    """The retrieval inspector (decision 0024). Omitted parameters take the
+    chat's values, so the defaults show exactly what the chat would send."""
+
+    model_config = ConfigDict(
+        json_schema_extra={"examples": [{"question": "How many PTO days do I get?"}]}
+    )
+
+    question: str = Field(min_length=1, max_length=4000)
+    # "shelf": one shelf (collection_id, or the default one); "all": every
+    # active shelf, like the console's "All shelves"; "portal": the shelves
+    # the employee portal searches.
+    scope: Literal["shelf", "all", "portal"] = "shelf"
+    collection_id: int | None = None
+    profile: str | None = None  # profile name; defaults to "default"
+    mode: Literal["hybrid", "vector", "keyword"] = "hybrid"
+    top_k: int | None = Field(default=None, ge=1, le=50)  # default: the profile's
+    candidates: int | None = Field(default=None, ge=1, le=50)  # per side; default: settings
+    # Hybrid only. 0.5 = plain RRF (the chat), 1 = vectors only, 0 = keywords only.
+    vector_weight: float = Field(default=0.5, ge=0.0, le=1.0)
+    # Drop vector matches under this cosine similarity. 0 = off (the chat).
+    min_cosine: float = Field(default=0.0, ge=0.0, le=1.0)
+    rerank: bool | None = None  # default: what the chat does (RERANK_ENABLED)
+    include_prompt: bool = True
+
+
+class InspectChunkOut(ChunkOut):
+    sent: bool  # among the top-k the model would see
+    vector_rank: int | None
+    vector_score: float | None  # cosine similarity
+    keyword_rank: int | None
+    keyword_score: float | None  # BM25, higher is better
+    fused_score: float | None  # RRF
+    rerank_score: float | None
+
+
+class InspectTimings(BaseModel):
+    embed_ms: float
+    embedding_cached: bool
+    search_ms: float
+    rerank_ms: float | None
+    total_ms: float
+
+
+class InspectParameters(BaseModel):
+    mode: str
+    top_k: int
+    candidates: int
+    vector_weight: float
+    min_cosine: float
+    rerank: bool
+
+
+class InspectOut(BaseModel):
+    question: str
+    expanded_question: str
+    collection_ids: list[int]
+    profile_id: int
+    profile_name: str
+    profile_version: int
+    parameters: InspectParameters
+    reranker_available: bool
+    chunks: list[InspectChunkOut]
+    prompt: str | None
+    timings: InspectTimings
+
+
 class ChatIn(BaseModel):
     model_config = ConfigDict(
         json_schema_extra={"examples": [{"question": "What does the document say about X?"}]}

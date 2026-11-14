@@ -82,7 +82,7 @@ def test_shelves_sharing_a_model_are_ranked_together(runtime, monkeypatch):
     monkeypatch.setattr(
         retrieve_module,
         "fuse_rrf_scored",
-        lambda lists: seen.append(lists) or real_fuse(lists),
+        lambda lists, **kw: seen.append(lists) or real_fuse(lists, **kw),
     )
     question = "Employees get sixteen vacation days in year three."
 

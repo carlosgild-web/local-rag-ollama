@@ -28,6 +28,15 @@ docker compose -f compose.yaml -f compose.demo.yaml up -d
 
 Then open http://localhost:8000 and click **Load the demo company**. That's three commands.
 
+## Tested (2026-11-14)
+
+On the development laptop (Windows 11, 7.2 GB RAM, Docker Desktop's VM at 3.4 GiB), from a fresh clone ([report](../test-reports/2026-11-14-docker-demo.md)):
+- the three commands worked: 23.5 min to a healthy app, mostly the 3 GB of models at about 2.5 MB/s
+- **Load the demo company** indexed all 11 files in 13.5 min
+- the first questions failed. Inside the VM, `bge-m3` (1.2 GB) and `qwen2.5:3b` (2.2 GB) don't fit together, and Ollama's model server was killed for lack of memory. With one model loaded at a time (`OLLAMA_MAX_LOADED_MODELS=1`), the answer was right and cited the right file, but it took about 10 minutes, because Windows itself had no free memory left.
+
+So the demo mode is for machines with about 16 GB of RAM, as GETTING_STARTED.md already said for Ollama in Docker. On 8 GB, the start script runs Ollama outside Docker, where the README's evaluation ran. `OLLAMA_MAX_LOADED_MODELS=1` isn't set in the overlay: it would make every question reload both models, even on machines with room for both.
+
 ## Not done
 
 - The start scripts (`start.cmd`, `start.sh`) don't use the demo overlay. They already pick a model that fits the machine's RAM.

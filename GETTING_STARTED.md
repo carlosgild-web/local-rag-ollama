@@ -60,7 +60,7 @@ It never installs anything without asking, and it shows the exact command first.
 
 ### A. Docker, everything in containers (easiest)
 
-**Just the demo, with small models:** one command pulls `bge-m3` and `qwen2.5:3b` (about 3 GB the first time) and starts everything. It runs with 8 GB of RAM.
+**Just the demo, with small models:** one command pulls `bge-m3` and `qwen2.5:3b` (about 3 GB the first time) and starts everything. It needs about 16 GB of RAM (see **Memory** above); on 8 GB, use the start script or way C.
 
 ```bash
 docker compose -f compose.yaml -f compose.demo.yaml up -d

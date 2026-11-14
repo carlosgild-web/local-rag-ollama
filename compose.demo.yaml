@@ -4,8 +4,9 @@
 # they stay in the ollama_models volume), then the app starts with them.
 # Open http://localhost:8000 and click "Load the demo company" (decision 0031).
 #
-# qwen2.5:3b is the model behind the README's evaluation numbers, and it runs
-# on a laptop with 8 GB of RAM. For another one, set DEMO_CHAT_MODEL
+# qwen2.5:3b is the model behind the README's evaluation numbers. Both models
+# need about 4 GB inside Docker's VM, which gets half the RAM by default, so
+# plan on a machine with about 16 GB (decision 0031). For another model, set DEMO_CHAT_MODEL
 # (e.g. DEMO_CHAT_MODEL=llama3.2:3b in a .env file next to this one).
 services:
   models:

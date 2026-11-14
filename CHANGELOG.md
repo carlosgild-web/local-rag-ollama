@@ -4,6 +4,14 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Ver
 
 ## [Unreleased]
 
+## [1.0.0] - 2026-11-14
+
+Phase 9, portfolio polish: the last phase of [PLAN.md](PLAN.md). Prometheus metrics, a Docker demo mode that a reviewer with only Docker runs in three commands, three more decision records, and an audit of the repository and its history for secrets and personal data. The demo video is still to come.
+
+### Upgrading
+
+- Nothing to migrate. `/metrics` is on by default (`METRICS_ENABLED=false` turns it off). With a password set, `/health` now shows signed-out callers only the type of an error.
+
 ### Security
 
 - `/health`, which stays open when a password is set, no longer shows error messages to callers who aren't signed in: only the error's type (CodeQL `py/stack-trace-exposure`). Without a password nothing changes. The log and the troubleshooter keep the full message.
@@ -18,7 +26,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Ver
   - the app version
 
   Like `/health`, it stays open when a password is set: it holds counts and timings only. `METRICS_ENABLED=false` turns it off.
-- Docker demo mode ([decision 0031](docs/decisions/0031-docker-demo-mode.md)): `docker compose -f compose.yaml -f compose.demo.yaml up -d`. A one-off `models` container pulls `bge-m3` and `qwen2.5:3b` into the Ollama volume, then the app starts with them. With only Docker installed, the demo is three commands (clone, `cd`, `up`) and one click on **Load the demo company**. `DEMO_CHAT_MODEL` picks another small model.
+- Docker demo mode ([decision 0031](docs/decisions/0031-docker-demo-mode.md)): `docker compose -f compose.yaml -f compose.demo.yaml up -d`. A one-off `models` container pulls `bge-m3` and `qwen2.5:3b` into the Ollama volume, then the app starts with them. With only Docker installed, the demo is three commands (clone, `cd`, `up`) and one click on **Load the demo company**. `DEMO_CHAT_MODEL` picks another small model. It needs about 16 GB of RAM: on a 7.2 GB laptop it answered correctly but took about 10 minutes per answer ([test report](docs/test-reports/2026-11-14-docker-demo.md)).
 
 ### Documentation
 

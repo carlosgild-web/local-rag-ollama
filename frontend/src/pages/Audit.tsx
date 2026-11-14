@@ -42,6 +42,8 @@ const ACTIONS: Record<string, string> = {
   watch_add: "Folder watched",
   watch_update: "Watched folder changed",
   watch_remove: "Folder no longer watched",
+  password_set: "Password set",
+  password_clear: "Password removed",
 };
 
 const ENTITY_TYPES: Record<string, string> = {
@@ -57,6 +59,7 @@ const ENTITY_TYPES: Record<string, string> = {
   eval_run: "Evaluation runs",
   glossary: "Glossary",
   watched_folder: "Watched folders",
+  auth: "Sign-in",
 };
 
 const DESTRUCTIVE = new Set(["purge", "delete", "backup_delete", "model_delete", "eval_set_delete"]);

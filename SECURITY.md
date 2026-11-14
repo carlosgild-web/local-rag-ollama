@@ -4,8 +4,8 @@
 
 A **local, single-user demo** of a retrieval-augmented generation (RAG) app. It's built to run on your own computer next to Ollama.
 
-- **No authentication, by design.** The admin console, the employee intranet, the public demo site and the upload API are open to anyone who can reach the server ([decision 0010](docs/decisions/0010-employee-portal.md), [decision 0011](docs/decisions/0011-public-site.md)). The intranet's "staff sign-in" is a simulation and says so.
-- **Run it locally or on a private network.** Never expose it to the internet as it is. Docker Compose publishes its ports on `127.0.0.1` only, and the container runs as a non-root user.
+- **No sign-in by default, an optional password.** Out of the box the console, the employee intranet and the API are open to anyone who can reach the server ([decision 0010](docs/decisions/0010-employee-portal.md), [decision 0011](docs/decisions/0011-public-site.md)). The public site's "staff sign-in" is a simulation and says so. `python -m app.cli set-password` (or `APP_PASSWORD`) puts one password in front of the console, the intranet and every API route. It's a single shared password, not user accounts ([decision 0026](docs/decisions/0026-optional-password.md)).
+- **Run it locally or on a private network.** Set a password before anyone else can reach it, and never expose it to the internet as it is: there is no TLS of its own, so put it behind a reverse proxy that adds HTTPS. Docker Compose publishes its ports on `127.0.0.1` only, and the container runs as a non-root user.
 - **No cloud calls at runtime.** Models run in Ollama; fonts and images are bundled; Chroma's telemetry is turned off.
 
 ## How the code protects itself
@@ -22,4 +22,4 @@ A **local, single-user demo** of a retrieval-augmented generation (RAG) app. It'
 
 ## Reporting a vulnerability
 
-Please use GitHub's **private vulnerability reporting**: the *Security* tab, then *Report a vulnerability*. Don't open a public issue. In scope: anything that lets a request read or write outside `DATA_DIR`, run code, or reach the network from the app. The absence of authentication is out of scope, as explained above.
+Please use GitHub's **private vulnerability reporting**: the *Security* tab, then *Report a vulnerability*. Don't open a public issue. In scope: anything that lets a request read or write outside `DATA_DIR`, run code, or reach the network from the app. With the password on, a way to use the API without signing in is in scope. With it off, open access is by design.

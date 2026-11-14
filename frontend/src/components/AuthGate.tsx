@@ -92,8 +92,10 @@ export function SignOutButton({ className }: { className?: string }) {
       className={className}
       onClick={async () => {
         await api.logout();
-        client.clear();
-        await client.invalidateQueries({ queryKey: ["auth"] });
+        // Show the sign-in screen at once, and forget everything fetched while signed in.
+        // (clear() would also drop this status query, leaving the gate with nothing to re-check.)
+        client.setQueryData(["auth"], { enabled: true, signed_in: false });
+        client.removeQueries({ predicate: (q) => q.queryKey[0] !== "auth" });
       }}
     >
       Sign out

@@ -196,6 +196,7 @@ export const api = {
   deleteEvalSet: (id: number) => request<void>(`/eval/sets/${id}`, { method: "DELETE" }),
   evalSetExportUrl: (id: number) => `${API_BASE}/eval/sets/${id}/export`,
   evalDemo: () => request<EvalDemoStatus>("/eval/demo"),
+  evalOptions: () => request<{ reranker_available: boolean }>("/eval/options"),
   loadEvalDemo: () => request<EvalSetDetail>("/eval/demo", json("POST")),
   addEvalCase: (setId: number, body: EvalCaseIn) =>
     request<EvalCase>(`/eval/sets/${setId}/cases`, json("POST", body)),

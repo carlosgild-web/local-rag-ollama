@@ -200,11 +200,13 @@ Total is about 30 working days; the MVP (through phase 4) is about 15.
 
 Taken before Phase 6 ([decision 0019](docs/decisions/0019-evaluation.md)).
 
-- [ ] Golden set editor (question, expected source, expected answer notes)
-- [ ] Runner with hit rate@5, MRR and LLM-judged faithfulness
-- [ ] Compare two profiles or two index versions side by side
+- [x] Golden set editor (question, expected source, expected answer notes): the Evaluation page, 53-case demo set
+- [x] Runner with hit rate@5, MRR and LLM-judged faithfulness, plus facts, "not found" and citations to the right file
+- [x] Compare two profiles or two index versions side by side
 
 **Done when:** vector only, hybrid and hybrid + reranker can be compared on the same question set.
+
+✅ **Done when is met (2026-11-14).** Retrieval: vector 0.865 MRR, hybrid 0.934, hybrid + reranker 0.956 (decision 0023). Answers went from 70% to 91% of questions passed after three measured fixes: citation repair (0020), glossary (0021) and a partial-answers prompt rule (0022). Still to close the phase: a final run with the judge, the README eval table and the release.
 
 Open quality items from the 2026-11-06 end-to-end test, to measure here (`docs/test-reports/2026-11-06-e2e.md`):
 - FAQ questions answered "not found" although the right passages were retrieved (sc-06, sc-07). Check the chunking of `08-customer-faq.txt`.

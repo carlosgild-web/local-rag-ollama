@@ -19,10 +19,13 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Ver
 
 - **Glossary** ([decision 0021](docs/decisions/0021-glossary.md)), on the Collections page. Each entry is a word people use and the words the documents use, e.g. *vacation* → *PTO, paid time off*. Every question is asked with the meaning written in after the word, for the search and the model, in the chat, the portal and evaluation runs. The demo company's words load with the demo. On the golden set, questions passed went from 85% to 89% (both Spanish questions over English documents fixed, none broken).
 
+- **Reranker** ([decision 0023](docs/decisions/0023-reranker.md)): `bge-reranker-v2-m3` through ONNX Runtime, rescoring the 20 fused candidates before the top passages go to the model. `python -m app.cli reranker-download` fetches the pinned 8-bit model (about 588 MB, hash-checked) into `DATA_DIR/hf`. It's off in the chat by default (`RERANK_ENABLED=true` turns it on) and available per evaluation run. On the golden set, MRR went from 0.934 (hybrid) to 0.956, at about 12 s more per question on a laptop CPU.
+
 ### Changed
 
 - **A fourth prompt rule** ([decision 0022](docs/decisions/0022-prompt-partial-answers.md)): "If the context answers part of the question, answer that part." On the golden set, questions passed went from 89% to 91%, none broken and every "not found" kept. The gain is one question, within run-to-run noise. New installs get it; existing installs save a new `default` profile version. A second rule, "give the exact numbers, dates, times and contacts", was measured and rejected: it broke three answers.
 - The portal's answer-language rule takes the next free rule number instead of a fixed "4.".
+- With `RERANK_ENABLED`, the reranker now rescores all candidates before the top-k are chosen. The old hook only reordered the top-k.
 
 ### Fixed
 

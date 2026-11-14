@@ -14,7 +14,7 @@ from app.db.models import Collection
 from app.llm.base import EmbeddingClient, LLMClient
 from app.retrieval.glossary import expand_with_glossary
 from app.retrieval.prompt import NOT_FOUND_PHRASE, build_prompt, format_sources
-from app.retrieval.reranker import NoOpReranker, Reranker
+from app.retrieval.reranker import Reranker
 from app.retrieval.retrieve import RetrievedChunk, retrieve, retrieve_many
 from app.retrieval.vector_store import VectorStore
 
@@ -47,9 +47,9 @@ def prepare_context(
         settings=settings,
         embedding_client=embedding_client,
         vector_store=vector_store,
-        top_k=top_k,
+        top_k=_candidates(settings, top_k, reranker),
     )
-    return _context(question, chunks, settings, system_instructions, reranker)
+    return _context(question, chunks, settings, top_k, system_instructions, reranker)
 
 
 def prepare_context_many(
@@ -73,23 +73,34 @@ def prepare_context_many(
         settings=settings,
         embedding_client_for=embedding_client_for,
         vector_store=vector_store,
-        top_k=top_k,
+        top_k=_candidates(settings, top_k, reranker),
     )
-    return _context(question, chunks, settings, system_instructions, reranker)
+    return _context(question, chunks, settings, top_k, system_instructions, reranker)
+
+
+def _reranking(settings: Settings, reranker: Reranker | None) -> bool:
+    return settings.rerank_enabled and reranker is not None
+
+
+def _candidates(settings: Settings, top_k: int | None, reranker: Reranker | None) -> int | None:
+    """With a reranker, fetch all fused candidates for it to rescore (PLAN.md
+    section 6: rescore the top 20); without one, just the top-k."""
+    return settings.retrieval_candidates if _reranking(settings, reranker) else top_k
 
 
 def _context(
     question: str,
     chunks: list[RetrievedChunk],
     settings: Settings,
+    top_k: int | None,
     system_instructions: str | None,
     reranker: Reranker | None,
 ) -> AnswerContext | None:
     if not chunks:
         return None
 
-    if settings.rerank_enabled:
-        chunks = (reranker or NoOpReranker()).rerank(question, chunks)
+    if _reranking(settings, reranker):
+        chunks = reranker.rerank(question, chunks)[: top_k or settings.retrieval_top_k]
 
     return AnswerContext(prompt=build_prompt(question, chunks, system_instructions), chunks=chunks)
 

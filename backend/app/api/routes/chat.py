@@ -77,6 +77,7 @@ def chat(db: DbDep, runtime: RuntimeDep, body: ChatIn):
                 vector_store=runtime.vector_store,
                 top_k=profile.retrieval_top_k,
                 system_instructions=instructions,
+                reranker=runtime.reranker,
             )
             if shelves
             else None
@@ -99,6 +100,7 @@ def chat(db: DbDep, runtime: RuntimeDep, body: ChatIn):
             vector_store=runtime.vector_store,
             top_k=profile.retrieval_top_k,
             system_instructions=instructions,
+            reranker=runtime.reranker,
         )
     else:
         collection = resolve_collection(
@@ -124,6 +126,7 @@ def chat(db: DbDep, runtime: RuntimeDep, body: ChatIn):
             vector_store=runtime.vector_store,
             top_k=profile.retrieval_top_k,
             system_instructions=instructions,
+            reranker=runtime.reranker,
         )
     user_message = history.add_message(db, session.id, "user", body.question)
 

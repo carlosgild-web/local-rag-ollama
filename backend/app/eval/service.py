@@ -39,7 +39,9 @@ from app.llm.base import EmbeddingClient, LLMClient
 from app.retrieval.citation_repair import repair_citations
 from app.retrieval.citations import citation_status
 from app.retrieval.glossary import Term, expand_question, load_terms
+from app.retrieval.onnx_reranker import model_ready
 from app.retrieval.prompt import NOT_FOUND_PHRASE, build_prompt
+from app.retrieval.reranker import Reranker
 from app.retrieval.retrieve import RETRIEVAL_MODES, retrieve_many
 from app.retrieval.vector_store import VectorStore
 from app.versioning import profiles, service
@@ -289,7 +291,8 @@ def run_status(db: Session, run: EvalRun) -> str:
 
 
 def default_label(config: dict, profile: RagProfile) -> str:
-    parts = [config["mode"], f"k={config['top_k']}", f"{profile.name} v{profile.version}"]
+    mode = config["mode"] + ("+rerank" if config.get("rerank") else "")
+    parts = [mode, f"k={config['top_k']}", f"{profile.name} v{profile.version}"]
     if config["answers"]:
         parts.append(profile.chat_model)
     if config["judge"]:
@@ -314,6 +317,7 @@ def start_run(
     judge_model: str | None = None,
     repair: bool = True,
     glossary: bool = True,
+    rerank: bool = False,
     label: str = "",
     queue_job: bool = True,
 ) -> EvalRun:
@@ -326,6 +330,10 @@ def start_run(
         raise InvalidEvalError(f"mode must be one of {', '.join(RETRIEVAL_MODES)}")
     if judge and not answers:
         raise InvalidEvalError("the faithfulness judge needs answers; turn answers on")
+    if rerank and not model_ready(settings.reranker_dir):
+        raise InvalidEvalError(
+            "the reranker model isn't downloaded; run `python -m app.cli reranker-download`"
+        )
     if top_k is not None and not 1 <= top_k <= settings.retrieval_candidates:
         raise InvalidEvalError(f"top_k must be between 1 and {settings.retrieval_candidates}")
     unfinished = db.execute(select(EvalRun).where(EvalRun.finished_at.is_(None))).scalars()
@@ -339,6 +347,8 @@ def start_run(
     )
     config = {
         "mode": mode,
+        # bge-reranker-v2-m3 rescores the candidates before top-k (decision 0023).
+        "rerank": rerank,
         "top_k": top_k or profile.retrieval_top_k,
         "answers": answers,
         "judge": judge,
@@ -455,6 +465,7 @@ def execute_run(
     vector_store: VectorStore,
     llm_client_for: Callable[[str], LLMClient],
     progress: ProgressCallback | None = None,
+    reranker: Reranker | None = None,
 ) -> dict:
     """Runs every case and stores the results and totals. Starts over if a
     previous attempt was interrupted (a restart or a retry of the job)."""
@@ -472,6 +483,8 @@ def execute_run(
     db.commit()
 
     terms = [Term(**t) for t in config.get("glossary", [])]
+    if config.get("rerank") and reranker is None:
+        raise InvalidEvalError("this run asks for the reranker, but none is available")
     llm = llm_client_for(profile.chat_model) if config["answers"] else None
     judge_llm = llm_client_for(config["judge_model"]) if config.get("judge") else None
     if progress is not None:
@@ -489,6 +502,7 @@ def execute_run(
                 llm=llm,
                 judge_llm=judge_llm,
                 terms=terms,
+                reranker=reranker if config.get("rerank") else None,
             )
         )
         db.commit()
@@ -522,6 +536,7 @@ def _run_case(
     llm: LLMClient | None,
     judge_llm: LLMClient | None,
     terms: list[Term],
+    reranker: Reranker | None = None,
 ) -> EvalResult:
     result = EvalResult(
         eval_case_id=case.id,
@@ -557,6 +572,8 @@ def _run_case(
         top_k=settings.retrieval_candidates,
         mode=config["mode"],
     )
+    if reranker is not None:
+        chunks = reranker.rerank(question, chunks)
     result.retrieval_ms = _ms(start)
     result.retrieved = [
         {"chunk_id": c.chunk_id, "filename": c.filename, "score": round(c.score, 6)} for c in chunks

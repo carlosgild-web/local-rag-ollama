@@ -19,6 +19,7 @@ from app.api.schemas import (
     EvalCompareOut,
     EvalDemoStatus,
     EvalImportIn,
+    EvalOptionsOut,
     EvalResultOut,
     EvalRunDetail,
     EvalRunIn,
@@ -30,6 +31,7 @@ from app.api.schemas import (
 )
 from app.db.models import EvalRun, EvalSet, IngestJob, RagProfile
 from app.eval import service as eval_service
+from app.retrieval.onnx_reranker import model_ready
 
 router = APIRouter(prefix="/eval", tags=["evaluation"])
 
@@ -95,6 +97,12 @@ def create_set(db: DbDep, body: EvalSetIn):
 def import_set(db: DbDep, body: EvalImportIn):
     """Creates a set from the JSON file format (see `GET /eval/sets/{id}/export`)."""
     return _set_out(db, eval_service.import_set(db, body.model_dump()), detail=True)
+
+
+@router.get("/options", response_model=EvalOptionsOut)
+def options(runtime: RuntimeDep):
+    """What a run can use on this install (the reranker needs its model downloaded)."""
+    return EvalOptionsOut(reranker_available=model_ready(runtime.settings.reranker_dir))
 
 
 @router.get("/demo", response_model=EvalDemoStatus)
@@ -177,6 +185,7 @@ def start_run(db: DbDep, runtime: RuntimeDep, body: EvalRunIn):
         judge_model=body.judge_model,
         repair=body.repair_citations,
         glossary=body.glossary,
+        rerank=body.rerank,
         label=body.label,
     )
     return run_out(db, run)

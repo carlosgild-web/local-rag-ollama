@@ -171,6 +171,7 @@ def handle_run_eval(
         vector_store=runtime.vector_store,
         llm_client_for=runtime.llm_client_for,
         progress=progress,
+        reranker=runtime.reranker,
     )
 
 

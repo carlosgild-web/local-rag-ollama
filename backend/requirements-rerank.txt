@@ -1,0 +1,6 @@
+# Optional: the bge-reranker-v2-m3 cross-encoder (decision 0023).
+# ChromaDB already pulls these in; listed so the reranker doesn't rely on it.
+# The model itself: python -m app.cli reranker-download (into DATA_DIR/hf).
+onnxruntime>=1.18
+tokenizers>=0.19
+numpy>=1.26

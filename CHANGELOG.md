@@ -4,6 +4,10 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Ver
 
 ## [Unreleased]
 
+### Added
+
+- Optional password ([decision 0026](docs/decisions/0026-optional-password.md)). `python -m app.cli set-password` stores an scrypt hash in `DATA_DIR`; `APP_PASSWORD` works too, for Docker. With a password, the console and the employee portal show a sign-in screen, and every API route and the API docs need a session: a signed `HttpOnly`, `SameSite=Strict` cookie for 7 days (`AUTH_SESSION_DAYS`). `/health` and the public `/site` stay open. After 5 wrong passwords from one address in 5 minutes, sign-in waits. Changing or clearing the password signs everyone out. Off by default, so nothing changes until you set one.
+
 ## [0.10.0] - 2026-11-14
 
 Phase 6, the control panel. Four new console pages show and change how the app works: a retrieval inspector that explains every ranking and shows the exact prompt, versioned profiles you can compare and restore, a models manager, and watched folders that add files by themselves. The inspector also found why "How many vacation days do I have?" answered "not found" on libraries loaded before v0.9.0: they had no glossary words.

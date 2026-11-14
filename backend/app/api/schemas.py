@@ -572,6 +572,18 @@ class WatchScanOut(BaseModel):
     skipped: int  # empty, too large or unreadable
 
 
+# --- Sign-in (decision 0026) ----------------------------------------------------
+
+
+class LoginIn(BaseModel):
+    password: str = Field(min_length=1, max_length=1000)
+
+
+class AuthStatusOut(BaseModel):
+    enabled: bool  # the app has a password
+    signed_in: bool  # always true when there's no password
+
+
 # --- Ops ----------------------------------------------------------------------
 
 

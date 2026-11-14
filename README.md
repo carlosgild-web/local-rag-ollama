@@ -216,7 +216,7 @@ python -m venv .venv && .venv/Scripts/pip install -r requirements.txt   # macOS/
 .venv/Scripts/python -m uvicorn app.main:app --port 8000                  # migrations run on start
 ```
 
-Open http://localhost:8000. For UI work, run `npm run dev` in `frontend/`: it serves http://localhost:5173 and forwards `/api` to port 8000. Settings are environment variables; see [`backend/.env.example`](backend/.env.example).
+Open http://localhost:8000. The app has no sign-in by default and listens on localhost only. Before anyone else can reach it, run `python -m app.cli set-password` (or set `APP_PASSWORD`): one password then covers the console, the employee portal and the API ([decision 0026](docs/decisions/0026-optional-password.md)). For UI work, run `npm run dev` in `frontend/`: it serves http://localhost:5173 and forwards `/api` to port 8000. Settings are environment variables; see [`backend/.env.example`](backend/.env.example).
 
 **Low on RAM?** Set `CHAT_MODEL=qwen2.5:3b` ([decision 0004](docs/decisions/0004-small-chat-model-on-low-ram.md)).
 

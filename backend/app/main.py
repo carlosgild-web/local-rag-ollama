@@ -12,6 +12,9 @@ from fastapi.responses import JSONResponse
 
 from app import __version__
 from app.api.routes import (
+    auth as auth_routes,
+)
+from app.api.routes import (
     chat,
     collections,
     demo,
@@ -34,6 +37,7 @@ from app.api.routes import (
     intake as intake_routes,
 )
 from app.api.static import find_static_dir, mount_frontend
+from app.core.auth import AuthMiddleware, LoginLimiter
 from app.core.config import get_settings
 from app.core.logging import RequestIdMiddleware, configure_logging
 from app.core.runtime import Runtime, build_runtime
@@ -150,6 +154,7 @@ def create_app(runtime: Runtime | None = None, *, start_worker: bool = True) -> 
 
     api = APIRouter(prefix=API_PREFIX)
     for module in (
+        auth_routes,
         documents,
         intake_routes,
         collections,
@@ -173,7 +178,10 @@ def create_app(runtime: Runtime | None = None, *, start_worker: bool = True) -> 
     for exc_type, status_code in _ERROR_STATUS.items():
         app.add_exception_handler(exc_type, _error_handler(status_code))
     app.add_exception_handler(httpx.HTTPError, _ollama_error)
+    # Added after AuthMiddleware so it wraps it: refused requests are logged too.
+    app.add_middleware(AuthMiddleware)
     app.add_middleware(RequestIdMiddleware)
+    app.state.login_limiter = LoginLimiter()
     _patch_openapi_file_fields(app)
 
     # Last, so the catch-all never shadows the API, /docs or /health.

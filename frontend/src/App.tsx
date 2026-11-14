@@ -1,5 +1,6 @@
 import { lazy, type ReactNode, Suspense } from "react";
 import { Navigate, Route, Routes } from "react-router-dom";
+import { AuthGate } from "@/components/AuthGate";
 import { Layout } from "@/components/Layout";
 import { PageGate } from "@/components/Paused";
 import Chat from "@/pages/Chat";
@@ -34,7 +35,9 @@ export default function App() {
         path="intranet"
         element={
           <Suspense fallback={<div className="h-full bg-[#121735]" />}>
-            <PortalLayout />
+            <AuthGate>
+              <PortalLayout />
+            </AuthGate>
           </Suspense>
         }
       >
@@ -57,7 +60,7 @@ export default function App() {
         <Route path="staff" element={<SitePage><StaffSignIn /></SitePage>} />
         <Route path="*" element={<Navigate to="/site" replace />} />
       </Route>
-      <Route element={<Layout />}>
+      <Route element={<AuthGate><Layout /></AuthGate>}>
         <Route index element={<Dashboard />} />
         <Route path="library" element={<PageGate what="The Library"><Library /></PageGate>} />
         <Route path="collections" element={<PageGate what="Collections"><Collections /></PageGate>} />

@@ -45,6 +45,8 @@ services:
       WATCH_POLLING: "true"
       WATCH_ROOTS: /watch # only the mounted inbox can be watched (decision 0025)
       WEB_CONCURRENCY: "1"
+      # Optional password for the console, the intranet and the API (decision 0026).
+      APP_PASSWORD: ${APP_PASSWORD:-}
     volumes:
       - app_data:/data
       # Watched folders (decision 0025): add /watch on the Watched folders page and

@@ -24,6 +24,7 @@ import {
 } from "lucide-react";
 import { Fragment, useCallback, useEffect, useRef, useState } from "react";
 import { NavLink, Outlet } from "react-router-dom";
+import { SignOutButton } from "@/components/AuthGate";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { Troubleshooter } from "@/components/Troubleshooter";
 import { TroubleshooterProvider, useTroubleshooter } from "@/components/TroubleshooterContext";
@@ -183,6 +184,7 @@ function Shell() {
           <span className="flex-1">Employee portal</span>
           <ExternalLink className="size-3.5" />
         </a>
+        <SignOutButton className="mx-3 mb-4 -mt-2 rounded-md px-3 py-1.5 text-left text-xs text-muted-foreground hover:bg-accent hover:text-accent-foreground" />
       </aside>
       <main className="flex min-w-0 flex-1 flex-col overflow-y-auto">
         <StatusBar status={status} onTroubleshoot={troubleshooter.open} />

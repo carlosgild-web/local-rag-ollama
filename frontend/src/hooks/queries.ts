@@ -92,6 +92,11 @@ export function useModels() {
   return useQuery({ queryKey: keys.models, queryFn: api.models, retry: false });
 }
 
+export function useDeleteModel() {
+  const invalidate = useInvalidate();
+  return useMutation({ mutationFn: api.deleteModel, onSuccess: () => invalidate("models", "audit") });
+}
+
 /** The retrieval inspector. Keeps the last result on screen while the next
  * one loads, so the table doesn't flash as a slider moves; a superseded
  * request is aborted. */
@@ -137,6 +142,7 @@ function useProfileWrite<T>(fn: (arg: T) => Promise<unknown>) {
       client.invalidateQueries({ queryKey: ["profile-versions"] });
       client.invalidateQueries({ queryKey: ["audit"] });
       client.invalidateQueries({ queryKey: ["inspect"] });
+      client.invalidateQueries({ queryKey: keys.models }); // what uses each model
     },
   });
 }

@@ -13,6 +13,7 @@ import {
   ScanSearch,
   SlidersHorizontal,
   Bell,
+  Boxes,
   BellOff,
   Lock,
   MessageSquare,
@@ -53,6 +54,7 @@ const NAV: {
   { to: "/evaluation", label: "Evaluation", icon: FlaskConical, needs: "browse", partly: "process" },
   { to: "/inspector", label: "Inspector", icon: ScanSearch, needs: "browse", partly: "process", group: "Control panel" },
   { to: "/profiles", label: "Profiles", icon: SlidersHorizontal, needs: "browse" },
+  { to: "/models", label: "Models", icon: Boxes, needs: null },
 ];
 
 const PILL: Record<SystemState, { label: string; className: string; dot: string }> = {

@@ -466,6 +466,8 @@ class ModelOut(BaseModel):
     family: str | None = None
     parameter_size: str | None = None
     capabilities: list[str] = []  # from Ollama, e.g. ["embedding"] or ["completion"]
+    loaded: bool = False  # Ollama holds it in memory right now
+    used_by: list[str] = []  # profiles and shelves that need it; deleting it is refused
 
 
 class ModelPullIn(BaseModel):

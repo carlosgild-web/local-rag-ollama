@@ -14,6 +14,7 @@ app's heartbeat is fresh, backs up the current state first, then swaps the data 
 
 import datetime as dt
 import json
+import logging
 import re
 import shutil
 import sqlite3
@@ -29,6 +30,12 @@ NAME = re.compile(r"^backup-\d{8}-\d{6}(-[a-z][a-z-]*)?\.zip$")
 HEARTBEAT = "app.alive"  # written by the running app's job worker
 HEARTBEAT_FRESH_SECONDS = 30
 FOLDERS = ("chroma", "files")
+# What the backup list says about a file it can't read. The exact reason goes to
+# the log, not the API: exception text shouldn't reach callers (CodeQL
+# py/stack-trace-exposure). Restoring still names the exact problem.
+UNREADABLE = "Not a backup made by this app, or damaged. The app log says why."
+
+log = logging.getLogger(__name__)
 
 
 class BackupError(Exception):
@@ -160,7 +167,8 @@ def list_backups(settings: Settings) -> list[dict]:
         try:
             item["manifest"] = read_manifest(path)
         except BackupError as exc:
-            item["error"] = str(exc)
+            log.warning("unreadable backup", extra={"backup": path.name, "reason": str(exc)})
+            item["error"] = UNREADABLE
         out.append(item)
     return sorted(out, key=lambda b: b["name"][7:22], reverse=True)
 

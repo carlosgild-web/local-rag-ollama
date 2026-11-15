@@ -182,3 +182,16 @@ def test_a_restored_backup_does_not_rerun_its_own_backup_job(client, runtime):
         )
     engine.dispose()
     assert statuses == ["completed"]
+
+
+def test_an_unreadable_file_is_listed_without_its_exception_text(client, runtime, caplog):
+    runtime.settings.backups_dir.mkdir(parents=True, exist_ok=True)
+    (runtime.settings.backups_dir / "backup-20260101-000000.zip").write_bytes(b"not a zip")
+
+    [item] = client.get("/api/backups").json()
+
+    assert item["manifest"] is None
+    assert item["error"] == backup.UNREADABLE
+    assert "zip file" not in item["error"]  # BadZipFile's text stays in the log
+    reasons = [getattr(r, "reason", "") for r in caplog.records]
+    assert any(reason.endswith("(File is not a zip file)") for reason in reasons)

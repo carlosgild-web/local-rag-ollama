@@ -57,7 +57,7 @@ The run stores the config, the profile version, and an index snapshot per shelf:
 
 ## Consequences
 
-- Answers on a CPU take about a minute each with `qwen2.5:3b`, so a full run with answers takes about an hour and holds the job queue: uploads wait until it ends or is cancelled. Retrieval-only runs take seconds.
+- Answers on a CPU take about a minute each with `qwen2.5:3b`, so a full run with answers takes about an hour and holds the job queue: uploads wait until it ends or is cancelled. Retrieval-only runs take seconds. (Measured again on 2026-11-15, on the 7.2 GB laptop with little free memory: about 2¼ minutes per run of the 53 questions, mostly embedding them. The Evaluation page now says "a minute or two".)
 - First numbers on the demo library (retrieval only, top 5):
 
   | Mode | hit rate@5 | MRR |

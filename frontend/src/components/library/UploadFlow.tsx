@@ -224,7 +224,16 @@ function Analyzing({
         <span className="font-medium">{failed ? "The analysis didn't finish" : "Analyzing your documents"}</span>
       </div>
       {failed ? (
-        <ErrorNote error={job?.error ?? "The analysis job stopped."} />
+        <>
+          <ErrorNote error="Something went wrong while reading the files. Nothing was added. Try again; if it keeps failing, click the status box at the top of the sidebar to troubleshoot." />
+          {job?.error && (
+            // The job's own error ("InternalError: …") is for whoever debugs it, not the first thing to read.
+            <details className="text-xs text-muted-foreground">
+              <summary className="cursor-pointer">Technical details</summary>
+              <p className="mt-1 break-words font-mono">{job.error}</p>
+            </details>
+          )}
+        </>
       ) : (
         <>
           <Progress value={progress} />

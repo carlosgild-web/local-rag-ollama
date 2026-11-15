@@ -4,6 +4,10 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Ver
 
 ## [Unreleased]
 
+### Fixed
+
+- **A shelf could become unsearchable until the app restarted.** Chroma 1.5.9 (the latest) sometimes fails every read of a collection with "Error creating hnsw segment reader: Nothing found on disk", even on a shelf nobody wrote to, while its files on disk are fine. Uploads then stopped at "The analysis didn't finish", and searches of that shelf failed. The vector store now retries briefly (1.5 s instead of 15 s) and then reopens its Chroma client, which loads the index from disk again. All Chroma calls share one lock, so a reopen never interrupts another call. A stress test (readers on every shelf while a writer adds 40 shelves) hit the error 4–5 times per run: callers saw it 27 times and 11 shelves stayed broken before, and 0 times after.
+
 ## [1.0.0] - 2026-11-14
 
 Phase 9, portfolio polish: the last phase of [PLAN.md](PLAN.md). Prometheus metrics, a Docker demo mode that a reviewer with only Docker runs in three commands, three more decision records, and an audit of the repository and its history for secrets and personal data. The demo video is still to come.

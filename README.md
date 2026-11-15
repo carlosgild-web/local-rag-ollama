@@ -7,9 +7,13 @@
 
 **Ask questions about your own documents, fully offline.** Every answer is grounded in your files and cites them. When the answer isn't in your files, the app says so.
 
-![Adding a folder: the app suggests a shelf and tags for every file, you review and confirm](docs/showcase/img/intake-flow.gif)
+[![Watch the 2½-minute tour: load a demo company, add files, a cited answer, a new version and a rollback, "not in the documents", evaluation](docs/showcase/img/demo-play.jpg)](https://carlosgild-web.github.io/local-rag-ollama/showcase/demo.mp4)
+
+*A 2½-minute tour, recorded from a fresh install on a laptop CPU (no sound; long waits are sped up and marked).*
 
 Drop in PDFs, Word files, Markdown or plain text. The app reads them, suggests where each one belongs, and answers questions in a chat with numbered citations you can click to see the exact passage. The chat model and the embeddings run in [Ollama](https://ollama.com) on your machine, so nothing is sent anywhere.
+
+![Adding files: the app suggests a shelf and tags for every file, you review and confirm](docs/showcase/img/intake-flow.gif)
 
 **Try it in one command.** You need [Docker Desktop](https://www.docker.com/products/docker-desktop/), or [Ollama](https://ollama.com) and Python 3.11+; the script offers to install those two if they're missing.
 
@@ -276,8 +280,8 @@ Your documents, the database, vectors and backups live in `backend/data/` when y
   - Phase 7 (evaluation, taken before Phase 6: [decision 0019](docs/decisions/0019-evaluation.md)) in v0.9.0
   - Phase 6 (the control panel: inspector, profiles, models, watched folders) in v0.10.0 ([decision 0024](docs/decisions/0024-retrieval-inspector.md), [decision 0025](docs/decisions/0025-watched-folders.md))
   - Phase 8 (an optional password, test coverage, a fresh clone running in under 6 minutes) in v0.11.0 ([decision 0026](docs/decisions/0026-optional-password.md))
-  - Phase 9 (Prometheus metrics, the Docker demo mode, the design decisions and a repository audit) in v1.0.0 ([decisions 0027–0031](docs/decisions/))
-- **Next:** a 2–3 minute demo video.
+  - Phase 9 (Prometheus metrics, the Docker demo mode, the design decisions and a repository audit) in v1.0.0 ([decisions 0027–0031](docs/decisions/)), and its demo video in v1.0.1
+- **Next:** running the Docker demo mode on a 16 GB machine.
 
 ## License
 

@@ -63,8 +63,8 @@ export function RunForm({ setId, busy }: { setId: number; busy: boolean }) {
       <CardHeader>
         <CardTitle className="text-base">Start a run</CardTitle>
         <CardDescription>
-          Retrieval only takes seconds. With answers, each question takes about a minute on a CPU, and other jobs
-          (uploads too) wait until the run ends.
+          Retrieval only takes a minute or two on a CPU, since every question is embedded. With answers, each
+          question takes about a minute, and other jobs (uploads too) wait until the run ends.
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-3 text-sm">

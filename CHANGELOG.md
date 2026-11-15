@@ -4,6 +4,18 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Ver
 
 ## [Unreleased]
 
+### Security
+
+- The backup list no longer shows an exception's text. A file in the backups folder that isn't a readable backup is listed as "Not a backup made by this app, or damaged", and the exact reason goes to the log (CodeQL alert #1, `py/stack-trace-exposure`; v1.0.0 fixed the `/health` part of it). Restoring still names the exact problem.
+
+### Changed
+
+- When the analysis of an upload fails, the Library now says so in plain words and keeps the technical error under **Technical details**, instead of showing only the raw error (for example Chroma's `InternalError: Error executing plan…`).
+
+### Fixed
+
+- The Evaluation page said a retrieval-only run takes seconds. On a CPU it takes a minute or two (about 2¼ minutes for the 53 demo questions on the 7.2 GB laptop), since every question is embedded.
+
 ## [1.0.1] - 2026-11-15
 
 The demo video, the last open item of Phase 9, and a fix for a Chroma bug the recording ran into.

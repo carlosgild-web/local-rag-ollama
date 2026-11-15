@@ -4,6 +4,25 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Ver
 
 ## [Unreleased]
 
+## [1.0.1] - 2026-11-15
+
+The demo video, the last open item of Phase 9, and a fix for a Chroma bug the recording ran into.
+
+### Added
+
+- **A 2½-minute demo video** ([watch it](https://carlosgild-web.github.io/local-rag-ollama/showcase/demo.mp4)), recorded from a fresh install on the 7.2 GB development laptop with `qwen2.5:3b` and `bge-m3`. It shows:
+  - loading the demo company, then adding 3 files with the suggested shelves and tags
+  - a cited answer ("30 days"), and then the same question after a new version of the policy ("45 days")
+  - comparing the two versions and rolling back to v1
+  - Luna saying a question isn't in the documents
+  - the demo golden set scored with vectors only and with hybrid search (hit rate@5 96% vs 100%, MRR 0.86 vs 0.93)
+
+  No sound; long waits are sped up and marked. The README links to it from a still, and it plays on the [project page](https://carlosgild-web.github.io/local-rag-ollama/). It's also attached to this release.
+
+### Changed
+
+- The README's "adding files" GIF is re-recorded from the current app.
+
 ### Fixed
 
 - **A shelf could become unsearchable until the app restarted.** Chroma 1.5.9 (the latest) sometimes fails every read of a collection with "Error creating hnsw segment reader: Nothing found on disk", even on a shelf nobody wrote to, while its files on disk are fine. Uploads then stopped at "The analysis didn't finish", and searches of that shelf failed. The vector store now retries briefly (1.5 s instead of 15 s) and then reopens its Chroma client, which loads the index from disk again. All Chroma calls share one lock, so a reopen never interrupts another call. A stress test (readers on every shelf while a writer adds 40 shelves) hit the error 4–5 times per run: callers saw it 27 times and 11 shelves stayed broken before, and 0 times after.

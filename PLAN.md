@@ -237,7 +237,7 @@ Found in manual tests on 2026-11-12/13 (temperature 0), to add to the golden set
 - [x] Prometheus `/metrics` (query latency, retrieval count, job durations) and request-id logging: standard library only ([decision 0030](docs/decisions/0030-prometheus-metrics.md))
 - [x] `demo` compose profile with small models: `compose.demo.yaml` with `qwen2.5:3b` plus `bge-m3`, pulled by a one-off container ([decision 0031](docs/decisions/0031-docker-demo-mode.md))
 - [x] Public open-license demo corpus (Spanish and English): the Hilda & Luna demo company in `backend/demo/`
-- [ ] README: architecture diagram, 3–5 screenshots, 2–3 minute demo video, "how it works", hardware notes. Done except the video, which is on hold
+- [x] README: architecture diagram, 3–5 screenshots, 2–3 minute demo video, "how it works", hardware notes. The [video](https://carlosgild-web.github.io/local-rag-ollama/showcase/demo.mp4) (2:35) came in v1.0.1
 - [x] Eval results table in the README: hit rate@5, hit@1 and MRR per retrieval mode, plus the answer scores per fix ([Evaluation](README.md#evaluation))
 - [x] `docs/decisions/`: why Chroma behind an interface ([0027](docs/decisions/0027-chroma-behind-an-interface.md)), why active-version pointer ([0028](docs/decisions/0028-active-version-pointer.md)), why blue/green reindex ([0029](docs/decisions/0029-blue-green-reindex.md))
 - [x] License (MIT), changelog, release tag: `v1.0.0`, since releases had already reached v0.11.0
@@ -245,7 +245,7 @@ Found in manual tests on 2026-11-12/13 (temperature 0), to add to the golden set
 
 **Done when:** a reviewer who only has Docker can run the demo in 5 commands or fewer and understand the project from the README in a few minutes.
 
-⚠️ **Done when is partly met (2026-11-14), released as v1.0.0.** The demo is 3 commands with only Docker (`git clone`, `cd`, `docker compose -f compose.yaml -f compose.demo.yaml up -d`) and one click on **Load the demo company**. On the 7.2 GB development laptop, every part ran in Docker and the answer was right and cited, but it took about 10 minutes, because the models don't fit in Docker's VM there ([test report](docs/test-reports/2026-11-14-docker-demo.md)). The docs now ask about 16 GB for the demo mode; not yet run on such a machine. The demo video is still open, on hold until the user says so.
+⚠️ **Done when is partly met (2026-11-14), released as v1.0.0.** The demo is 3 commands with only Docker (`git clone`, `cd`, `docker compose -f compose.yaml -f compose.demo.yaml up -d`) and one click on **Load the demo company**. On the 7.2 GB development laptop, every part ran in Docker and the answer was right and cited, but it took about 10 minutes, because the models don't fit in Docker's VM there ([test report](docs/test-reports/2026-11-14-docker-demo.md)). The docs now ask about 16 GB for the demo mode; not yet run on such a machine. The demo video was added in v1.0.1 (2026-11-15).
 
 ## 10. Hardware sizing
 

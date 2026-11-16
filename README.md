@@ -7,6 +7,8 @@
 
 **Ask questions about your own documents, fully offline.** Every answer is grounded in your files and cites them. When the answer isn't in your files, the app says so.
 
+> **Evolved into** [Luna Hybrid Agent](https://github.com/carlosgild-web/luna-hybrid-agent): the same app with a local agent on top that picks, per question, between these documents, a business database and an exchange-rate API, and shows every step.
+
 [![Watch the 2½-minute tour: load a demo company, add files, a cited answer, a new version and a rollback, "not in the documents", evaluation](docs/showcase/img/demo-play.jpg)](https://carlosgild-web.github.io/local-rag-ollama/showcase/demo.mp4)
 
 *A 2½-minute tour, recorded from a fresh install on a laptop CPU (no sound; long waits are sped up and marked).*

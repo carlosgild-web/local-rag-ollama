@@ -14,7 +14,7 @@ pillow>=13.0.0
 # Phase 2 (retrieval/answers): nothing new, reuses the above
 
 # Phase 3 (backend API):
-fastapi>=0.162.4
+fastapi>=0.162.5
 uvicorn[standard]>=0.54.0
 sqlalchemy>=2.1.8
 alembic>=1.20.1

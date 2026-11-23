@@ -1,7 +1,7 @@
 # Runtime dependencies, added incrementally one phase at a time (see PLAN.md).
 #
 # Phase 0 (setup):
-pydantic-settings>=2.16.2
+pydantic-settings>=2.16.3
 
 # Phase 1 (ingestion core):
 httpx>=0.28.1
@@ -14,11 +14,11 @@ pillow>=13.0.0
 # Phase 2 (retrieval/answers): nothing new, reuses the above
 
 # Phase 3 (backend API):
-fastapi>=0.162.4
+fastapi>=0.165.0
 uvicorn[standard]>=0.54.0
-sqlalchemy>=2.1.8
+sqlalchemy>=2.1.9
 alembic>=1.20.1
-python-multipart>=0.0.33
+python-multipart>=0.0.34
 
 # Phase 6 (watched folders):
 watchdog>=7.1.0

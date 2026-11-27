@@ -36,7 +36,15 @@ const BG = '0x0f1c1d' // the stage's colours (stage.html): a dark slate and the 
 const BAR = '0x081011'
 const AMBER = '0x2dd4bf'
 // drawtext needs a font file; Segoe UI is the stage's font on Windows.
-const FONT = (process.env.VIDEO_FONT || 'C:/Windows/Fonts/segoeui.ttf').replace(/:/g, '\\:')
+const FONT = filterPath(process.env.VIDEO_FONT || 'C:/Windows/Fonts/segoeui.ttf')
+
+/**
+ * A path inside an ffmpeg filter argument: backslashes become forward slashes (ffmpeg takes
+ * them on Windows too), then quotes and colons are escaped for the filter syntax.
+ */
+export function filterPath(path) {
+  return path.replace(/\\/g, '/').replace(/'/g, "\\'").replace(/:/g, '\\:')
+}
 
 function stamp(ms) {
   const t = Math.max(0, Math.round(ms))

@@ -176,7 +176,7 @@ Settings are environment variables ([`backend/.env.example`](backend/.env.exampl
 | Backend tests (fakes) | `pytest -q --cov` | 403 passed, 92 % coverage |
 | Lint and format | `ruff check . && ruff format --check .` | clean |
 | Frontend | `npm run build` (type check + build) | builds |
-| Video tooling | `cd video && npm run video:check && npm run video:test` | every callout resolves; 10 tests pass |
+| Video tooling | `cd video && npm run video:check && npm run video:test` | every callout resolves; 9 tests pass |
 | CI on every push | lint, tests, frontend build, `docker build`, the start scripts on Windows, macOS and Linux; CodeQL, secret scanning, Dependabot | green |
 | End to end (real Ollama, not in CI) | [`e2e/run_e2e.py`](e2e/README.md) | [report](docs/test-reports/2026-11-09-e2e.md) |
 

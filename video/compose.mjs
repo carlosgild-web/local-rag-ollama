@@ -21,7 +21,7 @@
  * the stage already; the .srt is for players and search.
  */
 import { execFileSync } from 'node:child_process'
-import { existsSync, readFileSync, statSync, writeFileSync } from 'node:fs'
+import { copyFileSync, existsSync, readFileSync, statSync, writeFileSync } from 'node:fs'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
@@ -35,16 +35,11 @@ const README_MB = 8.5 // GitHub plays inline up to 10 MB on free accounts; two-p
 const BG = '0x0f1c1d' // the stage's colours (stage.html): a dark slate and the console's teal
 const BAR = '0x081011'
 const AMBER = '0x2dd4bf'
-// drawtext needs a font file; Segoe UI is the stage's font on Windows.
-const FONT = filterPath(process.env.VIDEO_FONT || 'C:/Windows/Fonts/segoeui.ttf')
-
-/**
- * A path inside an ffmpeg filter argument: backslashes become forward slashes (ffmpeg takes
- * them on Windows too), then quotes and colons are escaped for the filter syntax.
- */
-export function filterPath(path) {
-  return path.replace(/\\/g, '/').replace(/'/g, "\\'").replace(/:/g, '\\:')
-}
+// drawtext needs a font file; Segoe UI is the stage's font on Windows. It is copied into the
+// take's folder, where ffmpeg runs, so the filter names it without a path (and without the
+// escaping a Windows path would need in the filter syntax).
+const FONT_SOURCE = process.env.VIDEO_FONT || 'C:/Windows/Fonts/segoeui.ttf'
+const FONT = 'font.ttf'
 
 function stamp(ms) {
   const t = Math.max(0, Math.round(ms))
@@ -211,6 +206,7 @@ function main() {
   }
   const read = (name, fallback) => (existsSync(join(dir, name)) ? JSON.parse(readFileSync(join(dir, name), 'utf8')) : fallback)
   const ffmpeg = (args) => execFileSync('ffmpeg', ['-y', '-loglevel', 'error', ...args], { cwd: dir, stdio: 'inherit' })
+  copyFileSync(FONT_SOURCE, join(dir, FONT))
   const cues = read('cues.json')
   const take = read('take.json', {})
   const specFile = join(HERE, 'cues-desktop.json')

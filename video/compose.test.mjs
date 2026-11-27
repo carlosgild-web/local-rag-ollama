@@ -2,13 +2,7 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
 
-import { filterPath, findGaps, mapper, planPieces, srt, takeWaits, zoomRect } from './compose.mjs'
-
-test('a font path is made safe for an ffmpeg filter, backslashes included', () => {
-  assert.equal(filterPath('C:/Windows/Fonts/segoeui.ttf'), 'C\\:/Windows/Fonts/segoeui.ttf')
-  assert.equal(filterPath('C:\\Fonts\\a.ttf'), 'C\\:/Fonts/a.ttf')
-  assert.equal(filterPath("/fonts/it's.ttf"), "/fonts/it\\'s.ttf")
-})
+import { findGaps, mapper, planPieces, srt, takeWaits, zoomRect } from './compose.mjs'
 
 test('a take without a desktop clip is one piece', () => {
   assert.deepEqual(planPieces(50, []), [{ src: 'take', from: 0, to: 50 }])

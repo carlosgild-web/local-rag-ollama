@@ -247,6 +247,23 @@ Found in manual tests on 2026-11-12/13 (temperature 0), to add to the golden set
 
 ⚠️ **Done when is partly met (2026-11-14), released as v1.0.0.** The demo is 3 commands with only Docker (`git clone`, `cd`, `docker compose -f compose.yaml -f compose.demo.yaml up -d`) and one click on **Load the demo company**. On the 7.2 GB development laptop, every part ran in Docker and the answer was right and cited, but it took about 10 minutes, because the models don't fit in Docker's VM there ([test report](docs/test-reports/2026-11-14-docker-demo.md)). The docs now ask about 16 GB for the demo mode; not yet run on such a machine. The demo video was added in v1.0.1 (2026-11-15).
 
+### Phase 10 — Portfolio showcase standard (2–3 d)
+
+The portfolio's shared README, GIF and video standard. No new product features: only the start scripts, a GIF and video harness, scripts, tests and docs.
+
+- [ ] Hygiene: Dependabot PRs merged, root folder cleaned, topics
+- [ ] `start.cmd video`: fresh demo data in `data-video\` at every start, golden set loaded, models warmed (decision 0042; numbers 0032–0041 belong to Luna's copy of this history)
+- [ ] README GIF of the main flow (question → cited answer → passage → "not found") and the intake GIF, both from one Playwright script in `e2e/showcase/`
+- [ ] Video re-recorded on Ollama (`qwen2.5:3b` + `bge-m3`) with an "Under the hood" panel; waits cut to 1 s with the real length in the label (decision 0043, `docs/video.md`)
+- [ ] README to the standard; long sections moved to `docs/features.md` and `docs/portal.md`; test counts from a real run; new social preview
+- [ ] Release v1.1.0
+
+**Done when:** the README's first screen shows the GIF, the video and a 3-line quick start; every link resolves; the release is published.
+
+Found during the phase, for later (not changed here):
+- Naming a suggested new shelf, `qwen2.5:3b` sometimes answers with broken JSON that copies the prompt's example name; the app then uses its keyword name (decision 0042).
+- When every file of an intake goes to an existing shelf, the analysis still asks the chat model to name zero shelves (`_name_groups` in `ingest/intake.py`): a wasted model load (decision 0042).
+
 ## 10. Hardware sizing
 
 | Model | Approx. memory (Q4) | Notes |

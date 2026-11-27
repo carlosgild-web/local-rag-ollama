@@ -6,6 +6,8 @@
 #   ./start.sh status      show how it's running and whether it's healthy
 #   ./start.sh backup      back up the data now (the console's Backups page too)
 #   ./start.sh restore <backup>   restore a backup (a name from Backups, or a .zip file)
+#   ./start.sh video       for the video takes: fresh demo data in data-video/ at every
+#                          start, Python and local Ollama, port 8010 (stop: video stop)
 #
 # Options: --yes (accept every suggestion), --check (look and explain, change
 # nothing), --reconfigure (ask again instead of using the saved answers).
@@ -30,23 +32,34 @@ OS="$(uname -s)"
 LOGGING=0
 OLLAMA_STARTED_HERE=0
 
-COMMAND="start"; TARGET=""; YES=0; CHECK=0; RECONFIGURE=0; NO_HOST_OLLAMA=0; NO_DOCKER=0; OLLAMA_START_FAILS=0
+COMMAND="start"; TARGET=""; VIDEO=0; YES=0; CHECK=0; RECONFIGURE=0; NO_HOST_OLLAMA=0; NO_DOCKER=0; OLLAMA_START_FAILS=0
 for arg in "$@"; do
   case "$arg" in
     start|stop|status|backup|restore) COMMAND="$arg" ;;
+    video) VIDEO=1 ;;
     --yes|-y) YES=1 ;;
     --check) CHECK=1 ;;
     --reconfigure) RECONFIGURE=1 ;;
     --no-host-ollama) NO_HOST_OLLAMA=1 ;;
     --no-docker) NO_DOCKER=1 ;;
     --ollama-start-fails) OLLAMA_START_FAILS=1 ;;
-    -h|--help) sed -n '2,16p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
+    -h|--help) sed -n '2,18p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
     -*) echo "Unknown option: $arg (try --help)"; exit 2 ;;
     *)
       if [ "$COMMAND" = "restore" ] && [ -z "$TARGET" ]; then TARGET="$arg"
       else echo "Unknown option: $arg (try --help)"; exit 2; fi ;;
   esac
 done
+
+# Video mode (decision 0042): its own data folder, wiped at every start, and its own
+# port, so the takes always begin from the same demo company and data/ is not touched.
+VIDEO_PORT=8010
+VIDEO_CHAT_MODEL="qwen2.5:3b"
+if [ "$VIDEO" = 1 ]; then
+  case "$COMMAND" in start|stop) ;; *) echo "video works with start and stop only."; exit 2 ;; esac
+  DATA_DIR="$ROOT/data-video"
+  LOG_FILE="$DATA_DIR/start.log"
+fi
 
 # --- Output helpers ----------------------------------------------------------
 
@@ -59,7 +72,7 @@ info() { printf '  - %s\n' "$*"; }
 warn() { printf '  %s[!]%s %s\n' "$C_YELLOW" "$C_OFF" "$*"; }
 fail() {
   printf '\n%s[x] %s%s\n' "$C_RED" "$*" "$C_OFF"
-  [ "$LOGGING" = 1 ] && printf '    Details of this run: data/start.log\n'
+  [ "$LOGGING" = 1 ] && printf '    Details of this run: %s/start.log\n' "$(basename "$DATA_DIR")"
   exit 1
 }
 quit() { printf '\n%s\n' "$*"; exit 0; }
@@ -378,7 +391,7 @@ start_route_c() {
       > "$DATA_DIR/server.log" 2>&1 < /dev/null &
     echo $! > "$DATA_DIR/app.pid"
   )
-  info "App started in the background (logs: data/server.log)"
+  info "App started in the background (logs: $(basename "$DATA_DIR")/server.log)"
 }
 
 # Downloads a model into Docker's Ollama; on failure explains and offers Retry/Quit.
@@ -735,6 +748,87 @@ do_start() {
   [ "$first" = "/" ] && say "  Opening the dashboard: click 'See the documents', then 'Load the demo company'."
   open_url "http://localhost:$port$first"
 }
+
+# Sends one request to Ollama that loads the model and keeps it for 30 minutes;
+# prints the seconds it took.
+warm_model() {
+  local secs; secs=$(date +%s)
+  curl -s -f -m 600 -o /dev/null -X POST "$OLLAMA_URL/api/$1" -H "Content-Type: application/json" -d "$2" || return 1
+  echo $(( $(date +%s) - secs ))
+}
+
+# The same state for every take: stop the last video server, empty data-video/, start
+# the app with Python on local Ollama, load the demo company with the dashboard's own job
+# and the demo golden set with the Evaluation page's own call, then warm both models so
+# the first question doesn't pay for loading them.
+do_video() {
+  local port="$VIDEO_PORT" m state demo golden i secs
+  say ""
+  say "Local RAG with Ollama: video mode (fresh demo data in data-video/; data/ is not touched)"
+
+  step "1. Ollama and the models"
+  state="$(ollama_state)"
+  [ "$state" = "missing" ] && fail "Video mode needs Ollama on this computer (https://ollama.com/download)."
+  if [ "$state" = "stopped" ]; then start_host_ollama || fail "Ollama didn't start."; fi
+  for m in "$EMBEDDING_MODEL" "$VIDEO_CHAT_MODEL"; do
+    has_model "$m" || fail "$m isn't downloaded. Run: ollama pull $m"
+    ok "$m is downloaded"
+  done
+  info "Every question uses both models. Close memory-heavy apps (Docker Desktop, virtual machines)."
+
+  step "2. A fresh data-video/ folder"
+  stop_route C
+  port_free "$port" || fail "Port $port is in use by another program. Free it and run this again."
+  mkdir -p "$DATA_DIR"
+  find "$DATA_DIR" -mindepth 1 -maxdepth 1 ! -name start.log -exec rm -rf {} + || fail "Couldn't empty data-video/."
+  ok "data-video/ is empty"
+
+  step "3. Starting the app"
+  find_python || fail "Video mode runs with Python 3.11 or newer (https://www.python.org/downloads/)."
+  setup_route_c
+  CHAT_MODEL="$VIDEO_CHAT_MODEL"; APP_PORT="$port"
+  start_route_c
+  wait_healthy "$port" || fail "The app didn't become healthy; see data-video/server.log."
+
+  step "4. The demo company and its golden set"
+  curl -s -m 10 -X POST "http://127.0.0.1:$port/api/demo/seed" >/dev/null || fail "Couldn't queue the demo company."
+  info "Loading the documents (embedding them with $EMBEDDING_MODEL takes a few minutes)..."
+  state=""
+  for i in $(seq 1 600); do
+    sleep 2
+    demo="$(http_get "http://127.0.0.1:$port/api/demo")"
+    state="$(printf '%s' "$demo" | json_field status)"
+    case "$state" in completed|failed|cancelled) break ;; esac
+  done
+  [ "$state" = "completed" ] || fail "The demo company didn't load (job: ${state:-none}); see data-video/server.log."
+  ok "$(printf '%s' "$demo" | json_field documents) documents are indexed"
+  golden="$(curl -s -f -m 30 -X POST "http://127.0.0.1:$port/api/eval/demo")" || fail "Couldn't load the demo golden set; see data-video/server.log."
+  ok "The demo golden set is loaded ($(printf '%s' "$golden" | json_field case_count) questions)"
+
+  step "5. Warming the models"
+  if secs="$(warm_model embed "{\"model\":\"$EMBEDDING_MODEL\",\"input\":\"warm-up\",\"keep_alive\":\"30m\"}")"; then
+    ok "$EMBEDDING_MODEL answered in $secs s"
+  else warn "$EMBEDDING_MODEL didn't answer the warm-up."; fi
+  if secs="$(warm_model chat "{\"model\":\"$VIDEO_CHAT_MODEL\",\"messages\":[{\"role\":\"user\",\"content\":\"Say OK.\"}],\"stream\":false,\"keep_alive\":\"30m\"}")"; then
+    ok "$VIDEO_CHAT_MODEL answered in $secs s"
+  else warn "$VIDEO_CHAT_MODEL didn't answer the warm-up; the first question will be slow."; fi
+  if [ "${OLLAMA_MAX_LOADED_MODELS:-}" = "1" ]; then
+    info "OLLAMA_MAX_LOADED_MODELS=1: Ollama swaps the two models on every question (slower, fits in 8 GB)."
+  fi
+
+  step "Ready for a take"
+  say "  Company website:  http://localhost:$port/site"
+  say "  Employee portal:  http://localhost:$port/intranet"
+  say "  Admin console:    http://localhost:$port"
+  say "  Stop: ./start.sh video stop   This run's log: data-video/start.log"
+}
+
+if [ "$VIDEO" = 1 ]; then
+  if [ "$COMMAND" = "stop" ]; then stop_route C; exit 0; fi
+  mkdir -p "$DATA_DIR" && exec > >(tee "$LOG_FILE") 2>&1 && LOGGING=1
+  do_video
+  exit 0
+fi
 
 case "$COMMAND" in
   stop) do_stop ;;

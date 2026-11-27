@@ -34,3 +34,10 @@ Thumbs.db
 
 # Logs
 *.log
+# Video takes (decision 0042): wiped at every `start.cmd video`
+data-video/
+# README GIF harness (decision 0042)
+e2e/showcase/node_modules/
+e2e/showcase/.tmp/
+e2e/showcase/test-results/
+docs/showcase/.gif-video/

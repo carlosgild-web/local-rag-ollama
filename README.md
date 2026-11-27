@@ -19,7 +19,7 @@ Ask questions about your own documents, fully offline. Drop in PDFs, Word files,
 
 ### The 2½-minute video: a real model, under the hood
 
-VIDEO_URL
+https://github.com/user-attachments/assets/f651e329-57cb-4772-bd38-13b77daaaa2d
 
 `qwen2.5:3b` and `bge-m3` on a laptop CPU, with a panel showing the code and data behind each step: adding files, a cited answer and its passage, "not found", a new version and a rollback, the retrieval inspector and the evaluation. Long waits are cut and labelled. [What it shows, and how it was recorded →](docs/video.md)
 

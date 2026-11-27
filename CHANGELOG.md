@@ -15,6 +15,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Ver
 ### Fixed
 
 - The Evaluation page said a retrieval-only run takes seconds. On a CPU it takes a minute or two (about 2¼ minutes for the 53 demo questions on the 7.2 GB laptop), since every question is embedded.
+- Adding files that all fit existing shelves no longer asks the chat model to name zero new shelves. The answer was never used, but on a small machine the call loaded the chat model for nothing (found while making the README GIF; decision 0042).
 
 ## [1.0.1] - 2026-11-15
 

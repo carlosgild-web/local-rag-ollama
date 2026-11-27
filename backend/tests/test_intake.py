@@ -189,6 +189,20 @@ def test_existing_shelves_take_matching_files_new_versions_and_skip_duplicates(c
     assert files["catalog.txt"]["shelf"].startswith("new:")
 
 
+def test_the_model_is_not_asked_for_names_when_every_file_fits_a_shelf(client):
+    hr = client.post(
+        "/api/collections",
+        json={"name": "hr", "embedding_model": client.runtime.settings.embedding_model},
+    ).json()["id"]
+    _upload(client, "holidays.txt", STAFF_A, hr)
+
+    _, result = _analyze(client, [("onboarding.txt", STAFF_B)])
+    assert _by_name(result)["onboarding.txt"]["shelf"] == f"existing:{hr}"
+    assert not any(s["ref"].startswith("new:") for s in result["shelves"])
+    # Naming zero shelves would load the chat model for nothing.
+    assert client.runtime.fake_llm.calls == []
+
+
 def test_shelf_names_fall_back_to_keywords_when_the_model_gives_no_usable_answer(client):
     # No canned answer: the fake model echoes the prompt, which isn't JSON.
     _, result = _analyze(client, [("a.txt", STAFF_A), ("b.txt", STAFF_B)])

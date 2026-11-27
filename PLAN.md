@@ -256,13 +256,13 @@ The portfolio's shared README, GIF and video standard. No new product features: 
 - [ ] README GIF of the main flow (question → cited answer → passage → "not found") and the intake GIF, both from one Playwright script in `e2e/showcase/`
 - [ ] Video re-recorded on Ollama (`qwen2.5:3b` + `bge-m3`) with an "Under the hood" panel; waits cut to 1 s with the real length in the label (decision 0043, `docs/video.md`)
 - [ ] README to the standard; long sections moved to `docs/features.md` and `docs/portal.md`; test counts from a real run; new social preview
+- [x] Fixed on the way (the one product change): adding files that all fit existing shelves no longer asks the chat model to name zero shelves (decision 0042)
 - [ ] Release v1.1.0
 
 **Done when:** the README's first screen shows the GIF, the video and a 3-line quick start; every link resolves; the release is published.
 
 Found during the phase, for later (not changed here):
 - Naming a suggested new shelf, `qwen2.5:3b` sometimes answers with broken JSON that copies the prompt's example name; the app then uses its keyword name (decision 0042).
-- When every file of an intake goes to an existing shelf, the analysis still asks the chat model to name zero shelves (`_name_groups` in `ingest/intake.py`): a wasted model load (decision 0042).
 
 ## 10. Hardware sizing
 

@@ -29,12 +29,21 @@ Checked on the 7.2 GB development laptop: 84 s from an empty folder to "Ready fo
 - **Replayed:** the chat model's text. `E2E_RECORD=1 npm run showcase` runs the same steps on `qwen2.5:3b` and saves each answer to `e2e/showcase/replay.json`, keyed by the question in the prompt (or `shelf-naming` for the intake's one naming call). A normal run streams those answers back word by word, so the GIF is the same on every run and takes seconds per answer instead of half a minute.
 - **Why not fake embeddings,** as Luna's harness uses: the intake picks tags by comparing each file's embedding with the department vocabulary, so hash-based fake vectors would suggest meaningless tags, and the vector half of the hybrid ranking would be noise.
 - The cost: making the GIFs needs Ollama with `bge-m3` (about 2 minutes to load the demo). They are not made in CI.
-- The intake GIF adds three short fictional files from `e2e/showcase/intake/` to the loaded demo company. Each goes to an existing shelf (meeting notes to `meetings`, a supplier price update and a kiln log to `operations`, the kiln log marked "please check, it also fits `hr`"). The suggestions come from `bge-m3` alone; the one chat call the intake makes is the naming call for zero new shelves (see below), whose replayed answer, `{}`, changes nothing. The analysis (about 25 s of `bge-m3` on the laptop CPU) is cut from the GIF, and its caption says so.
+- The intake GIF adds three short fictional files from `e2e/showcase/intake/` to the loaded demo company. Each goes to an existing shelf (meeting notes to `meetings`, a supplier price update and a kiln log to `operations`, the kiln log marked "please check, it also fits `hr`"). The suggestions come from `bge-m3` alone, and the intake makes no chat call, so that GIF has nothing replayed. The analysis (about 25 s of `bge-m3` on the laptop CPU) is cut from the GIF, and its caption says so.
 - In the GIF and the passage screenshot, the passage line with the cited date is marked (a highlight; the text is unchanged). The console's low-memory notice, which the 7.2 GB laptop always shows, is closed with its own × before recording.
 
 **Found on the way.** A first set of intake files went to a suggested new shelf. Asked to name it, `qwen2.5:3b` answered three times in a row with broken JSON that copied the prompt's example name (`employees-hr`), so the app used its keyword name instead, `documents`, as designed. The 3B model is weak at this task; it is noted in PLAN.md Phase 10 for a later look and is not changed in this phase (no product changes).
 
-Also found: when every file goes to an existing shelf, `analyze_batch` still asks the chat model to name zero shelves (`_name_groups` with an empty list). The answer is unused, but on a small machine the call loads the chat model for nothing.
+Also found: when every file goes to an existing shelf, `analyze_batch` still asks the chat model to name zero shelves (`_name_groups` with an empty list). The answer was unused, but on a small machine the call loaded the chat model for nothing. Fixed in this phase (the only product change; a test checks that no model call is made).
+
+**Ollama on the laptop.** The two models were timed through the app's chat with both Ollama settings:
+
+| `OLLAMA_MAX_LOADED_MODELS` | A new question | The same prompt again |
+|---|---|---|
+| 1 | 31 s to the first word, 35 s in all (the models swap) | the same |
+| 2 | 21–24 s (reading the prompt on the CPU) | about 1 s (Ollama's prompt cache) |
+
+With 2, about 0.4 GB of RAM stays free, so the video's capture pass (no browser) uses 2. The warm-up asks with the app's context size (`num_ctx` 8192); a different size made Ollama load the model again on the first question.
 
 ## Consequences
 

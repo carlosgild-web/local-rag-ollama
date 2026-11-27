@@ -880,7 +880,8 @@ function Do-Video {
     Step "5. Warming the models"
     $secs = Warm-Model "embed" @{ model = $EmbeddingModel; input = "warm-up"; keep_alive = "30m" }
     if ($secs -ge 0) { Ok "$EmbeddingModel answered in $secs s" } else { Warn "$EmbeddingModel didn't answer the warm-up." }
-    $secs = Warm-Model "chat" @{ model = $VideoChatModel; messages = @(@{ role = "user"; content = "Say OK." }); stream = $false; keep_alive = "30m" }
+    # The app asks with num_ctx 8192 (OLLAMA_NUM_CTX); another size would load the model again.
+    $secs = Warm-Model "chat" @{ model = $VideoChatModel; messages = @(@{ role = "user"; content = "Say OK." }); stream = $false; keep_alive = "30m"; options = @{ num_ctx = 8192 } }
     if ($secs -ge 0) { Ok "$VideoChatModel answered in $secs s" } else { Warn "$VideoChatModel didn't answer the warm-up; the first question will be slow." }
     if ($env:OLLAMA_MAX_LOADED_MODELS -eq "1") {
         Info "OLLAMA_MAX_LOADED_MODELS=1: Ollama swaps the two models on every question (slower, fits in 8 GB)."

@@ -809,7 +809,7 @@ do_video() {
   if secs="$(warm_model embed "{\"model\":\"$EMBEDDING_MODEL\",\"input\":\"warm-up\",\"keep_alive\":\"30m\"}")"; then
     ok "$EMBEDDING_MODEL answered in $secs s"
   else warn "$EMBEDDING_MODEL didn't answer the warm-up."; fi
-  if secs="$(warm_model chat "{\"model\":\"$VIDEO_CHAT_MODEL\",\"messages\":[{\"role\":\"user\",\"content\":\"Say OK.\"}],\"stream\":false,\"keep_alive\":\"30m\"}")"; then
+  if secs="$(warm_model chat "{\"model\":\"$VIDEO_CHAT_MODEL\",\"messages\":[{\"role\":\"user\",\"content\":\"Say OK.\"}],\"stream\":false,\"keep_alive\":\"30m\",\"options\":{\"num_ctx\":8192}}")"; then
     ok "$VIDEO_CHAT_MODEL answered in $secs s"
   else warn "$VIDEO_CHAT_MODEL didn't answer the warm-up; the first question will be slow."; fi
   if [ "${OLLAMA_MAX_LOADED_MODELS:-}" = "1" ]; then

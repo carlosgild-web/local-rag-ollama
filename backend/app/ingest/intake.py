@@ -327,13 +327,16 @@ def _name_groups(
 ) -> list[tuple[str, str, str]]:
     """(name, description, named_by) for each group of (file name, opening
     text) pairs and their tags. One chat-model call names all of them; a
-    group the answer doesn't cover gets a keyword name from its tags.
+    group the answer doesn't cover gets a keyword name from its tags. With
+    no groups (every file fits an existing shelf) the model isn't asked.
 
     A small model doesn't reliably keep its answers in the order asked
     (the 2026-11-08 showcase run named the business group "employees-hr").
     With several groups, each proposed name therefore goes to the group whose
     average excerpt vector its "name: description" is closest to, and only
     if that is its best group; the rest get keyword names."""
+    if not groups:
+        return []
     blocks = []
     for number, (names_and_heads, _) in enumerate(groups, start=1):
         listing = "\n".join(f"  - {name}: {head[:160]!r}" for name, head in names_and_heads[:8])

@@ -257,9 +257,11 @@ The portfolio's shared README, GIF and video standard. No new product features: 
 - [x] Video re-recorded on Ollama (`qwen2.5:3b` + `bge-m3`) with an "Under the hood" panel; waits cut to 1 s with the real length in the label (decision 0043, `docs/video.md`)
 - [x] README to the standard; long sections moved to `docs/features.md` and `docs/portal.md`; test counts from a real run; new social preview
 - [x] Fixed on the way (the one product change): adding files that all fit existing shelves no longer asks the chat model to name zero shelves (decision 0042)
-- [ ] Release v1.1.0
+- [x] Release v1.1.0
 
 **Done when:** the README's first screen shows the GIF, the video and a 3-line quick start; every link resolves; the release is published.
+
+✅ **Done when is met (2026-11-27), released as v1.1.0.** The README opens with the main-flow GIF (4.8 MB, 29 s), the 2:25 video on `qwen2.5:3b` and `bge-m3` (two passes, every check passed; [docs/video.md](docs/video.md)) and the 3-line quick start; every relative link resolves and every test named in its invariants table exists. 403 backend tests, 92 % coverage. PR #55.
 
 Found during the phase, for later (not changed here):
 - Naming a suggested new shelf, `qwen2.5:3b` sometimes answers with broken JSON that copies the prompt's example name; the app then uses its keyword name (decision 0042).

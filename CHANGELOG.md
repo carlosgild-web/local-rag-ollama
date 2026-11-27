@@ -2,7 +2,7 @@
 
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versions follow the phases in [PLAN.md](PLAN.md).
 
-## [Unreleased]
+## [1.1.0] - 2026-11-27
 
 Phase 10: the portfolio's showcase standard, as tooling around the app, plus the app's small fixes since 1.0.1 (one of them found while making the GIF).
 

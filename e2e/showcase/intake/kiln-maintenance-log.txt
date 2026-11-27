@@ -1,0 +1,13 @@
+HILDA & LUNA BEADWORKS
+WORKSHOP EQUIPMENT — KILN MAINTENANCE LOG (ANNEALING KILNS 1 AND 2)
+[Sample data — written for the README demo]
+
+2027-01-08  Kiln 2: replaced the lower heating element. Ramp test to 520 °C passed in 41 minutes.
+2027-01-22  Kiln 1: thermocouple read 3 °C high against the reference probe; offset corrected.
+2027-02-05  Kiln 2: door gasket worn on the hinge side; new ceramic fibre gasket fitted.
+2027-02-19  Both kilns: elements, relay contacts and vent fans checked. No faults.
+
+Workshop safety rules for the kilns (production stops if one fails)
+- Service every two weeks; log the date, the kiln, the work done and your initials.
+- Never open a kiln door above 300 °C.
+- A thermocouple more than 5 °C off the reference probe stops the kiln until it is recalibrated.

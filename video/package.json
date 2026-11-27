@@ -1,0 +1,18 @@
+{
+  "name": "local-rag-ollama-video",
+  "private": true,
+  "type": "module",
+  "description": "Records the README video from the running app (decisions 0042 and 0043).",
+  "scripts": {
+    "video:check": "node lines.mjs --check storyboard-ollama.json",
+    "video:smoke": "playwright test --grep @smoke",
+    "video:dry": "playwright test --grep @dry && node cues.mjs out/dry && node compose.mjs out/dry --cut-gaps",
+    "video:ollama": "playwright test --grep @ollama && node cues.mjs out/ollama && node compose.mjs out/ollama --cut-gaps --readme",
+    "video:test": "node --test compose.test.mjs",
+    "video:verify": "node cues.mjs out/ollama --verify"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.65.1",
+    "@types/node": "^24.19.2"
+  }
+}

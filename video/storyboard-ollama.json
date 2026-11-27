@@ -1,0 +1,129 @@
+{
+  "video": "ollama",
+  "provider": "ollama",
+  "banner": "Real models: {model} + bge-m3, local (Ollama, laptop CPU); answers replayed from the model's run",
+  "models": { "qwen2.5:3b": "qwen2.5:3b" },
+  "providers": {
+    "dry": {
+      "banner": "Dry run: scripted answers (not the published video)",
+      "models": null
+    }
+  },
+  "mode": "flexible",
+  "hold": 0.45,
+  "notes": [
+    "The README video (decision 0043). Two passes: capture.py runs the script on qwen2.5:3b (no browser), then the take replays those answers through the real app (replay_server.py) while the browser records.",
+    "`script` is the order of state changes and questions; capture.py and record.spec.ts follow it, so pass 2 meets the same library and the same prompts (matched by SHA-256).",
+    "Events: request, session, sources, token, done, error (the chat's SSE); answer (the turn's streamed text and the answer as stored); api events (the app's own JSON answers: intake, inspect, compare, rollback). A row with `on.event` is shown at the first matching event of its turn; `on.step` rows are shown by the take.",
+    "Payloads come only from the take's capture. Callouts are [file, symbol], resolved by lines.mjs at take time."
+  ],
+  "intake": {
+    "showcase": "e2e/showcase/intake",
+    "v2": "video/fixtures/v2"
+  },
+  "turns": {
+    "holiday": {
+      "question": "When does the company close for the holidays?",
+      "shelf": "hr",
+      "dry_answer": "Dry run: the company closes from December 22 through January 2 [2]."
+    },
+    "dental": {
+      "question": "What dental insurance coverage do employees get?",
+      "shelf": "hr",
+      "dry_answer": "not found in the documents"
+    },
+    "returns": {
+      "question": "How many days do customers have to return unused beads?",
+      "shelf": "operations",
+      "dry_answer": "Dry run: 30 days from the delivery date [1]."
+    },
+    "returns_v2": {
+      "question": "How many days do customers have to return unused beads?",
+      "shelf": "operations",
+      "dry_answer": "Dry run: 45 days from the delivery date [1]."
+    }
+  },
+  "script": ["intake:showcase", "ask:holiday", "ask:dental", "ask:returns", "intake:v2", "ask:returns_v2"],
+  "rows": [
+    { "id": "0.1", "scene": 0, "on": { "step": "hook" }, "slide": "hook",
+      "subtitle": "Questions about your own documents, fully offline. Cited, or \"not there\"." },
+
+    { "id": "1.1", "scene": 1, "on": { "step": "intake:pick" }, "layer": "Browser",
+      "subtitle": "Three new files. Nothing is indexed before you confirm." },
+    { "id": "1.2", "scene": 1, "on": { "step": "intake:suggested" }, "layer": "Ingest",
+      "subtitle": "bge-m3 embeds each file; tags and shelf come from the closest documents.",
+      "callouts": [["backend/app/ingest/intake.py", "analyze_batch"], ["backend/app/ingest/intake.py", "DEPARTMENTS"]],
+      "payload": { "from": "api", "api": "intake", "pick": "files", "fields": ["name", "status", "shelf", "tags"] } },
+    { "id": "1.3", "scene": 1, "on": { "step": "intake:indexed" }, "layer": "Ingest",
+      "subtitle": "Confirmed: stored once by SHA-256, cut into pieces, indexed twice.",
+      "callouts": [["backend/app/ingest/file_store.py", "store_file"], ["backend/app/versioning/service.py", "_index_version"]] },
+
+    { "id": "2.1", "scene": 2, "on": { "step": "typed:holiday" }, "layer": "Browser",
+      "subtitle": "A question, on the hr shelf." },
+    { "id": "2.2", "scene": 2, "on": { "event": "sources" }, "layer": "Search",
+      "subtitle": "Vectors for meaning, FTS5 for exact words, fused by rank.",
+      "callouts": [["backend/app/retrieval/retrieve.py", "_search"], ["backend/app/retrieval/fusion.py", "fuse_rrf_scored"]],
+      "payload": { "from": "inspect", "pick": "chunks", "limit": 5, "fields": ["filename", "heading", "vector_rank", "keyword_rank", "fused_score"] } },
+    { "id": "2.3", "scene": 2, "on": { "event": "sources" }, "layer": "Prompt",
+      "subtitle": "The top five passages go into a prompt: answer only from them, and cite.",
+      "callouts": [["backend/app/retrieval/prompt.py", "SYSTEM_INSTRUCTIONS"]],
+      "payload": { "from": "inspect", "pick": "prompt", "head": 9 } },
+    { "id": "3.1", "scene": 3, "on": { "event": "token" }, "layer": "Ollama",
+      "subtitle": "qwen2.5:3b answers on this laptop's CPU.",
+      "callouts": [["backend/app/llm/ollama_client.py", "OllamaLLMClient.stream_generate"]] },
+    { "id": "3.2", "scene": 3, "on": { "event": "answer" }, "layer": "Check",
+      "subtitle": "Each citation is checked, and moved if it points at the wrong passage.",
+      "callouts": [["backend/app/retrieval/citation_repair.py", "repair_citations"]],
+      "payload": { "from": "answer" } },
+    { "id": "3.3", "scene": 3, "on": { "step": "cite" }, "layer": "Browser",
+      "subtitle": "A citation opens the exact passage: file, page, score.",
+      "callouts": [["frontend/src/components/CitedAnswer.tsx", "Passage"], ["frontend/src/components/CitedAnswer.tsx", "SourceList"]] },
+
+    { "id": "4.1", "scene": 4, "on": { "step": "typed:dental" }, "layer": "Browser",
+      "subtitle": "A question the documents don't answer." },
+    { "id": "4.3", "scene": 4, "on": { "event": "answer" }, "layer": "Check",
+      "subtitle": "No passage holds it, so the reply is the one the prompt requires.",
+      "callouts": [["backend/app/retrieval/prompt.py", "NOT_FOUND_PHRASE"]],
+      "payload": { "from": "answer" } },
+
+    { "id": "5.1", "scene": 5, "on": { "step": "typed:returns" }, "layer": "Browser",
+      "subtitle": "Versions: the return window in the current policy." },
+    { "id": "5.2", "scene": 5, "on": { "event": "answer" }, "layer": "Check",
+      "subtitle": "30 days, from version 1.",
+      "payload": { "from": "answer" } },
+    { "id": "5.3a", "scene": 5, "on": { "step": "v2:pick" }, "layer": "Browser",
+      "subtitle": "The policy changes; same file name." },
+    { "id": "5.3", "scene": 5, "on": { "step": "v2:suggested" }, "layer": "Ingest",
+      "subtitle": "Same name, new content: version 2.",
+      "callouts": [["backend/app/versioning/service.py", "check_uploads"]],
+      "payload": { "from": "api", "api": "intake", "pick": "files", "fields": ["name", "status", "message"] } },
+    { "id": "5.4", "scene": 5, "on": { "step": "typed:returns_v2" }, "layer": "Browser",
+      "subtitle": "v2 is active; v1's pieces stay, inactive. Ask again." },
+    { "id": "5.5", "scene": 5, "on": { "event": "answer" }, "layer": "Check",
+      "subtitle": "45 days, from version 2.",
+      "payload": { "from": "answer" } },
+    { "id": "5.6", "scene": 5, "on": { "step": "rollback" }, "layer": "SQLite",
+      "subtitle": "Roll back to v1: one pointer flips, nothing is re-embedded.",
+      "callouts": [["backend/app/versioning/service.py", "rollback_document"]],
+      "payload": { "from": "api", "api": "rollback", "fields": ["version_number", "is_active", "chunk_count", "sha256"] } },
+
+    { "id": "6.1", "scene": 6, "on": { "step": "inspector" }, "layer": "Search",
+      "subtitle": "The inspector: every passage, its ranks, the cut, the exact prompt.",
+      "callouts": [["backend/app/retrieval/inspector.py", "inspect_retrieval"]],
+      "payload": { "from": "api", "api": "inspect", "pick": "chunks", "limit": 6, "fields": ["filename", "vector_rank", "keyword_rank", "sent"] } },
+    { "id": "6.2", "scene": 6, "on": { "step": "inspector:weight" }, "layer": "Search",
+      "subtitle": "Move the vector weight: it re-ranks live.",
+      "payload": { "from": "api", "api": "inspect", "fields": ["parameters", "timings"] } },
+
+    { "id": "7.1", "scene": 7, "on": { "step": "eval" }, "layer": "SQLite",
+      "subtitle": "53 golden questions score every change: vectors only\u2026",
+      "callouts": [["backend/app/eval/metrics.py", "first_relevant_rank"], ["backend/app/eval/metrics.py", "summarize"]],
+      "payload": { "from": "api", "api": "compare", "pick": "a.metrics" } },
+    { "id": "7.2", "scene": 7, "on": { "step": "eval:b" }, "layer": "SQLite",
+      "subtitle": "\u2026against hybrid: the right file in the top five, every time.",
+      "payload": { "from": "api", "api": "compare", "pick": "b.metrics" } },
+
+    { "id": "8.1", "scene": 8, "on": { "step": "end" }, "slide": "end",
+      "subtitle": "Every answer cites its source, or says it isn't there." }
+  ]
+}

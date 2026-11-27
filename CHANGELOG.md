@@ -2,19 +2,33 @@
 
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versions follow the phases in [PLAN.md](PLAN.md).
 
-## [Unreleased]
+## [1.1.0] - 2026-11-27
+
+Phase 10: the portfolio's showcase standard, as tooling around the app, plus the app's small fixes since 1.0.1 (one of them found while making the GIF).
+
+### Added
+
+- **A re-recorded video on the real models** (`qwen2.5:3b` and `bge-m3` on Ollama, a laptop CPU), 2:25, with an "Under the hood" panel showing the code and data behind each step: adding files, a cited answer and its passage, "not found", a new version and a rollback, the retrieval inspector and the evaluation. Recorded in two passes, the model first and the browser second, and checked against each other ([docs/video.md](docs/video.md), decision 0043). The project page plays it at the same address as before.
+- **README GIFs** of the main flow (a cited answer, its passage, "not found") and of adding files, both made by one Playwright script on real `bge-m3` retrieval with recorded `qwen2.5:3b` answers (`e2e/showcase/`, `npm run showcase`; decision 0042).
+- `start.cmd video` / `./start.sh video`: fresh demo data in `data-video/` at every start, with the golden set loaded and both models warmed (decision 0042).
+- `video/`: the tooling to record the video again (`video/README.md`).
+- A test that routes and the CLI write only through the service layer (CLAUDE.md invariant 1).
+- `docs/features.md` and `docs/portal.md`: the README's long sections.
+
+### Changed
+
+- The README follows the portfolio's standard: the GIF, the video and a 3-line quick start first; what it demonstrates; the invariants with the file and test that enforce each; a new social preview.
+- Dependencies: the frontend and Python groups updated (Dependabot #53, #54).
+- When the analysis of an upload fails, the Library now says so in plain words and keeps the technical error under **Technical details**, instead of showing only the raw error (for example Chroma's `InternalError: Error executing plan…`).
 
 ### Security
 
 - The backup list no longer shows an exception's text. A file in the backups folder that isn't a readable backup is listed as "Not a backup made by this app, or damaged", and the exact reason goes to the log (CodeQL alert #1, `py/stack-trace-exposure`; v1.0.0 fixed the `/health` part of it). Restoring still names the exact problem.
 
-### Changed
-
-- When the analysis of an upload fails, the Library now says so in plain words and keeps the technical error under **Technical details**, instead of showing only the raw error (for example Chroma's `InternalError: Error executing plan…`).
-
 ### Fixed
 
 - The Evaluation page said a retrieval-only run takes seconds. On a CPU it takes a minute or two (about 2¼ minutes for the 53 demo questions on the 7.2 GB laptop), since every question is embedded.
+- Adding files that all fit existing shelves no longer asks the chat model to name zero new shelves. The answer was never used, but on a small machine the call loaded the chat model for nothing (found while making the README GIF; decision 0042).
 
 ## [1.0.1] - 2026-11-15
 

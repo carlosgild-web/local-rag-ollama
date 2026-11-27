@@ -5,6 +5,8 @@
 #   .\start.cmd status      show how it's running and whether it's healthy
 #   .\start.cmd backup      back up the data now (the console's Backups page too)
 #   .\start.cmd restore <backup>   restore a backup (a name from Backups, or a .zip file)
+#   .\start.cmd video       for the video takes: fresh demo data in data-video\ at every
+#                           start, Python and local Ollama, port 8010 (stop: video stop)
 #
 # Options: --yes (accept every suggestion), --check (look and explain, change
 # nothing), --reconfigure (ask again instead of using the saved answers).
@@ -36,23 +38,34 @@ $script:OllamaStartedHere = $false
 
 $Command = "start"
 $Target = $null
-$Yes = $false; $CheckOnly = $false; $Reconfigure = $false
+$Yes = $false; $CheckOnly = $false; $Reconfigure = $false; $Video = $false
 $NoHostOllama = $false; $NoDocker = $false; $OllamaStartFails = $false
 foreach ($a in $args) {
     switch -Regex ($a) {
         '^(start|stop|status|backup|restore)$' { $Command = $a }
+        '^video$' { $Video = $true }
         '^-{1,2}yes$' { $Yes = $true }
         '^-{1,2}check$' { $CheckOnly = $true }
         '^-{1,2}reconfigure$' { $Reconfigure = $true }
         '^-{1,2}no-host-ollama$' { $NoHostOllama = $true }
         '^-{1,2}no-docker$' { $NoDocker = $true }
         '^-{1,2}ollama-start-fails$' { $OllamaStartFails = $true }
-        '^-{1,2}(h|help)$' { Get-Content $PSCommandPath -TotalCount 16 | ForEach-Object { $_ -replace '^# ?', '' }; exit 0 }
+        '^-{1,2}(h|help)$' { Get-Content $PSCommandPath -TotalCount 18 | ForEach-Object { $_ -replace '^# ?', '' }; exit 0 }
         default {
             if ($Command -eq "restore" -and -not $Target -and -not $a.StartsWith("-")) { $Target = $a }
             else { Write-Host "Unknown option: $a (try --help)"; exit 2 }
         }
     }
+}
+
+# Video mode (decision 0042): its own data folder, wiped at every start, and its own
+# port, so the takes always begin from the same demo company and data\ is not touched.
+$VideoPort = 8010
+$VideoChatModel = "qwen2.5:3b"
+if ($Video) {
+    if ($Command -notin "start", "stop") { Write-Host "video works with start and stop only."; exit 2 }
+    $DataDir = Join-Path $Root "data-video"
+    $LogFile = Join-Path $DataDir "start.log"
 }
 
 # --- Output helpers ------------------------------------------------------------
@@ -64,7 +77,7 @@ function Info([string]$Text) { Write-Host "  - $Text" }
 function Warn([string]$Text) { Write-Host "  [!] $Text" -ForegroundColor Yellow }
 function Fail([string]$Text) {
     Write-Host ""; Write-Host "[x] $Text" -ForegroundColor Red
-    if ($script:Logging) { Write-Host "    Details of this run: data\start.log" }
+    if ($script:Logging) { Write-Host "    Details of this run: $(Split-Path $DataDir -Leaf)\start.log" }
     exit 1
 }
 function Quit([string]$Text) { Write-Host ""; Write-Host $Text; exit 0 }
@@ -432,7 +445,7 @@ function Start-RouteC([string]$VenvPy, [hashtable]$s) {
     $proc = Start-Process -FilePath "cmd.exe" -ArgumentList "/c `"$serve > `"$log`" 2>&1`"" `
         -WorkingDirectory (Join-Path $Root "backend") -WindowStyle Hidden -PassThru
     Set-Content -Path (Join-Path $DataDir "app.pid") -Value $proc.Id -Encoding ASCII
-    Info "App started in the background (logs: data\server.log)"
+    Info "App started in the background (logs: $(Split-Path $DataDir -Leaf)\server.log)"
 }
 
 # --- The app ---------------------------------------------------------------------
@@ -799,6 +812,88 @@ function Do-Start {
     Start-Process "http://localhost:$port$firstPage" | Out-Null
 }
 
+# Sends one request to Ollama that loads the model and keeps it for 30 minutes.
+# Returns the seconds it took, or -1.
+function Warm-Model([string]$Endpoint, [hashtable]$Body) {
+    $tmp = Join-Path $DataDir "warm.json"
+    Set-Content -Path $tmp -Value ($Body | ConvertTo-Json -Compress) -Encoding ASCII
+    $sw = [Diagnostics.Stopwatch]::StartNew()
+    & curl.exe -s -f -m 600 -o NUL -X POST "$OllamaUrl/api/$Endpoint" -H "Content-Type: application/json" --data-binary "@$tmp" 2>$null
+    $ok = $LASTEXITCODE -eq 0
+    Remove-Item $tmp -ErrorAction SilentlyContinue
+    if ($ok) { return [math]::Round($sw.Elapsed.TotalSeconds) } else { return -1 }
+}
+
+# The same state for every take: stop the last video server, empty data-video\, start
+# the app with Python on local Ollama, load the demo company with the dashboard's own job
+# and the demo golden set with the Evaluation page's own call, then warm both models so
+# the first question doesn't pay for loading them.
+function Do-Video {
+    Say ""
+    Say "Local RAG with Ollama: video mode (fresh demo data in data-video\; data\ is not touched)"
+    $port = $VideoPort
+
+    Step "1. Ollama and the models"
+    $ollamaState = Ollama-State
+    if ($ollamaState -eq "missing") { Fail "Video mode needs Ollama on this computer (https://ollama.com/download)." }
+    if ($ollamaState -eq "stopped" -and -not (Start-HostOllama)) { Fail "Ollama didn't start." }
+    $installed = Ollama-Models
+    foreach ($m in @($EmbeddingModel, $VideoChatModel)) {
+        if (-not (Has-Model $installed $m)) { Fail "$m isn't downloaded. Run: ollama pull $m" }
+        Ok "$m is downloaded"
+    }
+    Info "Every question uses both models. Close memory-heavy apps (Docker Desktop, virtual machines)."
+
+    Step "2. A fresh data-video\ folder"
+    Stop-Route "C"
+    if (-not (PortFree $port)) { Fail "Port $port is in use by another program. Free it and run this again." }
+    try {
+        Get-ChildItem -Path $DataDir -Force -ErrorAction SilentlyContinue |
+            Where-Object { $_.Name -ne "start.log" } |
+            Remove-Item -Recurse -Force -ErrorAction Stop
+    } catch { Fail "Couldn't empty data-video\ ($_). Close what has it open and run this again." }
+    Ok "data-video\ is empty"
+
+    Step "3. Starting the app"
+    $python = Find-Python
+    if (-not $python) { Fail "Video mode runs with Python 3.11 or newer (https://www.python.org/downloads/)." }
+    $venvPy = Setup-RouteC $python
+    Start-RouteC $venvPy @{ CHAT_MODEL = $VideoChatModel; EMBEDDING_MODEL = $EmbeddingModel; APP_PORT = "$port" }
+    if (-not (Wait-Healthy $port)) { Fail "The app didn't become healthy; see data-video\server.log." }
+
+    Step "4. The demo company and its golden set"
+    $out = & curl.exe -s -m 10 -X POST "http://127.0.0.1:$port/api/demo/seed" 2>$null
+    if ($LASTEXITCODE -ne 0 -or -not $out) { Fail "Couldn't queue the demo company." }
+    Info "Loading the documents (embedding them with $EmbeddingModel takes a few minutes)..."
+    $demo = $null
+    for ($i = 0; $i -lt 600; $i++) {
+        Start-Sleep -Seconds 2
+        $demo = HttpJson "http://127.0.0.1:$port/api/demo"
+        if ($demo -and $demo.job -and $demo.job.status -in "completed", "failed", "cancelled") { break }
+    }
+    if (-not $demo -or $demo.job.status -ne "completed") { Fail "The demo company didn't load (job: $($demo.job.status)); see data-video\server.log." }
+    Ok "$($demo.documents) documents are indexed"
+    $set = (& curl.exe -s -f -m 30 -X POST "http://127.0.0.1:$port/api/eval/demo" 2>$null) -join "" | ConvertFrom-Json
+    if ($LASTEXITCODE -ne 0 -or -not $set) { Fail "Couldn't load the demo golden set; see data-video\server.log." }
+    Ok "The golden set '$($set.name)' is loaded ($($set.case_count) questions)"
+
+    Step "5. Warming the models"
+    $secs = Warm-Model "embed" @{ model = $EmbeddingModel; input = "warm-up"; keep_alive = "30m" }
+    if ($secs -ge 0) { Ok "$EmbeddingModel answered in $secs s" } else { Warn "$EmbeddingModel didn't answer the warm-up." }
+    # The app asks with num_ctx 8192 (OLLAMA_NUM_CTX); another size would load the model again.
+    $secs = Warm-Model "chat" @{ model = $VideoChatModel; messages = @(@{ role = "user"; content = "Say OK." }); stream = $false; keep_alive = "30m"; options = @{ num_ctx = 8192 } }
+    if ($secs -ge 0) { Ok "$VideoChatModel answered in $secs s" } else { Warn "$VideoChatModel didn't answer the warm-up; the first question will be slow." }
+    if ($env:OLLAMA_MAX_LOADED_MODELS -eq "1") {
+        Info "OLLAMA_MAX_LOADED_MODELS=1: Ollama swaps the two models on every question (slower, fits in 8 GB)."
+    }
+
+    Step "Ready for a take"
+    Say "  Company website:  http://localhost:$port/site"
+    Say "  Employee portal:  http://localhost:$port/intranet"
+    Say "  Admin console:    http://localhost:$port"
+    Say "  Stop: .\start.cmd video stop   This run's log: data-video\start.log"
+}
+
 function Started-FromExplorer {
     # Double-clicking start.cmd: explorer -> cmd -> this PowerShell.
     try {
@@ -813,6 +908,10 @@ try {
         # A log of each start (overwritten every time) for troubleshooting.
         New-Item -ItemType Directory -Force -Path $DataDir | Out-Null
         try { Start-Transcript -Path $LogFile -Force | Out-Null; $script:Logging = $true } catch { $script:Logging = $false }
+    }
+    if ($Video) {
+        if ($Command -eq "stop") { Stop-Route "C" } else { Do-Video }
+        return
     }
     switch ($Command) {
         "stop" { Do-Stop }

@@ -2,94 +2,79 @@
 
 [![CI](https://github.com/carlosgild-web/local-rag-ollama/actions/workflows/ci.yml/badge.svg)](https://github.com/carlosgild-web/local-rag-ollama/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+![Python](https://img.shields.io/badge/Python-3.11%2B-3776AB?logo=python&logoColor=white)
+![FastAPI](https://img.shields.io/badge/FastAPI-009688?logo=fastapi&logoColor=white)
+![Ollama](https://img.shields.io/badge/Ollama-local-000000?logo=ollama&logoColor=white)
+![ChromaDB](https://img.shields.io/badge/ChromaDB-vectors-FF6446)
+![SQLite FTS5](https://img.shields.io/badge/SQLite-FTS5-003B57?logo=sqlite&logoColor=white)
+![React](https://img.shields.io/badge/React-TypeScript-61DAFB?logo=react&logoColor=black)
 
-*Python · FastAPI · SQLite FTS5 · ChromaDB · Ollama · React + TypeScript · Docker*
-
-**Ask questions about your own documents, fully offline.** Every answer is grounded in your files and cites them. When the answer isn't in your files, the app says so.
+Ask questions about your own documents, fully offline. Drop in PDFs, Word files, Markdown or plain text: the app suggests where each one belongs, keeps every version, and answers in a chat with numbered citations you can click to read the exact passage. The chat model and the embeddings run in [Ollama](https://ollama.com) on your machine, so nothing is sent anywhere. **Every answer cites its source, or says it isn't there.**
 
 > **Evolved into** [Luna Hybrid Agent](https://github.com/carlosgild-web/luna-hybrid-agent): the same app with a local agent on top that picks, per question, between these documents, a business database and an exchange-rate API, and shows every step.
 
-[![Watch the 2½-minute tour: load a demo company, add files, a cited answer, a new version and a rollback, "not in the documents", evaluation](docs/showcase/img/demo-play.jpg)](https://carlosgild-web.github.io/local-rag-ollama/showcase/demo.mp4)
+![A question on the hr shelf, the answer streaming with its citation, the cited passage with the dates marked, then a question the documents can't answer and the reply "not found in the documents"](docs/showcase/demo.gif)
 
-*A 2½-minute tour, recorded from a fresh install on a laptop CPU (no sound; long waits are sped up and marked).*
+<sub>The app, `bge-m3` on Ollama, both indexes, citation repair and the passages are real; the answers are `qwen2.5:3b`'s, recorded and replayed so the GIF is the same on every run ([decision 0042](docs/decisions/0042-video-mode-and-gif-harness.md)).</sub>
 
-Drop in PDFs, Word files, Markdown or plain text. The app reads them, suggests where each one belongs, and answers questions in a chat with numbered citations you can click to see the exact passage. The chat model and the embeddings run in [Ollama](https://ollama.com) on your machine, so nothing is sent anywhere.
+### The 2½-minute video: a real model, under the hood
 
-![Adding files: the app suggests a shelf and tags for every file, you review and confirm](docs/showcase/img/intake-flow.gif)
+https://github.com/user-attachments/assets/f651e329-57cb-4772-bd38-13b77daaaa2d
 
-**Try it in one command.** You need [Docker Desktop](https://www.docker.com/products/docker-desktop/), or [Ollama](https://ollama.com) and Python 3.11+; the script offers to install those two if they're missing.
-
-```bash
-git clone https://github.com/carlosgild-web/local-rag-ollama.git
-cd local-rag-ollama
-.\start.cmd      # Windows (or double-click it)
-./start.sh       # macOS / Linux
-```
-
-It checks your computer, reuses the Ollama and models you already have, and asks before downloading or installing anything. Then it opens the dashboard, where you can read the demo company's documents and load them with one click.
-
-**Only have Docker?** The demo mode pulls two small models by itself (`bge-m3` and `qwen2.5:3b`, about 3 GB the first time). It needs a machine with about 16 GB of RAM, since Docker keeps the models in a VM that gets half the memory; with 8 GB, use the start script above, which runs Ollama outside Docker:
+`qwen2.5:3b` and `bge-m3` on a laptop CPU, with a panel showing the code and data behind each step: adding files, a cited answer and its passage, "not found", a new version and a rollback, the retrieval inspector and the evaluation. Long waits are cut and labelled. [What it shows, and how it was recorded →](docs/video.md)
 
 ```bash
 git clone https://github.com/carlosgild-web/local-rag-ollama.git
 cd local-rag-ollama
-docker compose -f compose.yaml -f compose.demo.yaml up -d
+.\start.cmd      # Windows (or double-click it); ./start.sh on macOS and Linux
 ```
 
-Then open http://localhost:8000 and click **Load the demo company** ([decision 0031](docs/decisions/0031-docker-demo-mode.md)).
+No API key and no Docker needed: the script finds the Ollama and Python you have (and offers to install them if missing), asks before downloading the two small models, and opens the dashboard, where the demo company loads with one click. [More ways to run it →](#try-it)
 
-**[Getting started, step by step →](GETTING_STARTED.md)** ([as a web page](https://carlosgild-web.github.io/local-rag-ollama/getting-started.html)): install, load the demo company, try everything and run the tests.
+Built by **Carlos Velazquez** · [LinkedIn](https://www.linkedin.com/in/carlos-v-90b99149) · open to AI engineering roles (remote)
 
-**[Take the 10-minute reviewer walkthrough →](docs/walkthrough.md)**: the demo company's website, its intranet with Luna, and the admin console, with screenshots. There's also a [slide deck](https://carlosgild-web.github.io/local-rag-ollama/showcase/).
+## What this demonstrates
+
+- **Retrieval engineering**: hybrid search (`bge-m3` vectors in Chroma + SQLite FTS5 keywords) fused with reciprocal rank fusion, an optional cross-encoder reranker, all measured: Hit@5 100 %, MRR 0.934 ([`retrieval/`](backend/app/retrieval/), [Evaluation](#evaluation)).
+- **Grounded generation**: answers only from the passages, citation repair, and an honest "not found in the documents" (every refusal in the golden set) ([`prompt.py`](backend/app/retrieval/prompt.py), [`citation_repair.py`](backend/app/retrieval/citation_repair.py)).
+- **Data you can trust**: content-addressed files, versions and rollback without re-embedding, blue/green rebuilds, an audit log ([`versioning/`](backend/app/versioning/)).
+- **Measured decisions**: a 53-question golden set took answers from 70 % to 91 %, and a rule that broke three answers was rejected ([decisions 0019–0023](docs/decisions/)).
+- **Runs on one small machine**: a 3B model on a 7.2 GB laptop CPU, one worker, no Redis; Docker and a one-command start ([decision 0004](docs/decisions/0004-small-chat-model-on-low-ram.md), [decision 0013](docs/decisions/0013-one-command-start.md)).
+- **Production habits**: 403 tests (92 % coverage), CodeQL and secret scanning, Prometheus metrics, JSON logs, a [repository audit](docs/test-reports/2026-11-14-repo-audit.md).
+
+## The problem
+
+A small company's knowledge lives in PDFs, Word files and notes: an HR policy, a price list, a supplier agreement, last quarter's meeting notes. Someone asks "when do we close for the holidays?" or "how long do customers have to return beads?", and the answer is in one of them, possibly in an old version. A chat model alone makes up a plausible answer; a cloud service means sending the files away. This app keeps everything on one machine and only answers from the files, with the passage to prove it.
 
 ## What it does
 
-- **Answers only from your documents.** The model is told to use only the passages it was given. If they don't hold the answer, it replies *"not found in the documents"* instead of guessing.
-- **Shows its sources.** Answers cite `[1]`, `[2]`… Click one to read the passage, with file, page and score. A warning appears if an answer cites nothing or cites a source that doesn't exist.
-- **Organises new files for you.** Drop a folder and the app suggests a shelf for each file, either an existing one or a new one it names, plus tags such as `hr`, `price-list` or `q4-2026`. You change anything, then confirm. Nothing is indexed before you confirm.
-- **Keeps versions.** The same file twice is skipped. A changed file becomes v2 and the old version stays available. A file that is almost the same as one already there, under another name, is flagged so it can become a new version instead of a second copy. Deletes go to a 30-day trash you can restore from.
-- **Shows what it reads and what changed.** Click a document to read the text the app searches, see its versions, compare any two (changes highlighted), restore an earlier one, or fix a number in the text, saved as a new version with who changed what. The Library shows when each document was last updated.
-- **Backs itself up.** One zip holds the database, the search index and your original files: made daily, or with *Back up now*. Restoring is one command, and the current data is saved first.
-- **Explains problems in plain words.** A troubleshooter checks Ollama, the database, the search index and the background worker, and gives the cause and the fix. It can draft a (simulated) support ticket for the next support level.
-- **Lets you look inside.** The retrieval inspector shows every passage a question finds, with its vector and keyword ranks and scores, where the cut to the model falls, and the exact prompt. Sliders for top-k, candidates, vector weight, a similarity floor and the reranker re-rank live. Settings live in versioned profiles you can compare and restore, and a models manager pulls, switches and deletes Ollama models (never one in use).
-- **Watches folders.** Point it at a folder and new or changed files are added to a shelf by themselves, with the same versioning as an upload. Deleting a file there never deletes the document.
-- **Works in English and Spanish**, with search that combines meaning (vectors) and exact words (keywords).
-- **Comes with a demo company.** *Hilda & Luna Beadworks*, a fictional bead maker, has a public website at `/site` and an intranet at `/intranet`. Employees ask **Luna**, an assistant that searches every shelf the admin shares with the portal, in a floating chat or full screen, in Spanish or English. See [Employee portal](#employee-portal).
+- **Answers only from your documents**, with numbered citations you can click to read the passage, and *"not found in the documents"* when they don't hold the answer.
+- **Organises new files for you.** Drop a folder: each file gets a suggested shelf and tags. You change anything, then confirm; nothing is indexed before you do.
+- **Keeps versions.** The same file twice is skipped, a changed file becomes v2, rollback is one click, and deletes go to a 30-day trash.
+- **Lets you look inside.** The retrieval inspector shows every passage a question finds, its vector and keyword ranks, where the cut to the model falls, and the exact prompt; sliders re-rank live.
+- **Comes with a demo company**, *Hilda & Luna Beadworks*: 11 fictional documents, a public website and an intranet where employees ask **Luna**, in English or Spanish ([the employee portal](docs/portal.md)).
 
-| | |
-|---|---|
-| ![Suggested shelves and tags](docs/showcase/img/04-suggestions.jpg) **Suggested shelves and tags.** Review, rename, move and retag, then confirm. | ![Chat with citations](docs/showcase/img/07-chat-citations.jpg) **Grounded answers.** Numbered citations, with the sources listed under the answer. |
-| ![The passage behind a citation](docs/showcase/img/08-passage.jpg) **Check any citation.** The exact passage the answer came from. | ![Not found in the documents](docs/showcase/img/09-not-found.jpg) **No guessing.** A question the shelf can't answer gets "not found in the documents". |
-| ![Troubleshooter](docs/showcase/img/14-troubleshooter.jpg) **When something breaks,** the app names the cause and the fix, and pauses what can't work. | ![Collections settings](docs/showcase/img/12-collections.jpg) **Settings without jargon.** Tooltips, presets, and warnings for unusual values. |
+![Adding files: the app suggests a shelf and tags for every file, you review and confirm](docs/showcase/img/intake-flow.gif)
 
-## Employee portal
+<sub>Adding three files: the suggestions come from `bge-m3` on Ollama; the analysis wait (about 10 s on the laptop) is cut.</sub>
 
-The console above is for the person who manages the documents. The portal shows the other side: the people who need answers from them.
+The full list (backups, the troubleshooter, document history, watched folders, models and profiles) is in [docs/features.md](docs/features.md).
 
-| | |
-|---|---|
-| ![The public website of Hilda & Luna Beadworks](docs/showcase/img/22-site-home.jpg) **The company's website.** Written from its customer documents, with product photos made with Google Gemini. | ![The intranet with the demo guide](docs/showcase/img/25-intranet-demo-guide.jpg) **The intranet.** Season dates, handbook highlights and news. The banner on top is the reviewer's demo guide. |
-| ![Luna's answer with the cited passage open](docs/showcase/img/27-luna-source.jpg) **Luna.** Answers only from the documents, with the cited passage one click away. | ![Luna answering in Spanish with sources](docs/showcase/img/21-portal-luna.jpg) **In Spanish too.** A Spanish answer from an English manual. |
+## Every answer cites its source, or says it isn't there
 
-- **A company intranet** for *Hilda & Luna Beadworks*, a fictional bead and charm maker in Monterrey. It has a season timeline, handbook highlights, department hours and news, all written from the demo documents.
-- **Luna**, in a floating chat bubble on every page or full screen at `/intranet/luna`. Luna searches **every shelf marked "Visible in the employee portal"** (a switch on each shelf in Collections). Each shelf is searched with its own embedding model, and the results are merged by rank ([decision 0010](docs/decisions/0010-employee-portal.md)).
-- **Same rules as the console:** answers only from the documents, numbered citations with the exact passage, and a clear "I couldn't find this" when the documents don't say.
-- **ES / EN switch.** The interface changes language and Luna is asked to answer in it, whatever language the documents are in.
-- **Kept apart, still visible.** Employee chats don't appear in the console's chat history; the dashboard lists them under *Employee questions*, with their 👍/👎 feedback stored like any other answer.
-- **Simulated internal access:** there is no real sign-in. The footer says so.
-- **A public website** at `/site`, the company's outside face. It's modeled on real bead and charm makers: a home page with collections and the workshop's story, a catalog, a wholesale page, and help on shipping, returns and FAQ. All of it is written from the customer-facing demo documents. Its photos were made with Google Gemini: each product photo starts from a Blender render of the catalog item, so colors and shapes match ([how the images are made](docs/site-images.md), [decision 0012](docs/decisions/0012-site-images-with-gemini.md)). Its forms are demos that send nothing. **Employee login** opens a simulated staff sign-in, with one button into the intranet ([decision 0011](docs/decisions/0011-public-site.md)).
+The rules the code keeps, whatever the model does, each with the test that checks it ([CLAUDE.md](CLAUDE.md)):
 
-### Try the demo
-
-Start the app ([Quick start](#quick-start)). While the library is empty, the dashboard offers the demo company's 11 fictional documents: **See the documents** to read the originals first, then **Load the demo company**. Developers can use `python -m app.cli seed-demo` instead.
-
-Then follow the path a visitor would:
-
-1. **http://localhost:8000/site**: the company's public website.
-2. **Employee login → Enter as demo employee**: the intranet. Ask Luna something, for example "When does the company close for the holidays?", and open a source.
-3. **Demo guide → Open the RAG admin console**: the console behind it all, with shelves, automatic versions, the trash, the job queue and the troubleshooter.
-
-The **demo guide** at the top of the site and the intranet is marked as outside the company design. It's there for reviewers, and its *How this demo works* panel lists things to try. The dashboard's **Company site** and **Employee portal** buttons lead back the other way. The [walkthrough](docs/walkthrough.md) covers the same path, step by step.
+| # | Invariant | Where it is enforced |
+|---|---|---|
+| 1 | **Grounded answers only.** The prompt allows answers only from the passages, requires citations, and requires "not found in the documents" otherwise; no profile can drop that rule | [`retrieval/prompt.py`](backend/app/retrieval/prompt.py) · `test_build_prompt_includes_not_found_rule_and_question`, `test_profiles_are_versioned_and_keep_the_grounding_rule` |
+| 2 | **Every citation is checked** against the passages, and moved when another passage holds the claim's figures | [`retrieval/citation_repair.py`](backend/app/retrieval/citation_repair.py) · `test_a_number_only_another_passage_has_moves_the_citation` |
+| 3 | **Nothing is indexed before you confirm** the suggested shelves and tags | [`ingest/intake.py`](backend/app/ingest/intake.py) · `test_new_files_are_grouped_by_audience_and_nothing_is_indexed_before_confirm` |
+| 4 | **Content-addressed files.** Each original is stored once, as `files/<sha256>.<ext>`; the same file twice is skipped | [`ingest/file_store.py`](backend/app/ingest/file_store.py) · `test_store_file_is_content_addressed`, `test_duplicate_file_is_skipped` |
+| 5 | **Versions never lose data.** A changed file is a new version and the old pieces stay; rollback flips a pointer without re-embedding; deletes are soft | [`versioning/service.py`](backend/app/versioning/service.py) · `test_changed_content_creates_new_version_and_old_chunks_remain`, `test_rollback_flips_pointer_without_reembedding`, `test_soft_delete_sets_trashed_at_and_restore_clears_it` |
+| 6 | **One embedding model per shelf.** Changing it builds a new copy in the background and swaps it in (blue/green) | [`versioning/service.py`](backend/app/versioning/service.py) · `test_collections_create_conflict_and_blue_green_reindex`, `test_rebuild_job_builds_then_swaps` |
+| 7 | **Reproducible answers.** Each answer stores its profile, passages and scores | [`api/routes/chat.py`](backend/app/api/routes/chat.py) · `test_chat_streams_and_records_sources_profile_and_feedback` |
+| 8 | **One service layer.** Routes and the CLI never write to SQLite, Chroma or the file store themselves | [`versioning/`](backend/app/versioning/), [`ingest/`](backend/app/ingest/) · `test_routes_and_the_cli_write_only_through_the_service_layer` |
+| 9 | **Audit everything.** Uploads, deletes, rollbacks, rebuilds and settings changes write to the audit log | [`versioning/service.py`](backend/app/versioning/service.py) · `test_upload_version_diff_rollback_delete_flow`, `test_glossary_entries_are_validated_and_audited` |
 
 ## How it works
 
@@ -109,59 +94,16 @@ flowchart LR
     RET -- "grounded prompt" --> OL
 ```
 
-**Adding a document:**
-1. The file is stored once under its SHA-256 hash.
-2. It is parsed: PyMuPDF for PDF, python-docx for Word including tables, Tesseract OCR for scanned pages.
-3. It is cut into overlapping pieces of about 600 tokens.
-4. The pieces are embedded with `bge-m3` and indexed twice: in Chroma (vectors) and in SQLite FTS5 (keywords).
+- **Adding a document:** stored once under its SHA-256, parsed (PyMuPDF, python-docx, Tesseract OCR for scanned pages), cut into overlapping pieces of about 600 tokens, embedded with `bge-m3`, and indexed twice: Chroma for meaning, SQLite FTS5 for exact words.
+- **Asking:** the glossary writes the documents' words into the question ("vacation" → "vacation (PTO, paid time off)"); both indexes are searched and fused with reciprocal rank fusion; the top 5 passages go into a prompt that allows answers only from them.
+- **Answering:** the answer streams over server-sent events; each `[n]` is then checked against the passages and repaired, and the passages and scores are stored with it.
+- **Everything else** runs in one process: a job queue on SQLite (no Redis), JSON logs with a request id, Prometheus `/metrics`, and `/health` for Ollama, SQLite, the vector store and the worker.
 
-**Answering a question:**
-1. The glossary writes the documents' words into the question: "vacation" is asked as "vacation (PTO, paid time off)".
-2. Both indexes are searched on the chosen shelf.
-3. The two rankings are fused with reciprocal rank fusion. An optional cross-encoder reranker can rescore the top 20.
-4. The top 5 passages go into a prompt that allows answers only from them, with citations.
-5. The answer streams back over server-sent events. When it ends, each `[n]` is checked against the passages and moved to the one that has the claim's figures, if the model cited the wrong one.
-6. Every answer stores the passages and scores it used, so it can be reproduced later.
+Why things are the way they are: [docs/decisions/](docs/decisions/) (33 short records).
 
-## Engineering highlights
+## Evaluation
 
-- **One service layer.** Every write to SQLite, Chroma and the file store goes through `versioning/` and `ingest/`. Routes and the CLI never write directly.
-- **Content-addressed files and versioning.**
-  - Same hash: skipped.
-  - Same name with new content: a new version; the old pieces stay indexed but inactive.
-  - Rollback only flips a pointer and never re-embeds.
-- **Blue/green rebuilds.** Changing a shelf's embedding model or chunking builds a new copy in the background and swaps it in when it's ready. The old copy answers until then ([0003](docs/decisions/0003-per-collection-chunks.md)).
-- **Reproducible answers and an audit log.** Each answer records its retrieval profile, passages and scores. Uploads, deletes, rollbacks, rebuilds and settings changes are audited.
-- **Observable.** `/health` checks Ollama, SQLite, the vector store and the job worker. Every log line is JSON with a request id, and `/metrics` gives Prometheus the request, retrieval, answer and job timings, written with the standard library ([0030](docs/decisions/0030-prometheus-metrics.md)).
-- **Testable by design.** The LLM, embedding and vector-store clients are interfaces with fake implementations, so the unit tests and CI never need Ollama.
-- **Measured decisions.** Choices are tested on real data and written down:
-  - the one-line citation hint beat a long reminder, 6/6 vs 2/6 valid citations ([0007](docs/decisions/0007-citation-reminder-and-check.md))
-  - grouping by department beat clustering by similarity for suggesting shelves, 11/11 vs 5–19 of 30 ([0009](docs/decisions/0009-suggested-shelves-and-tags.md))
-  - a golden set of 53 questions scores every change; three fixes took answers from 70% to 91% passed, and a fourth rule that broke three answers was rejected ([Evaluation](#evaluation))
-- **Built for one small machine.** One worker, an in-process job queue on SQLite (no Redis), and a 3B chat model on a 7.2 GB RAM laptop ([0004](docs/decisions/0004-small-chat-model-on-low-ram.md)).
-
-## Quality
-
-| Check | Result |
-|---|---|
-| Unit and API tests (fakes, run in CI) | 380 tests pass, 92% coverage; `ruff` clean |
-| CI (GitHub Actions) | lint, tests, frontend build and `docker build` on every push; CodeQL, secret scanning and Dependabot |
-| Repository audit | no secrets or personal data in any commit or image in the history ([report](docs/test-reports/2026-11-14-repo-audit.md)) |
-| End-to-end test: real Ollama, 11 sample documents, about 60 questions, plus Luna through the portal | **53/53** must-pass checks · 53/57 answer checks · 31/38 citations correct · 7/7 refusals · 6/6 portal questions ([report](docs/test-reports/2026-11-09-e2e.md)) |
-
-The end-to-end kit in [`e2e/`](e2e/) drives the same API the UI uses. It checks:
-- ingestion of every file type, answers against expected facts, citations and grounding
-- versions and rollback, trash and restore, jobs (cancel and retry), reindex and rebuild
-- suggested shelves, prompt injection, and recovery after a restart
-
-### Evaluation
-
-A golden set of 53 questions about the demo company ([`backend/demo/eval/`](backend/demo/eval/hilda-luna-golden.json)), each with the file a good answer comes from and the facts it must contain. It includes:
-- questions on every shelf, in English and Spanish
-- the same question in other words ("vacation" vs "PTO")
-- 10 questions whose answer isn't on the shelf searched, where the right reply is "not found"
-
-Runs go through the chat's own retrieval and prompt, and the **Evaluation** page compares any two runs question by question ([decision 0019](docs/decisions/0019-evaluation.md)).
+A golden set of 53 questions about the demo company ([`backend/demo/eval/`](backend/demo/eval/hilda-luna-golden.json)), each with the file a good answer comes from and the facts it must contain: every shelf, English and Spanish, the same question in other words, and 10 questions whose answer isn't on the shelf searched. Runs use the chat's own retrieval and prompt, and the **Evaluation** page compares any two runs question by question ([decision 0019](docs/decisions/0019-evaluation.md)).
 
 **Answers** (`qwen2.5:3b` on a 7.2 GB laptop CPU, temperature 0, hybrid retrieval, top 5):
 
@@ -172,11 +114,9 @@ Runs go through the chat's own retrieval and prompt, and the **Evaluation** page
 | + glossary ([0021](docs/decisions/0021-glossary.md)) | 89% | 89% | 100% | 98% |
 | + "answer the part it answers" rule ([0022](docs/decisions/0022-prompt-partial-answers.md)) | **91%** | 91% | 100% | 98% |
 
-A final run of the released configuration (v0.9.0) repeated the last row exactly, with the same 5 questions failing. The five are the 3B model reading or omitting details. The fixes were measured on the questions they were written for, so treat the later steps as best cases; the decisions say which gains are within run-to-run noise.
+A final run of the released configuration repeated the last row exactly, with the same 5 questions failing: the 3B model reading or omitting details. The fixes were measured on the questions they were written for, so treat the later steps as best cases. The local model also judged faithfulness (0.74 before and after the fixes), but a 3B judge marked correct answers as unsupported, so that score is kept as a hint, not a result.
 
-The local model also judged faithfulness ("is every fact in the answer in the sources?"): 0.74 before the fixes and 0.74 after. A 3B judge isn't reliable. It marked correct answers as unsupported, such as $1.60 retail, which the catalog states. So the score is kept as a hint to read answers, not as a result.
-
-**Retrieval** (same 53 questions, right file in the top 5 / ranked first / MRR):
+**Retrieval** (same 53 questions: right file in the top 5 / ranked first / MRR):
 
 | Retrieval | Hit@5 | Hit@1 | MRR | Time per question |
 |---|---|---|---|---|
@@ -185,106 +125,97 @@ The local model also judged faithfulness ("is every fact in the answer in the so
 | Hybrid, RRF (the default) | 100% | 89% | 0.934 | 2.5 s |
 | Hybrid + `bge-reranker-v2-m3` | 100% | 91% | 0.956 | 15 s |
 
-The reranker is off by default: on a laptop CPU it costs about 12 s per question for +0.02 MRR ([decision 0023](docs/decisions/0023-reranker.md)).
+The reranker is off by default: on a laptop CPU it costs about 12 s per question for +0.02 MRR ([decision 0023](docs/decisions/0023-reranker.md)). The [end-to-end report](docs/test-reports/2026-11-09-e2e.md) covers real Ollama on every file type: 53/53 must-pass checks, 7/7 refusals, 6/6 portal questions. To run the evaluation yourself, load the demo company and its golden set (one button each), then start a run on the Evaluation page, or `python -m app.cli eval --answers`.
 
-To run it yourself, load the demo company and the demo golden set (one button each in the console), then start a run on the Evaluation page. From the command line, with the app stopped:
+## Screenshots
+
+| | |
+|---|---|
+| ![Chat with citations](docs/showcase/img/07-chat-citations.jpg) **Grounded answers.** Numbered citations, with the sources and their scores under the answer. | ![The passage behind a citation](docs/showcase/img/08-passage.jpg) **Check any citation.** The exact passage, with the cited line. |
+| ![Not found in the documents](docs/showcase/img/09-not-found.jpg) **No guessing.** A question the shelf can't answer gets "not found in the documents". | ![Suggested shelves and tags](docs/showcase/img/04-suggestions.jpg) **Suggested shelves and tags.** Review, move and retag, then confirm; one file is marked "please check". |
+| ![Troubleshooter](docs/showcase/img/14-troubleshooter.jpg) **When something breaks,** the app names the cause and the fix, and pauses what can't work. | ![Collections settings](docs/showcase/img/12-collections.jpg) **Settings without jargon.** Tooltips, presets, and warnings for unusual values. |
+
+The demo company also has a public website and an intranet, where employees ask **Luna**: answers only from the shelves shared with the portal, with the cited passage one click away, in English or Spanish ([more about the portal](docs/portal.md), [10-minute walkthrough](docs/walkthrough.md), [slide deck](https://carlosgild-web.github.io/local-rag-ollama/showcase/)).
+
+| | |
+|---|---|
+| ![The intranet with the demo guide](docs/showcase/img/25-intranet-demo-guide.jpg) **The intranet.** Season dates, handbook highlights and news, written from the demo documents. | ![Luna's answer with the cited passage open](docs/showcase/img/27-luna-source.jpg) **Luna.** The same rules as the console: cited, or "I couldn't find this". |
+
+## Try it
+
+**You need** 8 GB of RAM (16 GB is comfortable), about 4 GB of disk for the small models, and [Docker Desktop](https://www.docker.com/products/docker-desktop/) or [Ollama](https://ollama.com) with Python 3.11+. No GPU, and no internet once the models are downloaded. [Getting started, step by step →](GETTING_STARTED.md) ([as a web page](https://carlosgild-web.github.io/local-rag-ollama/getting-started.html))
+
+**The start script** (`.\start.cmd` or `./start.sh`) picks a way to run it from what your computer has: the app in Docker using your Ollama, both in Docker, or Python with no Docker (the built web app is downloaded from the GitHub Release and checked against its SHA-256, so Node isn't needed). It suggests `qwen2.5:3b` under 12 GB of RAM, `llama3.1` above, and asks before installing or downloading anything. `stop`, `status`, `backup`, `restore <name>` and `--check` do what they say; `video` starts the fresh demo data the README's video and GIFs use ([decision 0042](docs/decisions/0042-video-mode-and-gif-harness.md)).
+
+**Only Docker?** `docker compose -f compose.yaml -f compose.demo.yaml up -d` pulls `bge-m3` and `qwen2.5:3b` by itself; it needs about 16 GB of RAM, since Docker keeps the models in a VM ([decision 0031](docs/decisions/0031-docker-demo-mode.md)). Then open http://localhost:8000 and click **Load the demo company**.
+
+> **Run it locally or on a private network.** There's no sign-in by default, and the app listens on `127.0.0.1` only. Set a password (`python -m app.cli set-password`) before anyone else can reach it ([decision 0026](docs/decisions/0026-optional-password.md)).
+
+### What each feature needs
+
+| Feature | Needs |
+|---|---|
+| Answers in the chat and the portal | An Ollama chat model: `qwen2.5:3b` (8 GB of RAM) or `llama3.1` |
+| Search, adding files, suggested shelves and tags | `bge-m3` on Ollama |
+| Scanned PDFs | Tesseract OCR (in the Docker image; installed separately for Python) |
+| The reranker (optional, off by default) | `pip install -r backend/requirements-rerank.txt`, then `python -m app.cli reranker-download` |
+| Remaking the README GIFs and video | Windows with Edge, ffmpeg, Node, and Ollama with both models ([`video/README.md`](video/README.md)) |
+
+## Development
 
 ```bash
-cd backend
-.venv/Scripts/python -m app.cli eval --answers        # loads the demo set if there is none
-.venv/Scripts/python -m app.cli eval-compare 1 2
+cd backend && python -m venv .venv && .venv/Scripts/pip install -r requirements.txt -r requirements-dev.txt
+.venv/Scripts/python -m uvicorn app.main:app --reload --port 8000     # migrations run on start
+cd frontend && npm ci && npm run dev                                   # http://localhost:5173, /api goes to :8000
 ```
+
+Settings are environment variables ([`backend/.env.example`](backend/.env.example)). The LLM, embedding and vector-store clients are interfaces with fake implementations, so the tests and CI never need Ollama.
+
+| Check | Command | Result |
+|---|---|---|
+| Backend tests (fakes) | `pytest -q --cov` | 403 passed, 92 % coverage |
+| Lint and format | `ruff check . && ruff format --check .` | clean |
+| Frontend | `npm run build` (type check + build) | builds |
+| Video tooling | `cd video && npm run video:check && npm run video:test` | every callout resolves; 9 tests pass |
+| CI on every push | lint, tests, frontend build, `docker build`, the start scripts on Windows, macOS and Linux; CodeQL, secret scanning, Dependabot | green |
+| End to end (real Ollama, not in CI) | [`e2e/run_e2e.py`](e2e/README.md) | [report](docs/test-reports/2026-11-09-e2e.md) |
+
+| Folder | What's there |
+|---|---|
+| `backend/app/` | FastAPI app: `api/`, `core/`, `ingest/`, `retrieval/`, `llm/`, `versioning/`, `jobs/`, `db/`, `eval/` |
+| `backend/tests/` · `backend/migrations/` | pytest suite (fakes only) · Alembic |
+| `backend/demo/` | The fictional Hilda & Luna documents, golden set and glossary |
+| `frontend/src/` | React + Vite + TypeScript + Tailwind: the console, `portal/` (Luna) and `site/` (the public website) |
+| `scripts/`, `start.cmd`, `start.sh` | The one-command start, and the site's image tools |
+| `e2e/` · `e2e/showcase/` | The end-to-end kit · the README GIFs (`npm run showcase`) |
+| `video/` | The README video: two passes, the stage and its checks |
+| `docs/` | Decisions, test reports, the walkthrough, the project page and slide deck |
+
+Your documents, the database, vectors and backups live in `data/` (or a Docker volume, or `backend/data/` when the backend runs by hand); none of it is ever committed.
 
 ## How it was built
 
-I built this project with [Claude Code](https://claude.com/claude-code) as an AI coding assistant.
+I built this project with [Claude Code](https://claude.com/claude-code) as an AI coding assistant, phase by phase from [PLAN.md](PLAN.md).
 
-**My part:**
-- I set the requirements and made the product decisions, e.g. "suggest a shelf, but let me decide", "few broad shelves", "never lose data".
-- I tested every step in the browser, and reviewed the changes and the test reports.
+**My part:** the requirements and the product decisions ("suggest a shelf, but let me decide", "few broad shelves", "never lose data"), the plan for each phase, the evaluations on real models, and the review of every change.
 
-**Claude Code's part:** it wrote most of the code under that direction, and proposed and measured the technical options.
+**Claude Code's part:** most of the code, under that direction, and the technical options it proposed and measured.
 
-Every deviation from the plan is recorded in [`docs/decisions/`](docs/decisions/), and every change was checked by the unit tests, in the browser, and by the end-to-end kit.
+Every deviation from the plan is a decision record in [`docs/decisions/`](docs/decisions/).
 
-## Quick start
+## About
 
-The easiest way is the start script above (`.\start.cmd` or `./start.sh`); see [Getting started](GETTING_STARTED.md#2-start-the-app). By hand, you need [Ollama](https://ollama.com) with a chat model and the embedding model:
+Portfolio project #1 of the Hilda & Luna series, AI tools for a fictional bead-making company:
 
-```bash
-ollama pull bge-m3
-ollama pull llama3.1        # or qwen2.5:3b on a machine with ~8 GB RAM
-```
+1. **local-rag-ollama**: fully local RAG with cited answers over versioned documents
+2. [luna-hybrid-agent](https://github.com/carlosgild-web/luna-hybrid-agent): an agent that picks between document search, read-only SQL and an FX API
+3. [hl-create-design](https://github.com/carlosgild-web/hl-create-design): KiCad projects with the company title block; the AI guides, the code decides
+4. [hl-bead-studio](https://github.com/carlosgild-web/hl-bead-studio): glass beads and charms from a sentence to CAD, drawing and render
 
-**Docker:** the app image is pulled from `ghcr.io/carlosgild-web/local-rag-ollama` (add `--build` to build it from source instead).
+Also: [windows-system-monitor](https://github.com/carlosgild-web/windows-system-monitor), config-driven monitoring and auto-remediation for Windows.
 
-```bash
-docker compose -f compose.yaml -f compose.demo.yaml up -d            # demo: pulls bge-m3 + qwen2.5:3b itself
-docker compose up -d                                                 # Ollama in its own container
-docker compose exec ollama ollama pull bge-m3
-docker compose exec ollama ollama pull llama3.1                      # or qwen2.5:3b with CHAT_MODEL=qwen2.5:3b
-docker compose -f compose.yaml -f compose.host-ollama.yaml up -d     # or use the Ollama on your machine
-```
-
-**Local (Windows / macOS / Linux):**
-
-```bash
-cd frontend && npm ci && npm run build                                    # build the UI first: FastAPI serves it
-cd ../backend
-python -m venv .venv && .venv/Scripts/pip install -r requirements.txt   # macOS/Linux: .venv/bin/pip
-.venv/Scripts/python -m uvicorn app.main:app --port 8000                  # migrations run on start
-```
-
-Open http://localhost:8000. The app has no sign-in by default and listens on localhost only. Before anyone else can reach it, run `python -m app.cli set-password` (or set `APP_PASSWORD`): one password then covers the console, the employee portal and the API ([decision 0026](docs/decisions/0026-optional-password.md)). For UI work, run `npm run dev` in `frontend/`: it serves http://localhost:5173 and forwards `/api` to port 8000. Settings are environment variables; see [`backend/.env.example`](backend/.env.example).
-
-**Low on RAM?** Set `CHAT_MODEL=qwen2.5:3b` ([decision 0004](docs/decisions/0004-small-chat-model-on-low-ram.md)).
-
-> **Run it locally or on a private network.** There's no sign-in by default: the admin console, the intranet and uploads are open to anyone who can reach the server, so Docker publishes its ports on `127.0.0.1` only. Set a password (`python -m app.cli set-password`) before anyone else can reach it.
-
-## Testing
-
-```bash
-cd backend
-.venv/Scripts/python -m pytest -q                       # no Ollama needed
-.venv/Scripts/python -m pytest -q --cov                 # with a coverage summary
-.venv/Scripts/ruff check . && .venv/Scripts/ruff format --check .
-cd ../frontend && npm run build                         # type check + build
-```
-
-To run the end-to-end test against a running server, see [e2e/README.md](e2e/README.md).
-
-## Repository layout
-
-```
-start.cmd, start.sh One-command start (Windows logic in scripts/start.ps1)
-backend/app/        FastAPI app: api/, core/, ingest/, retrieval/, llm/, versioning/, jobs/, db/, eval/
-backend/tests/      pytest suite (fakes only)        backend/migrations/  Alembic
-frontend/src/       React + Vite + TypeScript + Tailwind: pages/, components/, api/, hooks/
-frontend/src/portal/  The employee portal and Luna (lazy-loaded, own fonts)
-frontend/src/site/    The demo company's public website (lazy-loaded)
-scripts/            start.ps1, plus site image tools: Gemini prompts, Blender references, WebP prep
-backend/demo/       Fictional Hilda & Luna Beadworks documents (the dashboard's demo), golden set, glossary
-e2e/                End-to-end test kit and a fictional sample corpus
-docs/decisions/     Why things are the way they are   docs/test-reports/  End-to-end reports
-docs/showcase/      Slide deck and screenshots
-```
-
-Your documents, the database, vectors and backups live in `backend/data/` when you run the backend by hand, in `data/` when the start script runs it without Docker, and in the `app_data` Docker volume otherwise. None of it is ever committed.
-
-## Status
-
-- **Done:**
-  - Phases 0–4 of [PLAN.md](PLAN.md)
-  - the UI improvements in v0.5.0 ([CHANGELOG](CHANGELOG.md), [decision 0008](docs/decisions/0008-ui-improvements-scope.md))
-  - the employee portal with Luna, the company's public website and a reviewer's demo guide in v0.6.0 ([decision 0010](docs/decisions/0010-employee-portal.md), [decision 0011](docs/decisions/0011-public-site.md))
-  - the one-command start in v0.7.0 ([decision 0013](docs/decisions/0013-one-command-start.md))
-  - Phase 5 (versions, history, trash, audit) in v0.8
-  - Phase 7 (evaluation, taken before Phase 6: [decision 0019](docs/decisions/0019-evaluation.md)) in v0.9.0
-  - Phase 6 (the control panel: inspector, profiles, models, watched folders) in v0.10.0 ([decision 0024](docs/decisions/0024-retrieval-inspector.md), [decision 0025](docs/decisions/0025-watched-folders.md))
-  - Phase 8 (an optional password, test coverage, a fresh clone running in under 6 minutes) in v0.11.0 ([decision 0026](docs/decisions/0026-optional-password.md))
-  - Phase 9 (Prometheus metrics, the Docker demo mode, the design decisions and a repository audit) in v1.0.0 ([decisions 0027–0031](docs/decisions/)), and its demo video in v1.0.1
-- **Next:** running the Docker demo mode on a 16 GB machine.
+Hilda & Luna Beadworks, its people and its documents are fictional; the website's photos were made with Google Gemini ([details](docs/site-images.md)). Roadmap: [PLAN.md](PLAN.md) · changes: [CHANGELOG.md](CHANGELOG.md).
 
 ## License
 
-[MIT](LICENSE). The bundled Fraunces and Figtree fonts keep their own [SIL Open Font License 1.1](https://openfontlicense.org). Hilda & Luna Beadworks, its people and its documents are fictional. The website's photos were made with Google Gemini ([details](docs/site-images.md)).
+[MIT](LICENSE). The bundled Fraunces and Figtree fonts keep their own [SIL Open Font License 1.1](https://openfontlicense.org).

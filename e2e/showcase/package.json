@@ -1,0 +1,11 @@
+{
+  "name": "local-rag-ollama-showcase",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "showcase": "npm --prefix ../../frontend run build && playwright test"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.65.1"
+  }
+}

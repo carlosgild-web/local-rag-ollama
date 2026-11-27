@@ -82,6 +82,18 @@ Three dry takes on scripted answers before the first Ollama take.
 | F5 | The first dry take ran 3:17. Holds were 102 s; most of the rest was each page load waiting 6 s for a notice that, once closed, stays closed | Tooling | Only the first page waits for it; hold factor 0.5; row 4.2 dropped; faster typing. Third dry take: 2:35 |
 | F6 | The take started both evaluation runs at once; the app refuses a run while another is in progress, and the take kept polling a run that didn't exist | Tooling | One run at a time, every response checked |
 
+Then the Ollama take (R6): one pass 1, three recordings of pass 2.
+
+| # | Finding | Kind | Fix |
+|---|---|---|---|
+| F7 | Pass 2, first recording: 2:52. A lower hold factor saved nothing: each hold is set by the reading floor (59 ms a character), so the subtitles' length decides the time | Storyboard | Subtitles cut by about a quarter: 2:25 |
+| F8 | The poster frame (the cited passage) had an empty panel: row 3.3 had no callout | Storyboard | Row 3.3 shows the frontend's `Passage` and `SourceList`; the poster is taken 2 s into it |
+| F9 | Second recording: the date was marked in the answer, not in the passage, because the passage hadn't rendered yet | Tooling | The take waits for the passage panel and marks inside it |
+
+The published take: pass 1 on `qwen2.5:3b` with `OLLAMA_MAX_LOADED_MODELS=2` (answers in 18-27 s);
+pass 2's third recording, 2:25, 8 waits cut, every check passed, each turn the same five passages and
+answer as pass 1.
+
 Checked in the third dry take: all 24 rows shown, 13 payloads equal the capture, the four
 inspector rankings equal the passages the chat sent, no local path in any payload or in the
 app's text.

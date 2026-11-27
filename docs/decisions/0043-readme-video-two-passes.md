@@ -27,3 +27,5 @@ On the 7.2 GB development laptop, `qwen2.5:3b`, `bge-m3`, a 1920x1080 browser an
 - `video/` holds the tooling (Playwright is a dev dependency of `video/` only; Edge, nothing downloaded). Its outputs go to `video/out/` (gitignored).
 - The video can be recorded again from any commit: `video/README.md`.
 - No product code changed for the video.
+- The published take (2026-11-27): 2:25, eight waits cut and labelled, every check passed. Three dry takes and three recordings of pass 2 from one pass 1; findings F1-F9 in `video/README.md`.
+- The README plays `video-readme.mp4` (1280x720, 8.2 MB) from GitHub's `user-attachments`; GitHub Pages plays a lighter copy at the same address as before (`docs/showcase/demo.mp4`, 2.4 MB), so the project page keeps working.

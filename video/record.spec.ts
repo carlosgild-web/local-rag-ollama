@@ -664,7 +664,10 @@ for (const [provider, tag] of [['ollama', '@ollama'], ['dry', '@dry']] as const)
         await cite.hover()
         await sleep(400)
         await cite.click()
-        await app.getByText('December 22', { exact: false }).last().evaluate((el) => {
+        // Mark the line in the passage panel (not the answer): wait until it has rendered.
+        const passage = app.locator('div.rounded-md.border.bg-background', { hasText: 'December 22' }).last()
+        await expect(passage).toContainText('December 22')
+        await passage.getByText('December 22', { exact: false }).last().evaluate((el) => {
           const walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT)
           for (let node = walker.nextNode(); node; node = walker.nextNode()) {
             const text = node.textContent ?? ''
@@ -683,8 +686,11 @@ for (const [provider, tag] of [['ollama', '@ollama'], ['dry', '@dry']] as const)
         }).catch(() => {}) // a real model may cite another passage: no mark then
         await sleep(600)
       }
+      // The poster: the marked passage, with the panel showing the code that draws it.
+      const citeRow = conductor.step('cite')
+      await sleep(2000)
       posterMs = conductor.now()
-      await conductor.step('cite')
+      await citeRow
       await ask('dental')
       await assertNoPaths(page, 'chat')
 

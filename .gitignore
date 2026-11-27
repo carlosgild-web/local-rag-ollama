@@ -41,3 +41,6 @@ e2e/showcase/node_modules/
 e2e/showcase/.tmp/
 e2e/showcase/test-results/
 docs/showcase/.gif-video/
+# README video takes (decision 0043)
+video/node_modules/
+video/out/

@@ -251,11 +251,11 @@ Found in manual tests on 2026-11-12/13 (temperature 0), to add to the golden set
 
 The portfolio's shared README, GIF and video standard. No new product features: only the start scripts, a GIF and video harness, scripts, tests and docs.
 
-- [ ] Hygiene: Dependabot PRs merged, root folder cleaned, topics
-- [ ] `start.cmd video`: fresh demo data in `data-video\` at every start, golden set loaded, models warmed (decision 0042; numbers 0032–0041 belong to Luna's copy of this history)
-- [ ] README GIF of the main flow (question → cited answer → passage → "not found") and the intake GIF, both from one Playwright script in `e2e/showcase/`
-- [ ] Video re-recorded on Ollama (`qwen2.5:3b` + `bge-m3`) with an "Under the hood" panel; waits cut to 1 s with the real length in the label (decision 0043, `docs/video.md`)
-- [ ] README to the standard; long sections moved to `docs/features.md` and `docs/portal.md`; test counts from a real run; new social preview
+- [x] Hygiene: Dependabot PRs merged, root folder cleaned, topics
+- [x] `start.cmd video`: fresh demo data in `data-video\` at every start, golden set loaded, models warmed (decision 0042; numbers 0032–0041 belong to Luna's copy of this history)
+- [x] README GIF of the main flow (question → cited answer → passage → "not found") and the intake GIF, both from one Playwright script in `e2e/showcase/`
+- [x] Video re-recorded on Ollama (`qwen2.5:3b` + `bge-m3`) with an "Under the hood" panel; waits cut to 1 s with the real length in the label (decision 0043, `docs/video.md`)
+- [x] README to the standard; long sections moved to `docs/features.md` and `docs/portal.md`; test counts from a real run; new social preview
 - [x] Fixed on the way (the one product change): adding files that all fit existing shelves no longer asks the chat model to name zero shelves (decision 0042)
 - [ ] Release v1.1.0
 
